@@ -22,3 +22,10 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Coverage directories
+coverage/
+*/coverage/
+frontend/coverage/
+backend/coverage/
+e2e/coverage/
