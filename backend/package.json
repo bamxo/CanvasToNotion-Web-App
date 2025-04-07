@@ -1,0 +1,20 @@
+{
+  "name": "canvastonotion-backend",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "test": "vitest run --coverage",
+    "test:watch": "vitest"
+  },
+  "devDependencies": {
+    "@babel/preset-env": "^7.26.9",
+    "@babel/preset-typescript": "^7.27.0",
+    "@types/supertest": "^6.0.3",
+    "@vitest/coverage-v8": "^1.4.0",
+    "supertest": "^7.1.0",
+    "typescript": "~5.7.2",
+    "vite": "^6.2.0",
+    "vitest": "^1.4.0"
+  }
+} 
