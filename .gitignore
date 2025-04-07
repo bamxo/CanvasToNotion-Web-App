@@ -24,8 +24,8 @@ dist-ssr
 *.sw?
 
 # Coverage directories
-coverage/
-*/coverage/
-frontend/coverage/
-backend/coverage/
-e2e/coverage/
+coverage
+*/coverage
+frontend/coverage
+backend/coverage
+e2e/coverage
