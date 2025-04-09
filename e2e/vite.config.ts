@@ -10,14 +10,6 @@ interface VitestConfigExport extends UserConfig {
 export default defineConfig({
   test: {
     globals: true,
-    coverage: {
-      provider: 'v8',
-      reporter: ['text', 'json', 'html'],
-      exclude: [
-        'node_modules/',
-        'test/',
-      ],
-    },
     testTimeout: 30000, // Longer timeout for e2e tests
   },
 } as VitestConfigExport); 
