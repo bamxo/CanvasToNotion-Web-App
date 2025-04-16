@@ -1,0 +1,105 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap');
+
+:root {
+  --primary-font: 'Poppins', sans-serif;
+}
+
+.pageWrapper {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100vw;
+  height: 100vh;
+  margin: 0;
+  padding: 0;
+}
+
+.container {
+  background-color: #F6F6F7;
+  border-radius: 20px;
+  padding: 60px 60px 60px 60px;
+  width: 543px;
+  box-sizing: border-box;
+  margin: 0;
+}
+
+.header {
+  font-family: var(--primary-font);
+  font-size: 24px;
+  font-weight: 600;
+  color: #303030;
+  margin: 0;
+  text-align: left;
+}
+
+.subtext {
+  font-family: var(--primary-font);
+  color: #7C7C7C;
+  font-size: 14px;
+  margin-top: 8px;
+  text-align: left;
+  margin-bottom: 24px;
+}
+
+.signup-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.form-group label {
+  font-family: var(--primary-font);
+  color: #303030;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.form-group input {
+  padding: 12px;
+  border: 1px solid #DADADA;
+  border-radius: 7px;
+  background: #FFFFFF;
+  color: #303030;
+  font-family: var(--primary-font);
+  font-size: 14px;
+  transition: all 0.3s ease;
+}
+
+.form-group input:focus {
+  outline: none;
+  border-color: #2771FF;
+}
+
+.button-rectangle {
+  background-color: #EA5C24;
+  border-radius: 7px;
+  padding: 12px;
+  margin-top: 8px;
+  text-align: center;
+  font-family: var(--primary-font);
+  font-size: 14px;
+  color: #FFFFFF;
+  cursor: pointer;
+  border: none;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 500;
+  transition: background-color 0.3s ease;
+}
+
+.button-rectangle:hover {
+  background-color: #1b5cd9;
+} 

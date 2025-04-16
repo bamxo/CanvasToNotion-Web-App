@@ -8,5 +8,9 @@ export default defineConfig({
   publicDir: 'frontend/public',
   build: {
     outDir: '../dist'
+  },
+  server: {
+    host: '0.0.0.0',
+    port: 5173
   }
 })
