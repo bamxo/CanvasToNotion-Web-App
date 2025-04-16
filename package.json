@@ -10,12 +10,15 @@
     "preview": "vite preview",
     "test:frontend": "cd frontend && npm test",
     "test:backend": "cd backend && npm test",
-    "test:e2e": "cd e2e && npm test"
+    "test:e2e": "cd e2e && npm test",
+    "prepare": "npm run install:all",
+    "install:all": "concurrently \"cd frontend && npm install\" \"cd backend && npm install\" \"cd e2e && npm install\""
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.1.4",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "concurrently": "^8.2.2"
   },
   "devDependencies": {
     "@babel/preset-env": "^7.26.9",
