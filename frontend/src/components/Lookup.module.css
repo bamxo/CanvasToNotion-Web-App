@@ -83,6 +83,7 @@
   flex-grow: 1;
   height: 1px;
   background-color: #616161;
+  max-width: 170px;
 }
 
 .divider-text {
