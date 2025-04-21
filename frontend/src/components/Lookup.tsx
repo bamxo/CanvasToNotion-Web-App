@@ -26,7 +26,8 @@ const Lookup: React.FC = () => {
   };
 
   return (
-    <GradientBackgroundWrapper>
+    <>
+      <GradientBackgroundWrapper />
       <div className={styles.pageWrapper}>
         <div className={styles.container}>
           {/* Main header section */}
@@ -66,7 +67,7 @@ const Lookup: React.FC = () => {
           </div>
         </div>
       </div>
-    </GradientBackgroundWrapper>
+    </>
   )
 }
 

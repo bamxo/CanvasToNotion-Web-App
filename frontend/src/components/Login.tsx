@@ -54,7 +54,8 @@ const Login: React.FC = () => {
   };
 
   return (
-    <GradientBackgroundWrapper>
+    <>
+      <GradientBackgroundWrapper />
       <div className={styles.pageWrapper}>
         <div className={styles.container}>
           {/* Header Section */}
@@ -135,7 +136,7 @@ const Login: React.FC = () => {
           </div>
         </div>
       </div>
-    </GradientBackgroundWrapper>
+    </>
   );
 };
 

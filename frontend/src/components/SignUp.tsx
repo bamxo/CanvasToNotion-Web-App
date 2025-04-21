@@ -48,7 +48,8 @@ const SignUp: React.FC = () => {
   };
 
   return (
-    <GradientBackgroundWrapper>
+    <>
+      <GradientBackgroundWrapper />
       <div className={styles.pageWrapper}>
         <div className={styles.container}>
           {/* Header section */}
@@ -126,7 +127,7 @@ const SignUp: React.FC = () => {
           </div>
         </div>
       </div>
-    </GradientBackgroundWrapper>
+    </>
   );
 };
 

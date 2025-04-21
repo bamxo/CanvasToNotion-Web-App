@@ -40,7 +40,8 @@ const ForgotPassword: React.FC = () => {
   };
 
   return (
-    <GradientBackgroundWrapper>
+    <>
+      <GradientBackgroundWrapper />
       <div className={styles.pageWrapper}>
         <div className={styles.container}>
           {/* Header Section */}
@@ -74,7 +75,7 @@ const ForgotPassword: React.FC = () => {
           </div>
         </div>
       </div>
-    </GradientBackgroundWrapper>
+    </>
   );
 };
 
