@@ -5,6 +5,7 @@ import SignUp from './components/SignUp'
 import Login from './components/Login'
 import ForgotPassword from './components/ForgotPassword'
 import LoginSuccess from './components/LoginSuccess'
+import ResetPassword from './components/ResetPassword'
 // import styles from './App.module.css'
 
 function App() {
@@ -17,6 +18,7 @@ function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/login-success" element={<LoginSuccess />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
       </Routes>
     </Router>
   )
