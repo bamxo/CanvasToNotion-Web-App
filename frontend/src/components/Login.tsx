@@ -8,6 +8,7 @@
  */
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
 import styles from './Login.module.css';
 import GradientBackgroundWrapper from './GradientBackgroundWrapper';
 import eyeIcon from '../assets/ph_eye.svg';
@@ -23,6 +24,9 @@ const Login: React.FC = () => {
     email: '',
     password: ''
   });
+  // State for error handling and loading
+  const [error, setError] = React.useState<string>('');
+  const [isLoading, setIsLoading] = React.useState(false);
 
   /**
    * Handles input changes in the form
@@ -34,16 +38,41 @@ const Login: React.FC = () => {
       ...prev,
       [name]: value
     }));
+    // Clear any previous errors when user starts typing
+    setError('');
   };
 
   /**
    * Handles form submission
-   * Currently logs the form data (TODO: implement actual authentication logic)
+   * Authenticates user with the backend login endpoint
    */
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // TODO: Implement login logic
-    console.log('Login submitted:', formData);
+    setError('');
+    setIsLoading(true);
+
+    try {
+      const response = await axios.post('http://localhost:3000/api/auth/login', {
+        email: formData.email,
+        password: formData.password
+      });
+
+      // If login successful, store the token and redirect
+      if (response.data) {
+        // Store the auth token in localStorage
+        localStorage.setItem('authToken', response.data.idToken);
+        // Redirect to login success page
+        navigate('/login-success');
+      }
+    } catch (err) {
+      if (axios.isAxiosError(err)) {
+        setError(err.response?.data?.error || 'Invalid email or password');
+      } else {
+        setError('An unexpected error occurred');
+      }
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   /**
@@ -64,6 +93,9 @@ const Login: React.FC = () => {
 
           {/* Login Form */}
           <form onSubmit={handleSubmit} className={styles['login-form']}>
+            {/* Error Message Display */}
+            {error && <div className={styles.error}>{error}</div>}
+
             {/* Email Input Field */}
             <div className={styles['form-group']}>
               <label htmlFor="email">Email</label>
@@ -103,7 +135,13 @@ const Login: React.FC = () => {
               </div>
             </div>
 
-            <button type="submit" className={styles['button-rectangle']}>Login</button>
+            <button 
+              type="submit" 
+              className={styles['button-rectangle']}
+              disabled={isLoading}
+            >
+              {isLoading ? 'Logging in...' : 'Login'}
+            </button>
           </form>
 
           {/* Alternative Authentication Options */}

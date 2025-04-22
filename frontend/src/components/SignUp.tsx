@@ -11,6 +11,7 @@ import styles from './SignUp.module.css';
 import GradientBackgroundWrapper from './GradientBackgroundWrapper';
 import eyeIcon from '../assets/ph_eye.svg';
 import eyeSlashIcon from '../assets/Eye Slash.svg';
+import axios from 'axios';
 
 const SignUp: React.FC = () => {
   // State for form data management
@@ -19,6 +20,10 @@ const SignUp: React.FC = () => {
     password: '',
     confirmPassword: ''
   });
+
+  // State for error handling
+  const [error, setError] = useState<string>('');
+  const [isLoading, setIsLoading] = useState(false);
 
   // State to toggle password visibility
   const [showPassword, setShowPassword] = useState(false);
@@ -30,13 +35,50 @@ const SignUp: React.FC = () => {
       ...prev,
       [name]: value
     }));
+    // Clear any previous errors when user starts typing
+    setError('');
   };
 
   // Handler for form submission
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // TODO: Implement form submission logic
-    console.log('Form submitted:', formData);
+    setError('');
+    setIsLoading(true);
+
+    // Validate password length
+    if (formData.password.length < 8) {
+      setError('Password must be at least 8 characters long');
+      setIsLoading(false);
+      return;
+    }
+
+    // Validate passwords match
+    if (formData.password !== formData.confirmPassword) {
+      setError('Passwords do not match');
+      setIsLoading(false);
+      return;
+    }
+
+    try {
+      const response = await axios.post('http://localhost:3000/api/auth/signup', {
+        email: formData.email,
+        password: formData.password,
+        displayName: formData.email.split('@')[0] // Using email prefix as display name
+      });
+
+      // If signup successful, redirect to login
+      if (response.data) {
+        navigate('/login');
+      }
+    } catch (err) {
+      if (axios.isAxiosError(err)) {
+        setError(err.response?.data?.error || 'Failed to create account');
+      } else {
+        setError('An unexpected error occurred');
+      }
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   // Hook for programmatic navigation
@@ -58,6 +100,9 @@ const SignUp: React.FC = () => {
 
           {/* Registration form */}
           <form onSubmit={handleSubmit} className={styles['signup-form']}>
+            {/* Error message display */}
+            {error && <div className={styles.error}>{error}</div>}
+
             {/* Email input field */}
             <div className={styles['form-group']}>
               <label htmlFor="email">Email</label>
@@ -114,7 +159,13 @@ const SignUp: React.FC = () => {
             </div>
 
             {/* Submit button */}
-            <button type="submit" className={styles['button-rectangle']}>Create Account</button>
+            <button 
+              type="submit" 
+              className={styles['button-rectangle']}
+              disabled={isLoading}
+            >
+              {isLoading ? 'Creating Account...' : 'Create Account'}
+            </button>
           </form>
 
           {/* Login section for existing users */}

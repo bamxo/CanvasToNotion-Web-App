@@ -4,7 +4,8 @@ import Lookup from './components/Lookup'
 import SignUp from './components/SignUp'
 import Login from './components/Login'
 import ForgotPassword from './components/ForgotPassword'
-import styles from './App.module.css'
+import LoginSuccess from './components/LoginSuccess'
+// import styles from './App.module.css'
 
 function App() {
   return (
@@ -14,7 +15,8 @@ function App() {
         <Route path="/lookup" element={<Lookup />} />
         <Route path="/signup" element={<SignUp />} />
         <Route path="/login" element={<Login />} />
-        <Route path="forgot-password" element={<ForgotPassword />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/login-success" element={<LoginSuccess />} />
       </Routes>
     </Router>
   )
