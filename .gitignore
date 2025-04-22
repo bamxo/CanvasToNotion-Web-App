@@ -29,3 +29,4 @@ coverage
 frontend/coverage
 backend/coverage
 e2e/coverage
+.env
