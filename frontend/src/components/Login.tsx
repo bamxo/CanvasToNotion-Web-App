@@ -82,6 +82,48 @@ const Login: React.FC = () => {
     navigate('/signup');
   };
 
+  // Add Google OAuth popup handler
+  const handleGoogleLogin = () => {
+    const width = 490;
+    const height = 600;
+    const left = window.screenX + (window.outerWidth - width) / 2;
+    const top = window.screenY + (window.outerHeight - height) / 2;
+    
+    const popup = window.open(
+      'http://localhost:3000/api/auth/google',
+      'Google Login',
+      `width=${width},height=${height},left=${left},top=${top},popup=1`
+    );
+
+    // Handle popup window events
+    const checkPopup = setInterval(() => {
+      if (!popup || popup.closed) {
+        clearInterval(checkPopup);
+        // Optionally refresh user data or handle completion
+        window.location.reload();
+      }
+    }, 1000);
+
+    // Handle message from popup
+    const handleMessage = (event: MessageEvent) => {
+      if (event.origin === window.location.origin) {
+        if (event.data.type === 'googleAuthSuccess') {
+          if (event.data.token) {
+            localStorage.setItem('authToken', event.data.token);
+          }
+          if (popup) popup.close();
+          navigate('/login-success');
+        }
+      }
+    };
+
+    window.addEventListener('message', handleMessage);
+    return () => {
+      clearInterval(checkPopup);
+      window.removeEventListener('message', handleMessage);
+    };
+  };
+
   return (
     <>
       <GradientBackgroundWrapper />
@@ -158,6 +200,7 @@ const Login: React.FC = () => {
               <button 
                 key={index} 
                 className={styles['auth-button']}
+                onClick={handleGoogleLogin}
               >
                 <img src={button.iconPath} alt="Google icon" className={styles['button-icon']} />
                 Sign In with Google

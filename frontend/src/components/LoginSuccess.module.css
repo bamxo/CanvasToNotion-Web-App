@@ -129,4 +129,13 @@
   margin: 0;
   line-height: 1.5;
   font-size: 14px;
+}
+
+.notionButton {
+  background-color: #000000;
+  color: white;
+}
+
+.notionButton:hover {
+  background-color: #2E2E2E;
 } 

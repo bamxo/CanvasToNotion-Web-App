@@ -119,6 +119,46 @@ const LoginSuccess: React.FC = () => {
     window.location.reload();
   };
 
+  // Add Notion OAuth popup handler
+  const handleNotionLogin = () => {
+    const width = 490;
+    const height = 600;
+    const left = window.screenX + (window.outerWidth - width) / 2;
+    const top = window.screenY + (window.outerHeight - height) / 2;
+    
+    const popup = window.open(
+      'http://localhost:5173/api/auth/notion',
+      'Notion Login',
+      `width=${width},height=${height},left=${left},top=${top},popup=1`
+    );
+
+    // Handle popup window events
+    const checkPopup = setInterval(() => {
+      if (!popup || popup.closed) {
+        clearInterval(checkPopup);
+        // Optionally refresh user data or handle completion
+        window.location.reload();
+      }
+    }, 1000);
+
+    // Handle message from popup
+    const handleMessage = (event: MessageEvent) => {
+      if (event.origin === window.location.origin) {
+        if (event.data.type === 'notionAuthSuccess') {
+          if (popup) popup.close();
+          // Handle successful authentication
+          window.location.reload();
+        }
+      }
+    };
+
+    window.addEventListener('message', handleMessage);
+    return () => {
+      clearInterval(checkPopup);
+      window.removeEventListener('message', handleMessage);
+    };
+  };
+
   const renderContent = () => {
     if (error && !userInfo) {
       return (
@@ -165,6 +205,12 @@ const LoginSuccess: React.FC = () => {
         <div className={styles.buttonGroup}>
           <button className={styles.button} onClick={handleLogout}>
             Logout
+          </button>
+          <button 
+            className={`${styles.button} ${styles.notionButton}`}
+            onClick={handleNotionLogin}
+          >
+            Connect Notion
           </button>
         </div>
       </div>
