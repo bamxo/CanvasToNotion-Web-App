@@ -2,6 +2,7 @@
 import { Request, Response } from 'express';
 import axios from 'axios';
 import firebaseConfig from '../config/firebase';
+import { admin } from '../config/firebase-admin';
 import { 
   SignupRequest, 
   LoginRequest, 
@@ -11,52 +12,6 @@ import {
   UserData
 } from '../types';
 
-// User signup with email/password
-// export const signup = async (req: Request, res: Response): Promise<void> => {
-//   try {
-//     const { email, password, displayName }: SignupRequest = req.body;
-    
-//     if (!email || !password) {
-//       res.status(400).json({ error: 'Email and password are required' });
-//       return;
-//     }
-    
-//     const response = await axios.post<AuthResponse>(
-//       `https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${firebaseConfig.apiKey}`,
-//       {
-//         email,
-//         password,
-//         displayName,
-//         returnSecureToken: true
-//       }
-//     );
-    
-//     // Store additional user data in the database
-//     if (response.data && response.data.localId) {
-//       const userData: UserData = {
-//         email,
-//         displayName: displayName || email.split('@')[0],
-//         createdAt: new Date().toISOString()
-//       };
-      
-//       await axios.put(
-//         `${firebaseConfig.databaseURL}/users/${response.data.localId}.json`,
-//         userData
-//       );
-//     }
-    
-//     res.status(201).json(response.data);
-//   } catch (error) {
-//     console.error('Signup error:', 
-//       axios.isAxiosError(error) ? error.response?.data : error);
-    
-//     res.status(axios.isAxiosError(error) ? error.response?.status || 500 : 500).json({
-//       error: axios.isAxiosError(error) ? 
-//         error.response?.data?.error?.message || 'Failed to create user' : 
-//         'Failed to create user'
-//     });
-//   }
-// };
 export const signup = async (req: Request, res: Response): Promise<void> => {
   try {
     const { email, password, displayName }: SignupRequest = req.body;
@@ -148,13 +103,14 @@ export const testDatabase = async (req: Request, res: Response): Promise<void> =
 // User login with email/password
 export const login = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { email, password }: LoginRequest = req.body;
+    const { email, password, requestExtensionToken }: LoginRequest = req.body;
     
     if (!email || !password) {
       res.status(400).json({ error: 'Email and password are required' });
       return;
     }
     
+    // Authenticate with Firebase
     const response = await axios.post<AuthResponse>(
       `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${firebaseConfig.apiKey}`,
       {
@@ -163,8 +119,21 @@ export const login = async (req: Request, res: Response): Promise<void> => {
         returnSecureToken: true
       }
     );
+
+    const authData = response.data;
     
-    res.json(response.data);
+    // If client requests a token for extension
+    if (requestExtensionToken) {
+      // Generate a custom token for the extension
+      const customToken = await admin.auth().createCustomToken(authData.localId);
+      
+      res.json({
+        ...authData,
+        extensionToken: customToken
+      });
+    } else {
+      res.json(authData);
+    }
   } catch (error) {
     console.error('Login error:', 
       axios.isAxiosError(error) ? error.response?.data : error);

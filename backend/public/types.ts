@@ -37,6 +37,7 @@ export interface SignupRequest {
 export interface LoginRequest {
   email: string;
   password: string;
+  requestExtensionToken?: boolean;
 }
 
 export interface GoogleAuthRequest {
