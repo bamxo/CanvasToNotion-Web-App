@@ -6,6 +6,7 @@ import { Client } from '@notionhq/client';
 import {DatabaseObject} from './notion_api/interfaces.js'
 import { cwd } from 'node:process';
 import { ServerResponse } from 'node:http';
+import * as functions from '';
 
 const notion = new Client({ auth: process.env.NOTION_KEY })
 
@@ -74,6 +75,7 @@ app.post('/', async function (request: Request, response:Response) {
   /*const formatted_assignment = assignment.map((elem: any)=>{
     return {'canvas_id': elem.id, 'name': elem.name, 'courseName': elem.courseName, 'description': elem.description};
   });*/
+  /*for (int i = courses.length())*/
   const formatted_course = courses.map((elem: any) => {
     console.log(page, elem.name);
     let obj: any = databaseHandler(page, elem.name);
