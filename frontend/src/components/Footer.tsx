@@ -1,12 +1,13 @@
-import React from 'react';
+import { FC } from 'react';
 import styles from './Footer.module.css';
+import favicon from '../assets/c2n-favicon.svg?url';
 
-const Footer: React.FC = () => {
+const Footer: FC = () => {
   return (
     <footer className={styles.footer}>
       <div className={styles.footerContent}>
         <div className={styles.footerLeft}>
-          <img src="/src/assets/c2n_favicon.svg" alt="Canvas to Notion Logo" className={styles.footerLogo} />
+          <img src={favicon} alt="Canvas to Notion Logo" className={styles.footerLogo} />
           <p>Seamlessly sync your Canvas assignments with Notion</p>
         </div>
         <div className={styles.footerRight}>

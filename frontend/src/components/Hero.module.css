@@ -570,7 +570,7 @@
 @media (max-width: 1512px) {
   .hero {
     min-height: 90vh;
-    padding: 7rem 1.5rem 0;
+    padding: 7rem 7rem 0;
   }
 
   .heroGrid {
@@ -578,6 +578,8 @@
     min-height: 90vh;
     padding-top: 0;
     margin-top: -2rem;
+    margin-right: 0;
+    margin-left: auto;
   }
 
   .heroContent {

@@ -9,6 +9,9 @@ import React from 'react'
 import { useNavigate } from 'react-router-dom'
 import GradientBackgroundWrapper from './GradientBackgroundWrapper';
 import styles from './Lookup.module.css'
+import googleIcon from '../assets/google.svg?url';
+import mailIcon from '../assets/Mail.svg?url';
+import arrowIcon from '../assets/arrow.svg?url';
 import authButtons from '../data/authButtons.json'
 
 const Lookup: React.FC = () => {
@@ -91,7 +94,11 @@ const Lookup: React.FC = () => {
                 undefined
               }
             >
-              <img src={button.iconPath} alt={`${button.method} icon`} className={styles['button-icon']} />
+              <img 
+                src={button.method === 'Email' ? mailIcon : googleIcon} 
+                alt={`${button.method} icon`} 
+                className={styles['button-icon']} 
+              />
               Sign Up with {button.method}
             </button>
           ))}
@@ -108,7 +115,7 @@ const Lookup: React.FC = () => {
             <span className={styles['login-text']}>Already have an account?</span>
             <div className={styles['login-link']} onClick={handleLogin}>
               Login
-              <img src="../src/assets/arrow.svg" alt="arrow" className={styles['arrow-icon']} />
+              <img src={arrowIcon} alt="arrow" className={styles['arrow-icon']} />
             </div>
           </div>
         </div>

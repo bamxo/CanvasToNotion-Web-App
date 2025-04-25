@@ -107,12 +107,23 @@
   margin: 0;
   padding: 0;
   position: relative;
-  opacity: 0;
-  animation: fadeIn 0.5s ease-out forwards;
   z-index: 1;
   overflow-x: hidden;
   display: flex;
   flex-direction: column;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.6s ease-out, visibility 0.6s ease-out;
+}
+
+.container.visible {
+  opacity: 1;
+  visibility: visible;
+}
+
+.container.hidden {
+  opacity: 0;
+  visibility: hidden;
 }
 
 /* Hero Section Styles */

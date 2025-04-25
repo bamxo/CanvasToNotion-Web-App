@@ -10,7 +10,7 @@ import { useNavigate } from 'react-router-dom';
 import styles from './ResetPassword.module.css';
 import GradientBackgroundWrapper from './GradientBackgroundWrapper';
 import eyeIcon from '../assets/ph_eye.svg';
-import eyeSlashIcon from '../assets/Eye Slash.svg';
+import eyeSlashIcon from '../assets/eye-slash.svg';
 
 const ResetPassword: React.FC = () => {
   // State for form data management

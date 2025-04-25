@@ -1,11 +1,12 @@
-import React from 'react';
+import { FC } from 'react';
 import styles from './Navbar.module.css';
+import logo from '../assets/c2n-logo-dark.svg?url';
 
 interface NavbarProps {
   isScrolled: boolean;
 }
 
-const Navbar: React.FC<NavbarProps> = ({ isScrolled }) => {
+const Navbar: FC<NavbarProps> = ({ isScrolled }) => {
   const handleInstallClick = () => {
     window.open('https://chromewebstore.google.com/', '_blank', 'noopener,noreferrer');
   };
@@ -14,7 +15,7 @@ const Navbar: React.FC<NavbarProps> = ({ isScrolled }) => {
     <nav className={`${styles.navbar} ${isScrolled ? styles.navbarScrolled : ''}`}>
       <div className={styles.navContainer}>
         <div className={styles.navLeft}>
-          <img src="/src/assets/c2n_logo dark.svg" alt="Canvas to Notion Logo" className={styles.logo} onClick={() => window.location.href = '/'} />
+          <img src={logo} alt="Canvas to Notion Logo" className={styles.logo} onClick={() => window.location.href = '/'} />
         </div>
         <div className={styles.navRight}>
           <div className={styles.navLinks}>

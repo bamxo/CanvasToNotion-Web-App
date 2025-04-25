@@ -2,11 +2,11 @@
   "buttons": [
     {
       "method": "Email",
-      "iconPath": "../public/Mail.svg"
+      "iconPath": "../public/Mail.svg?url"
     },
     {
       "method": "Google",
-      "iconPath": "../public/google.svg"
+      "iconPath": "../public/google.svg?url"
     }
   ]
 } 

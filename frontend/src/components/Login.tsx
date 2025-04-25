@@ -11,8 +11,10 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import styles from './Login.module.css';
 import GradientBackgroundWrapper from './GradientBackgroundWrapper';
-import eyeIcon from '../assets/ph_eye.svg';
-import eyeSlashIcon from '../assets/Eye Slash.svg';
+import eyeIcon from '../assets/ph_eye.svg?url';
+import eyeSlashIcon from '../assets/eye-slash.svg?url';
+import googleIcon from '../assets/google.svg?url';
+import arrowIcon from '../assets/arrow.svg?url';
 import authButtons from '../data/authButtons.json';
 
 const Login: React.FC = () => {
@@ -202,7 +204,7 @@ const Login: React.FC = () => {
                 className={styles['auth-button']}
                 onClick={handleGoogleLogin}
               >
-                <img src={button.iconPath} alt="Google icon" className={styles['button-icon']} />
+                <img src={googleIcon} alt="Google icon" className={styles['button-icon']} />
                 Sign In with Google
               </button>
           ))}
@@ -212,7 +214,7 @@ const Login: React.FC = () => {
             <span className={styles['signup-text']}>New to Canvas to Notion?</span>
             <div className={styles['signup-link']} onClick={handleSignUp}>
               Sign Up
-              <img src="../src/assets/arrow.svg" alt="arrow" className={styles['arrow-icon']} />
+              <img src={arrowIcon} alt="arrow" className={styles['arrow-icon']} />
             </div>
           </div>
         </div>

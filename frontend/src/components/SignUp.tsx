@@ -9,8 +9,9 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom'
 import styles from './SignUp.module.css';
 import GradientBackgroundWrapper from './GradientBackgroundWrapper';
-import eyeIcon from '../assets/ph_eye.svg';
-import eyeSlashIcon from '../assets/Eye Slash.svg';
+import eyeIcon from '../assets/ph_eye.svg?url';
+import eyeSlashIcon from '../assets/eye-slash.svg?url';
+import arrowIcon from '../assets/arrow.svg?url';
 import axios from 'axios';
 
 const SignUp: React.FC = () => {
@@ -173,7 +174,7 @@ const SignUp: React.FC = () => {
             <span className={styles['login-text']}>Already have an account?</span>
             <div className={styles['login-link']} onClick={handleLogin}>
               Login
-              <img src="../src/assets/arrow.svg" alt="arrow" className={styles['arrow-icon']} />
+              <img src={arrowIcon} alt="arrow" className={styles['arrow-icon']} />
             </div>
           </div>
         </div>
