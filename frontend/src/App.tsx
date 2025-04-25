@@ -6,7 +6,8 @@ import Login from './components/Login'
 import ForgotPassword from './components/ForgotPassword'
 import LoginSuccess from './components/LoginSuccess'
 import ResetPassword from './components/ResetPassword'
-// import styles from './App.module.css'
+import Terms from './components/Terms'
+import Privacy from './components/Privacy'
 
 function App() {
   return (
@@ -19,6 +20,8 @@ function App() {
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/login-success" element={<LoginSuccess />} />
         <Route path="/reset-password" element={<ResetPassword />} />
+        <Route path="/terms" element={<Terms />} />
+        <Route path="/privacy" element={<Privacy />} />
       </Routes>
     </Router>
   )

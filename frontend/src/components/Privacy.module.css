@@ -1,0 +1,151 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+:global(body) {
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden;
+  width: 100%;
+  min-height: 100vh;
+}
+
+:global(#root) {
+  width: 100%;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+:root {
+  --black: #333333;
+  --orange: #EF5223;
+  --orange-light: #ff6b3d;
+  --white: #FFFFFF;
+  --primary-font: 'Poppins', sans-serif;
+  --gradient-text: linear-gradient(135deg, var(--white) 0%, var(--orange) 100%);
+}
+
+.container {
+  min-height: 100vh;
+  background-color: transparent;
+  font-family: var(--primary-font);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden;
+}
+
+.privacyContent {
+  max-width: 800px;
+  margin: 4rem auto;
+  padding: 2rem;
+  color: var(--white);
+  line-height: 1.6;
+  text-align: center;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.privacyContent h1 {
+  font-size: 3rem;
+  font-weight: 700;
+  color: var(--white);
+  margin-bottom: 0.5rem;
+  text-align: center;
+  background: var(--gradient-text);
+  background-clip: text;
+  -webkit-background-clip: text;
+  letter-spacing: -0.02em;
+}
+
+.privacyContent h2 {
+  font-size: 1.8rem;
+  font-weight: 600;
+  color: var(--white);
+  margin: 2rem 0 1rem;
+  text-align: center;
+}
+
+.privacyContent h3 {
+  font-size: 1.4rem;
+  font-weight: 500;
+  color: var(--white);
+  margin: 1.5rem 0 1rem;
+  text-align: center;
+}
+
+.lastUpdated {
+  color: rgba(255, 255, 255, 0.8);
+  text-align: center;
+  margin-bottom: 2rem;
+  font-style: italic;
+  font-weight: 300;
+}
+
+.introduction {
+  margin: 2rem auto;
+  padding: 1.5rem;
+  background-color: rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  text-align: center;
+  max-width: 700px;
+}
+
+.privacyContent section {
+  margin: 2rem auto;
+  text-align: center;
+  max-width: 700px;
+}
+
+.privacyContent ul {
+  margin: 1rem auto;
+  padding-left: 0;
+  list-style-position: inside;
+  text-align: left;
+  max-width: 600px;
+}
+
+.privacyContent li {
+  margin: 0.5rem 0;
+  color: rgba(255, 255, 255, 0.8);
+  font-weight: 300;
+}
+
+.privacyContent p {
+  margin: 1rem auto;
+  color: rgba(255, 255, 255, 0.8);
+  font-weight: 300;
+  max-width: 600px;
+  text-align: left;
+}
+
+@media (max-width: 768px) {
+  .privacyContent {
+    padding: 1rem;
+    margin: 1rem;
+  }
+
+  .privacyContent h1 {
+    font-size: 2.5rem;
+  }
+
+  .privacyContent h2 {
+    font-size: 1.5rem;
+  }
+
+  .privacyContent h3 {
+    font-size: 1.2rem;
+  }
+
+  .introduction {
+    margin: 1.5rem auto;
+    padding: 1rem;
+  }
+} 

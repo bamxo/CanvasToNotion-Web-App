@@ -1,0 +1,101 @@
+.finalCta {
+  contain: content;
+  content-visibility: auto;
+  contain-intrinsic-size: 400px;
+  position: relative;
+  padding: 6rem 2rem;
+  text-align: center;
+  background: linear-gradient(180deg, #141414 0%, #1a1a1a 100%);
+  overflow: hidden;
+  width: 100vw;
+  margin-left: calc(-50vw + 50%);
+  margin-right: calc(-50vw + 50%);
+  box-sizing: border-box;
+}
+
+.finalCtaCard {
+  position: relative;
+  max-width: 900px;
+  margin: 0 auto;
+  z-index: 2;
+  background: rgba(30, 30, 35, 0.95);
+  border-radius: 24px;
+  padding: 3.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+}
+
+.finalCtaContent {
+  position: relative;
+  width: 100%;
+  z-index: 1;
+}
+
+.finalCtaTitle {
+  font-size: 2.8rem;
+  font-weight: 700;
+  margin-bottom: 1.5rem;
+  background: linear-gradient(135deg, #FFFFFF 0%, #EF5223 100%);
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  letter-spacing: -0.02em;
+}
+
+.finalCtaSubtitle {
+  font-size: 1.3rem;
+  color: rgba(255, 255, 255, 0.9);
+  margin-bottom: 3rem;
+  line-height: 1.6;
+  max-width: 700px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.finalCtaButton {
+  background: linear-gradient(135deg, #EF5223 0%, #ff6b3d 100%);
+  color: #FFFFFF;
+  border: none;
+  padding: 1.25rem 3rem;
+  border-radius: 100px;
+  font-size: 1.125rem;
+  font-weight: 600;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.arrowIcon {
+  margin-left: 10px;
+  font-size: 0.9rem;
+}
+
+@media (max-width: 768px) {
+  .finalCta {
+    content-visibility: visible;
+    contain: none;
+    padding: 4rem 2rem;
+  }
+
+  .finalCtaCard {
+    padding: 2.5rem 1.5rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .finalCtaTitle {
+    font-size: 1.8rem;
+  }
+
+  .finalCtaSubtitle {
+    font-size: 1rem;
+  }
+
+  .finalCtaButton {
+    padding: 1rem 2rem;
+    font-size: 1rem;
+  }
+} 
