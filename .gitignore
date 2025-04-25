@@ -30,3 +30,4 @@ frontend/coverage
 backend/coverage
 e2e/coverage
 .env
+backend/serviceAccountKey.json
