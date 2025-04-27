@@ -1,0 +1,285 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+
+:root {
+  --black: #333333;
+  --orange: #EF5223;
+  --orange-light: #ff6b3d;
+  --white: #FFFFFF;
+  --primary-font: 'Poppins', sans-serif;
+  --gradient-primary: linear-gradient(135deg, var(--orange) 0%, var(--orange-light) 100%);
+}
+
+/* Keyframe Animations */
+@keyframes navbarFadeIn {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+@keyframes navItemsFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Navbar Styles */
+.navbar {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 1.5rem 4rem;
+  background: transparent;
+  backdrop-filter: none;
+  position: fixed;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100%;
+  z-index: 1000;
+  transition: all 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transform-origin: center;
+  box-sizing: border-box;
+  animation: navbarFadeIn 1.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.navbarScrolled {
+  top: 1rem;
+  width: 90%;
+  max-width: 1200px;
+  padding: 0.75rem 2.5rem;
+  border-radius: 100px;
+  background: rgba(51, 51, 51, 0.95);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.navContainer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  max-width: 1400px;
+  margin: 0;
+  padding: 0;
+  position: relative;
+}
+
+.navLeft {
+  display: flex;
+  align-items: center;
+  position: relative;
+  padding-right: 2rem;
+  margin: 0;
+  transition: all 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transform: scale(1);
+  animation: navItemsFadeIn 1.5s cubic-bezier(0.34, 1.56, 0.64, 1) 0.5s backwards;
+}
+
+.navbarScrolled .navLeft {
+  padding-right: 1rem;
+  margin: 0;
+  transform: scale(0.95);
+}
+
+.logo {
+  height: 72px;
+  width: auto;
+  transition: all 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transform: scale(1);
+  cursor: pointer;
+}
+
+.navbarScrolled .logo {
+  height: 56px;
+  transform: scale(0.95);
+}
+
+.navRight {
+  display: flex;
+  align-items: center;
+  gap: 0rem;
+  position: relative;
+  margin: 0;
+  padding: 0;
+  transition: all 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transform: scale(1);
+  animation: navItemsFadeIn 1.5s cubic-bezier(0.34, 1.56, 0.64, 1) 0.5s backwards;
+}
+
+.navbarScrolled .navRight {
+  gap: 0rem;
+  padding: 0;
+  transform: scale(0.95);
+}
+
+.navLinks {
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+  transition: all 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transform: scale(1);
+  margin-right: 2rem;
+}
+
+.navbarScrolled .navLinks {
+  gap: 1.5rem;
+  transform: scale(0.95);
+}
+
+.navLink {
+  color: var(--white);
+  text-decoration: none;
+  font-weight: 500;
+  font-size: 1rem;
+  transition: all 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+  position: relative;
+  padding: 0.25rem 0;
+  white-space: nowrap;
+  opacity: 1;
+}
+
+.navbarScrolled .navLink {
+  font-size: 0.9rem;
+  opacity: 0.9;
+}
+
+.navLink::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  width: 0;
+  height: 2px;
+  background: var(--gradient-primary);
+  transition: width 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transform-origin: left;
+}
+
+.navLink:hover::after {
+  width: 100%;
+}
+
+.installButton {
+  background: var(--gradient-primary);
+  color: var(--white);
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 12px;
+  font-weight: 600;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+  box-shadow: 0 4px 15px rgba(239, 82, 35, 0.3);
+  white-space: nowrap;
+  margin: 0;
+  transform: scale(1);
+}
+
+.navbarScrolled .installButton {
+  padding: 0.6rem 1.2rem;
+  font-size: 0.9rem;
+  border-radius: 10px;
+  transform: scale(0.95);
+}
+
+.installButton:hover {
+  transform: translateY(-2px) scale(1.05);
+  box-shadow: 0 8px 25px rgba(239, 82, 35, 0.4);
+}
+
+.navbarScrolled .installButton:hover {
+  transform: translateY(-2px) scale(1);
+}
+
+/* Responsive Design */
+@media (max-width: 1512px) {
+  .navbar {
+    padding: 1.25rem 6rem;
+  }
+}
+
+@media (max-width: 1024px) {
+  .navbar {
+    padding: 1.25rem 3rem;
+  }
+
+  .navbarScrolled {
+    padding: 0.75rem 2rem;
+    width: 92%;
+  }
+}
+
+@media (max-width: 768px) {
+  .navbar {
+    padding: 1rem 2rem;
+  }
+  
+  .navbarScrolled {
+    padding: 0.75rem 1.5rem;
+    width: 94%;
+  }
+  
+  .navRight {
+    gap: 1rem;
+  }
+  
+  .navLink {
+    font-size: 0.9rem;
+  }
+  
+  .installButton {
+    padding: 0.6rem 1rem;
+    font-size: 0.85rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .navRight {
+    gap: 0;
+  }
+
+  .installButton {
+    padding: 0.5rem 1rem;
+    font-size: 0.75rem;
+  }
+
+  .navbar {
+    padding: 1rem 1.5rem;
+  }
+  
+  .navbarScrolled {
+    padding: 0.75rem 1.25rem;
+    width: 96%;
+  }
+
+  /* New styles for mobile */
+  .logo {
+    height: 48px;
+  }
+
+  .navbarScrolled .logo {
+    height: 40px;
+  }
+
+  .navLink[href="/"] {
+    display: none;
+  }
+
+  .navLink {
+    font-size: 0.85rem;
+  }
+
+  .navbarScrolled .navLink {
+    font-size: 0.8rem;
+  }
+} 

@@ -1,15 +1,18 @@
 {
   "compilerOptions": {
-    "target": "ES2020",
-    "module": "NodeNext",
-    "moduleResolution": "NodeNext",
-    "esModuleInterop": true,
+    "target": "es6",
+    "module": "commonjs",
+    "outDir": "./dist",
+    "rootDir": "./public",
     "strict": true,
+    "esModuleInterop": true,
     "skipLibCheck": true,
-    "outDir": "dist",
-    "rootDir": ".",
+    "forceConsistentCasingInFileNames": true,
+    "moduleResolution": "node",
+    "resolveJsonModule": true,
+    "moduleDetection": "force",
     "types": ["jest", "node"]
   },
-  "include": ["src/**/*", "test/**/*"],
+  "include": ["public/**/*", "public/config", "public/controllers", "public/middleware", "public/routes", "public/index.ts", "public/types.ts"],
   "exclude": ["node_modules"]
-} 
+}

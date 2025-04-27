@@ -29,3 +29,29 @@ coverage
 frontend/coverage
 backend/coverage
 e2e/coverage
+.env
+backend/serviceAccountKey.json
+
+# Firebase cache and config
+.firebase/
+firebase-debug.log*
+.firebaserc
+ui-debug.log*
+database-debug.log*
+
+# TypeScript
+*.tsbuildinfo
+.tscache/
+
+# Test related
+.nyc_output/
+.jest/
+
+# Environment
+.env.local
+.env.development
+.env.test
+.env.production
+
+# Vite
+.vite/
