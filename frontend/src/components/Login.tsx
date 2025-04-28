@@ -198,7 +198,7 @@ const Login: React.FC = () => {
           {/* Google Authentication Button */}
           {authButtons.buttons
             .filter(button => button.method === 'Google')
-            .map((button, index) => (
+            .map((_, index) => (
               <button 
                 key={index} 
                 className={styles['auth-button']}

@@ -1,0 +1,164 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap');
+
+:root {
+  --primary-font: 'Poppins', sans-serif;
+}
+
+.pageWrapper {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100vw;
+  height: 100vh;
+  margin: 0;
+  padding: 0;
+}
+
+.container {
+  background-color: #F6F6F7;
+  border-radius: 20px;
+  padding: 60px;
+  width: 600px;
+  box-sizing: border-box;
+  margin: 0;
+}
+
+.headerContainer {
+  margin-bottom: 32px;
+  text-align: left;
+}
+
+.header {
+  font-family: var(--primary-font);
+  font-size: 24px;
+  font-weight: 600;
+  color: #303030;
+  margin: 0;
+}
+
+.stepSection {
+  margin-bottom: 32px;
+}
+
+.stepHeader {
+  font-family: var(--primary-font);
+  font-size: 16px;
+  font-weight: 500;
+  color: #303030;
+  margin: 0 0 16px 0;
+}
+
+.buttonRectangle {
+  background-color: #EA5C24;
+  border-radius: 7px;
+  padding: 12px;
+  text-align: center;
+  font-family: var(--primary-font);
+  font-size: 14px;
+  color: #FFFFFF;
+  cursor: pointer;
+  border: none;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 500;
+  transition: all 0.3s ease;
+}
+
+.buttonRectangle:hover:not(:disabled) {
+  background-color: #D14813;
+}
+
+.buttonRectangle:disabled {
+  background-color: #cccccc;
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.buttonRectangle.connected {
+  background-color: #34C759;
+  cursor: default;
+}
+
+.helperText {
+  font-family: var(--primary-font);
+  color: #7C7C7C;
+  font-size: 14px;
+  margin: 12px 0 0 0;
+}
+
+.pageSelector {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #DADADA;
+  border-radius: 7px;
+  background: #FFFFFF;
+  color: #303030;
+  font-family: var(--primary-font);
+  font-size: 14px;
+  transition: all 0.3s ease;
+  cursor: pointer;
+  margin-bottom: 12px;
+  appearance: none;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg width='16' height='16' viewBox='0 0 16 16' fill='none' xmlns='http://www.w3.org/2000/svg'%3e%3cpath d='M3 6L8 11L13 6' stroke='%23303030' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 16px;
+  padding-right: 40px;
+}
+
+.pageSelector:focus {
+  outline: none;
+  border-color: #2771FF;
+}
+
+.pageSelector:disabled {
+  background-color: #F6F6F7;
+  cursor: not-allowed;
+  opacity: 0.7;
+  background-image: none;
+}
+
+.selectedPage {
+  font-family: var(--primary-font);
+  color: #303030;
+  font-size: 14px;
+  padding: 8px 12px;
+  background-color: rgba(39, 113, 255, 0.1);
+  border-radius: 7px;
+  margin-top: 8px;
+}
+
+.confirmButton {
+  margin-top: 8px;
+  background-color: #2771FF;
+}
+
+.confirmButton:hover:not(:disabled) {
+  background-color: #1B5CD9;
+}
+
+.note {
+  font-family: var(--primary-font);
+  color: #7C7C7C;
+  font-size: 12px;
+  margin: 16px 0 0 0;
+  text-align: center;
+}
+
+.error {
+  font-family: var(--primary-font);
+  color: #ff3b30;
+  background-color: rgba(255, 59, 48, 0.1);
+  padding: 10px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  font-size: 14px;
+  text-align: center;
+} 
