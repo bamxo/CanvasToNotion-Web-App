@@ -5,7 +5,7 @@ module.exports = {
     "^.+\.tsx?$": ["ts-jest",{}],
   },
   verbose: true,
-  roots: ['<rootDir>/test/'],
+  roots: ['<rootDir>/test/', '<rootDir>/src/'],
   testPathIgnorePatterns: ["/node_modules/"],
   collectCoverage:true,
   coverageDirectory: 'coverage',

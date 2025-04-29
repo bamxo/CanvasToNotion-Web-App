@@ -3,7 +3,7 @@
     "target": "es6",
     "module": "commonjs",
     "outDir": "./dist",
-    "rootDir": "./public",
+    "rootDir": "./src",
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
@@ -13,6 +13,6 @@
     "moduleDetection": "force",
     "types": ["jest", "node"]
   },
-  "include": ["public/**/*", "public/config", "public/controllers", "public/middleware", "public/routes", "public/index.ts", "public/types.ts"],
+  "include": ["src/**/*", "../public/config", "../public/controllers", "../public/middleware", "../public/routes", "../public/index.ts", "../public/types.ts"],
   "exclude": ["node_modules"]
 }
