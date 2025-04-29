@@ -15,6 +15,7 @@
     "install:all": "concurrently \"cd frontend && npm install\" \"cd backend && npm install\" \"cd e2e && npm install\""
   },
   "dependencies": {
+    "@notionhq/client": "^2.3.0",
     "@tailwindcss/vite": "^4.1.4",
     "@tsparticles/engine": "^3.8.1",
     "@tsparticles/react": "^3.0.0",
