@@ -64,7 +64,7 @@ const Login: React.FC = () => {
         // Store the auth token in localStorage
         localStorage.setItem('authToken', response.data.idToken);
         // Redirect to login success page
-        navigate('/login-success');
+        navigate('/settings');
       }
     } catch (err) {
       if (axios.isAxiosError(err)) {
