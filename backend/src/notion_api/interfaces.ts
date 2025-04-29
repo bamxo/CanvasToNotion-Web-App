@@ -55,3 +55,7 @@ export interface BlockObject {
         };
     }>;
 };
+
+export interface StorageObject {
+    auth_code: string;
+};

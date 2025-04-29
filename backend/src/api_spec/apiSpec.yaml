@@ -1,0 +1,16 @@
+openapi: '3.0.3'
+
+info:
+  title: 'project backend' 
+  version: 0.0.1
+
+servers:
+  - url: http://localhost:8000/
+
+paths:
+  /redirect:
+    get:
+      description: redirect_uri
+      query:
+        - code: string
+      

@@ -1,19 +1,30 @@
 import cors from 'cors';
 import * as fs from 'node:fs';
 import 'dotenv/config';
-import express, {Response, Request, response} from 'express';
+import express, {Response, Request, response, NextFunction} from 'express';
 import { Client } from '@notionhq/client';
-import {DatabaseObject} from './notion_api/interfaces.js'
+import {DatabaseObject, StorageObject} from './notion_api/interfaces.js'
 import { cwd } from 'node:process';
 import { ServerResponse } from 'node:http';
-import * as functions from '';
+import * as openapi from 'express-openapi-validator';
+import {load} from 'js-yaml';
+import axios from 'axios';
 
 const notion = new Client({ auth: process.env.NOTION_KEY })
+
+const apiSpec = __dirname + 'api_spec/apiSpec.yaml';
+const apiDoc = load(apiSpec); 
 
 const page = process.env.NOTION_PAGE_ID;
 const app = express();
 
+app.use(openapi.middleware({apiSpec: apiSpec, 
+                            validateRequests: true,
+                            validateResponses: true
+}));
+
 app.use(express.json());
+app.use();
 
 const databaseHandler = async function (pageId:string, title:string) {
     //const pageId = (process.env.NOTION_PAGE_ID) ? process.env.NOTION_PAGE_ID : null;
@@ -58,7 +69,16 @@ const databaseHandler = async function (pageId:string, title:string) {
 // ok.. wait. in 186, we had some like, typechecking to verify that objects were properly formatted.
 // how do we do that in this case?
 
+const cache_data = async function (formatted_data: StorageObject) {
+  // this is where we're supposed to cache our data
 
+}
+const redirect_handler = async function (req: Request, res: Response, next: NextFunction) {
+  // get authentication code from params
+  const auth = req.query.code;
+
+  
+}
 // ok, lets have some static 
 app.post('/', async function (request: Request, response:Response) {
   // local cache
@@ -87,100 +107,7 @@ app.post('/', async function (request: Request, response:Response) {
   response.status(200).send();
 });
 
-// Create new page. The database ID is provided in the web form.
-async function pageHandler(request: Request, response: Response) {
-    const { dbID, pageName, header } = request.body
-  
-    try {
-      const newPage = await notion.pages.create({
-        parent: {
-          type: "database_id",
-          database_id: dbID,
-        },
-        properties: {
-          Name: {
-            title: [
-              {
-                text: {
-                  content: pageName,
-                },
-              },
-            ],
-          },
-        },
-        children: [
-          {
-            object: "block",
-            heading_2: {
-              rich_text: [
-                {
-                  text: {
-                    content: header,
-                  },
-                },
-              ],
-            },
-          },
-        ],
-      })
-      response.json({ message: "success!", data: newPage })
-    } catch (error) {
-      response.json({ message: "error", error })
-    }
-  }
-  
-  // Create new block (page content). The page ID is provided in the web form.
-  app.post("/blocks", async function (request, response) {
-    const { pageID, content } = request.body
-  
-    try {
-      const newBlock = await notion.blocks.children.append({
-        block_id: pageID, // a block ID can be a page ID
-        children: [
-          {
-            // Use a paragraph as a default but the form or request can be updated to allow for other block types: https://developers.notion.com/reference/block#keys
-            paragraph: {
-              rich_text: [
-                {
-                  text: {
-                    content: content,
-                  },
-                },
-              ],
-            },
-          },
-        ],
-      })
-      response.json({ message: "success!", data: newBlock })
-    } catch (error) {
-      response.json({ message: "error", error })
-    }
-  });
-  
-  // Create new page comments. The page ID is provided in the web form.
-  app.post("/comments", async function (request, response) {
-    const { pageID, comment } = request.body
-  
-    try {
-      const newComment = await notion.comments.create({
-        parent: {
-          page_id: pageID,
-        },
-        rich_text: [
-          {
-            text: {
-              content: comment,
-            },
-          },
-        ],
-      })
-      response.json({ message: "success!", data: newComment })
-    } catch (error) {
-      response.json({ message: "error", error })
-    }
-  });
-
-
+app.get('/redirect', [redirect_handler]);
 
 const listener = app.listen(8000, function () {
     console.log("Your app is listening on port 8000")
