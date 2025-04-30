@@ -8,7 +8,9 @@ import { cwd } from 'node:process';
 import { ServerResponse } from 'node:http';
 import * as openapi from 'express-openapi-validator';
 import {load} from 'js-yaml';
-import axios from 'axios';
+import axios, { AxiosResponse } from 'axios';
+import { request_access_token } from './notion_api/juan_api.js';
+import { error } from 'node:console';
 
 const notion = new Client({ auth: process.env.NOTION_KEY })
 
@@ -25,7 +27,8 @@ app.use(openapi.middleware({apiSpec: apiSpec,
 
 app.use(express.json());
 app.use();
-
+/*
+// this is example code
 const databaseHandler = async function (pageId:string, title:string) {
     //const pageId = (process.env.NOTION_PAGE_ID) ? process.env.NOTION_PAGE_ID : null;
     //const body = req.body; 
@@ -64,50 +67,35 @@ const databaseHandler = async function (pageId:string, title:string) {
         return {status: null, message: 'unknown error', error };
       } 
     }
-}
-// Create new database. The page ID is set in the environment variables.
-// ok.. wait. in 186, we had some like, typechecking to verify that objects were properly formatted.
-// how do we do that in this case?
-
-const cache_data = async function (formatted_data: StorageObject) {
-  // this is where we're supposed to cache our data
-
-}
-const redirect_handler = async function (req: Request, res: Response, next: NextFunction) {
+}*/
+const redirect_handler = async function (req: Request<{}, {}, {}, {code: string}>, res: Response, next: NextFunction) {
   // get authentication code from params
-  const auth = req.query.code;
-
-  
-}
-// ok, lets have some static 
-app.post('/', async function (request: Request, response:Response) {
-  // local cache
-
-  if (page == undefined) {
-    response.status(500).send();
-    return;
-  }
-  const curr_dir: string = process.cwd();
-  const myfile: string = '/localCache.json';
-  //fs.writeFile(curr_dir + myfile, JSON.stringify(request.body), ()=>{console.log(curr_dir)});
-  const {courses, assignment} = request.body;
-  
-  /*const formatted_assignment = assignment.map((elem: any)=>{
-    return {'canvas_id': elem.id, 'name': elem.name, 'courseName': elem.courseName, 'description': elem.description};
-  });*/
-  /*for (int i = courses.length())*/
-  const formatted_course = courses.map((elem: any) => {
-    console.log(page, elem.name);
-    let obj: any = databaseHandler(page, elem.name);
-    if (obj.status != 200) {
-      response.json(obj);
-      return;
+  try {
+    // this stuff is done to 
+    if (process.env.OUR_REDIRECT_URI == undefined || process.env.AUTHORIZATION_KEY == undefined){
+      throw error;
     }
-  });
-  response.status(200).send();
-});
+    const code = req.query.code;
+    if (typeof(code) !== typeof('')){
+      throw error;
+    }
+    request_access_token(process.env.OUR_REDIRECT_URI, "https://api.notion.com/v1/oauth/token", code, process.env.AUTHORIZATION_KEY) 
+    .then((notion_res: AxiosResponse) => {
+      next(notion_res);
+    });
+  }
+  catch{
+    res.send(500);
+  } 
+}
 
-app.get('/redirect', [redirect_handler]);
+const process_data = async function (res: AxiosResponse) {
+  // how do i do this?
+}
+
+
+// ok, lets have some static 
+app.get('/redirect', redirect_handler, process_data);
 
 const listener = app.listen(8000, function () {
     console.log("Your app is listening on port 8000")

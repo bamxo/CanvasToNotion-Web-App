@@ -1,10 +1,9 @@
-import axios from 'axios';
-
-export const request_access_token = async function (callbackuri: string, uri: string, myCode: string, authKey: string) {
+import axios, {Axios, AxiosResponse} from 'axios';
+export const request_access_token = async function (callbackuri: string, uri: string, myCode: string, authKey: string): Promise<AxiosResponse>{
   /**
    * used https://developers.notion.com/reference/create-a-token as reference for post request
    */
-  return await axios.post(uri, {
+  const res: AxiosResponse = await axios.post(uri, {
       headers: {
         "Authorization": `Basic ${authKey}`,
         "Content-Type": "application/json",
@@ -16,5 +15,8 @@ export const request_access_token = async function (callbackuri: string, uri: st
         "redirect_uri": callbackuri,
       }
   });
+  return res;
 }
-
+export const post_to_db = async function (data: string) {
+  // need to have some way to speak to firebase servers.
+}
