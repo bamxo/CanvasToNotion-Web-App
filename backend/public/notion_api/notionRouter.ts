@@ -9,7 +9,7 @@ router.post('/token', async (req: Request, res: Response) => {
   try {
     const { code } = req.body;
 
-    // 1. Exchange code for access token
+    // Exchange code for access token
     const tokenResponse = await axios.post(
       'https://api.notion.com/v1/oauth/token',
       new URLSearchParams({
@@ -29,15 +29,13 @@ router.post('/token', async (req: Request, res: Response) => {
     );
 
     const { access_token, workspace_id } = tokenResponse.data;
-
-    // 2. Initialize Notion Client
     const notion = new Client({ auth: access_token });
 
-    // 3. Get accessible resources (pages + databases)
+    // Get accessible resources
     const searchResponse = await notion.search({});
     const accessibleResources = searchResponse.results.map(item => ({
       id: item.id,
-      type: item.object, // 'page' or 'database'
+      type: item.object,
       title: 'title' in item ? item.title : 'Untitled'
     }));
 
@@ -49,16 +47,73 @@ router.post('/token', async (req: Request, res: Response) => {
     });
 
   } catch (error: any) {
-    console.error('Notion API Error:', error.response?.data || error.message);
+    console.error('Notion API Error:', error);
     res.status(500).json({
       success: false,
-      error: error.response?.data || error.message || 'Notion API request failed'
+      error: error.response?.data || error.message
     });
   }
 });
 
+router.post('/sync', async (req: Request, res: Response) => {
+  try {
+    const { accessToken, pageId, courses, assignments } = req.body;
+    const notion = new Client({ auth: accessToken });
+
+    // Create databases and pages
+    const courseDatabases = new Map<number, string>();
+    
+    // Create course databases
+    for (const course of courses) {
+      const newDb = await notion.databases.create({
+        parent: { type: "page_id", page_id: pageId },
+        title: [{ type: "text", text: { content: course.name } }],
+        properties: {
+          Name: { title: {} },
+          DueDate: { date: {} },
+          Points: { number: {} },
+          URL: { url: {} },
+          Status: {
+            select: {
+              options: [
+                { name: "Not Started", color: "red" },
+                { name: "In Progress", color: "yellow" },
+                { name: "Completed", color: "green" }
+              ]
+            }
+          }
+        }
+      });
+      courseDatabases.set(course.id, newDb.id);
+    }
+
+    // Create assignments
+    for (const assignment of assignments) {
+      const databaseId = courseDatabases.get(assignment.courseId);
+      if (!databaseId) continue;
+
+      const dueDate = assignment.due_at ? 
+        { date: { start: new Date(assignment.due_at).toISOString() } } : 
+        { date: null };
+
+      await notion.pages.create({
+        parent: { database_id: databaseId },
+        properties: {
+          Name: { title: [{ text: { content: assignment.name } }] },
+          DueDate: dueDate,
+          Points: { number: assignment.points_possible },
+          URL: { url: assignment.html_url },
+          Status: { select: { name: "Not Started" } }
+        }
+      });
+    }
+
+    res.json({ success: true });
+
+  } catch (error) {
+    console.error('Sync error:', error);
+    res.status(500).json({ success: false, error: 'Sync failed' });
+  }
+});
+
 export default router;
-/* test curl command in powershell
-$body = @{ code = "03f51416-fae3-4cbc-a28e-771521728525" } | ConvertTo-Json
-Invoke-RestMethod -Uri "http://localhost:3000/api/notion/token" -Method POST -ContentType "application/json" -Body $body
-*/
