@@ -204,7 +204,7 @@
 /* Responsive Design */
 @media (max-width: 1512px) {
   .navbar {
-    padding: 1.25rem 6rem;
+    padding: 1.25rem rem;
   }
 }
 
