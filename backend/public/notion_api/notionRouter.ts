@@ -2,6 +2,7 @@
 import express, { Request, Response } from 'express';
 import axios from 'axios';
 import { Client } from '@notionhq/client';
+import { verifyToken } from '../middleware/auth';
 
 const router = express.Router();
 
@@ -55,10 +56,14 @@ router.post('/token', async (req: Request, res: Response) => {
   }
 });
 
-router.post('/sync', async (req: Request, res: Response) => {
+// Apply the existing token verification middleware to the sync endpoint
+router.post('/sync', verifyToken, async (req: Request, res: Response) => {
   try {
-    const { accessToken, pageId, courses, assignments } = req.body;
-    const notion = new Client({ auth: accessToken });
+    // Get Notion token and page ID from the request body
+    const { notionAccessToken, pageId, courses, assignments } = req.body;
+    
+    // Initialize Notion client with the user's Notion access token
+    const notion = new Client({ auth: notionAccessToken });
 
     // Create databases and pages
     const courseDatabases = new Map<number, string>();
