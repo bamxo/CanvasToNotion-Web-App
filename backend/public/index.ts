@@ -11,6 +11,7 @@ dotenv.config();
 import authRoutes from './routes/auth';
 import databaseRoutes from './routes/database';
 import userRoutes from './routes/users';
+import notionRouter from './notion_api/notionRouter'
 
 const app: Express = express();
 const PORT: number = parseInt(process.env.PORT || '3000', 10);
@@ -24,7 +25,7 @@ app.use(express.static('public'));
 app.use('/api/auth', authRoutes);
 app.use('/api/db', databaseRoutes);
 app.use('/api/user', userRoutes);
-
+app.use('/api/notion', notionRouter);
 // Start server
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
