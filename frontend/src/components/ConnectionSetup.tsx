@@ -164,7 +164,6 @@ const ConnectionSetup: React.FC = () => {
       setIsNotionConnected(true);
       // Clear the URL parameters to avoid showing the code
       window.history.replaceState({}, document.title, window.location.pathname);
-    }
 
     const authToken = localStorage.getItem('authToken');
     
