@@ -6,7 +6,7 @@ import { verifyToken } from '../middleware/auth';
 
 const router = express.Router();
 
-router.post('/token', async (req: Request, res: Response) => {
+router.post('/token', verifyToken, async (req: Request, res: Response) => {
   try {
     const { code } = req.body;
 
