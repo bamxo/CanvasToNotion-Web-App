@@ -29,7 +29,7 @@ const PinExtensionGraphic: React.FC = () => {
         </div>
         <div className={styles.urlBar}>
           <div className={styles.urlText}>
-            <span></span>
+            <span>{/* empty url name for spacing*/}</span>
             <FaPuzzlePiece className={styles.puzzleIcon} />
           </div>
         </div>
@@ -161,9 +161,29 @@ const ConnectionSetup: React.FC = () => {
     const notionCode = urlParams.get('code');
     
     if (notionCode) {
-      setIsNotionConnected(true);
-      // Clear the URL parameters to avoid showing the code
-      window.history.replaceState({}, document.title, window.location.pathname);
+      // Send the code to our backend
+      const sendNotionCode = async () => {
+        try {
+          const response = await axios.post('http://localhost:3000/api/notion/token', {
+            code: notionCode
+          }, {
+            headers: {
+              'Content-Type': 'application/json'
+            }
+          });
+          
+          if (response.data) {
+            setIsNotionConnected(true);
+            // Clear the URL parameters after successful token exchange
+            window.history.replaceState({}, document.title, window.location.pathname);
+          }
+        } catch (err) {
+          console.error('Error exchanging Notion code for token:', err);
+          setError('Failed to connect to Notion. Please try again.');
+        }
+      };
+
+      sendNotionCode();
     }
 
     const authToken = localStorage.getItem('authToken');
@@ -256,9 +276,6 @@ const ConnectionSetup: React.FC = () => {
               <h1 className={styles.header}>Welcome to Canvas to Notion!</h1>
             </div>
 
-            {/* Error Message Display */}
-            {error && <div className={styles.error}>{error}</div>}
-
             {/* Cards Container */}
             <div className={styles.cardsContainer}>
               {/* Step 1: Pin Extension Card */}
@@ -281,6 +298,7 @@ const ConnectionSetup: React.FC = () => {
                 <div className={styles.imageContainer}>
                   <NotionGraphic />
                 </div>
+                {error && <div className={styles.error}>{error}</div>}
                 <button 
                   className={`${styles.buttonRectangle} ${isNotionConnected ? styles.connected : ''} ${isConnecting ? styles.connecting : ''}`}
                   onClick={handleNotionConnect}

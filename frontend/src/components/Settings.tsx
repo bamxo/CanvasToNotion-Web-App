@@ -50,9 +50,7 @@ const decodeJWT = (token: string) => {
 };
 
 /**
- * Temporary component to display login success and token information
- * This is used to verify the authentication flow is working
- * Should be replaced with actual post-login landing page
+ * Settings component to display user information and manage Notion connection
  */
 const Settings: React.FC = () => {
   const navigate = useNavigate();
@@ -62,6 +60,7 @@ const Settings: React.FC = () => {
     isConnected: false
   });
   const [isConnecting, setIsConnecting] = useState(false);
+  const [error, setError] = useState<string>('');
 
   useEffect(() => {
     const authToken = localStorage.getItem('authToken');
@@ -69,6 +68,42 @@ const Settings: React.FC = () => {
     if (!authToken) {
       navigate('/login');
       return;
+    }
+
+    // Check for Notion authorization code in URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const notionCode = urlParams.get('code');
+    
+    if (notionCode) {
+      // Send the code to our backend
+      const exchangeNotionToken = async () => {
+        try {
+          setIsConnecting(true);
+          const response = await axios.post('http://localhost:3000/api/notion/token', {
+            code: notionCode
+          }, {
+            headers: {
+              'Content-Type': 'application/json'
+            }
+          });
+          
+          if (response.data.success) {
+            setNotionConnection({
+              email: response.data.workspaceId || 'Connected',
+              isConnected: true
+            });
+            // Clear the URL parameters after successful token exchange
+            window.history.replaceState({}, document.title, window.location.pathname);
+          }
+        } catch (err) {
+          console.error('Error exchanging Notion code for token:', err);
+          setError('Failed to connect to Notion. Please try again.');
+        } finally {
+          setIsConnecting(false);
+        }
+      };
+
+      exchangeNotionToken();
     }
 
     // Temporary: Decode token to display email for testing
@@ -91,12 +126,6 @@ const Settings: React.FC = () => {
         if (response.data && response.data.email) {
           setUserInfo(response.data);
         }
-
-        // TODO: Replace with actual Notion connection status check
-        setNotionConnection({
-          email: 'notion@example.com',
-          isConnected: true
-        });
       } catch (err) {
         // Don't overwrite the email we got from the token
         if (!userInfo?.email) {
@@ -211,6 +240,12 @@ const Settings: React.FC = () => {
               }
             </span>
           </div>
+          
+          {error && (
+            <div className={styles.errorContainer}>
+              <p className={styles.errorText}>{error}</p>
+            </div>
+          )}
           
           <div className={styles.connectionButtons}>
             <button 
