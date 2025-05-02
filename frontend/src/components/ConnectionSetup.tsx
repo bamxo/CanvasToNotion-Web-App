@@ -174,8 +174,6 @@ const ConnectionSetup: React.FC = () => {
           
           if (response.data) {
             setIsNotionConnected(true);
-            // Clear the URL parameters after successful token exchange
-            window.history.replaceState({}, document.title, window.location.pathname);
           }
         } catch (err) {
           console.error('Error exchanging Notion code for token:', err);
@@ -184,6 +182,9 @@ const ConnectionSetup: React.FC = () => {
       };
 
       sendNotionCode();
+      
+      // Clear the URL parameters after successful token exchange
+      window.history.replaceState({}, document.title, window.location.pathname);
     }
 
     const authToken = localStorage.getItem('authToken');
@@ -241,7 +242,7 @@ const ConnectionSetup: React.FC = () => {
       setIsConnecting(true);
       // Open Notion OAuth in same tab
       window.open(
-        'https://api.notion.com/v1/oauth/authorize?client_id=1e3d872b-594c-8008-9ec9-003741e22a0f&response_type=code&owner=user&redirect_uri=http%3A%2F%2Flocalhost%3A5173%2Fconnection-setup',
+        'https://api.notion.com/v1/oauth/authorize?client_id=1e3d872b-594c-8008-9ec9-003741e22a0f&response_type=code&owner=user&redirect_uri=http%3A%2F%2Flocalhost%3A5173%2Fsettings',
         '_self'
       );
     } catch (err) {

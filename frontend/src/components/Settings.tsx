@@ -92,8 +92,6 @@ const Settings: React.FC = () => {
               email: response.data.workspaceId || 'Connected',
               isConnected: true
             });
-            // Clear the URL parameters after successful token exchange
-            window.history.replaceState({}, document.title, window.location.pathname);
           }
         } catch (err) {
           console.error('Error exchanging Notion code for token:', err);
@@ -104,6 +102,8 @@ const Settings: React.FC = () => {
       };
 
       exchangeNotionToken();
+      // Clear the URL parameters after successful token exchange
+      window.history.replaceState({}, document.title, window.location.pathname);
     }
 
     // Temporary: Decode token to display email for testing
@@ -235,7 +235,7 @@ const Settings: React.FC = () => {
             <div className={`${styles.statusIndicator} ${!notionConnection.isConnected && styles.disconnected}`} />
             <span className={styles.connectionEmail}>
               {notionConnection.isConnected 
-                ? `Connected to ${notionConnection.email}`
+                ? `Connected to Notion`
                 : 'Not connected to Notion'
               }
             </span>
