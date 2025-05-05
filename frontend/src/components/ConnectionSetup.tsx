@@ -161,9 +161,32 @@ const ConnectionSetup: React.FC = () => {
     const notionCode = urlParams.get('code');
     
     if (notionCode) {
-      setIsNotionConnected(true);
-      // Clear the URL parameters to avoid showing the code
-      window.history.replaceState({}, document.title, window.location.pathname);
+      console.log(notionCode)
+      // Send the code to our backend
+      const sendNotionCode = async () => {
+        try {
+          const response = await axios.post('http://localhost:3000/api/notion/token', {
+            code: notionCode,
+            email: 'benliu297@gmail.com'
+          }, {
+            headers: {
+              'Content-Type': 'application/json'
+            }
+          });
+          
+          if (response.data) {
+            setIsNotionConnected(true);
+            // Clear the URL parameters after successful token exchange
+            window.history.replaceState({}, document.title, window.location.pathname);
+          }
+        } catch (err) {
+          console.error('Error exchanging Notion code for token:', err);
+          setError('Failed to connect to Notion. Please try again.');
+        }
+      };
+
+      sendNotionCode();
+    }
 
     const authToken = localStorage.getItem('authToken');
     
