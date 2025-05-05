@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import styles from './Carousel.module.css';
 import { FaChevronLeft, FaChevronRight } from 'react-icons/fa';
 
@@ -47,6 +47,7 @@ const Carousel: React.FC = () => {
   const [isAnimating, setIsAnimating] = useState(false);
   const [direction, setDirection] = useState<'left' | 'right' | null>(null);
   const [visibleCards, setVisibleCards] = useState(() => getPositionedCards(currentIndex));
+  const [autoScrollPaused, setAutoScrollPaused] = useState(false);
 
   function getPositionedCards(centerIndex: number) {
     const cards = [];
@@ -59,28 +60,62 @@ const Carousel: React.FC = () => {
     return cards;
   }
 
-  const nextSlide = () => {
+  const nextSlide = useCallback(() => {
     if (isAnimating) return;
     
     setIsAnimating(true);
     setDirection('right');
     
-    // Update index immediately but don't re-render cards yet
     setCurrentIndex((prevIndex) => 
       prevIndex === teamMembers.length - 1 ? 0 : prevIndex + 1
     );
-  };
+  }, [isAnimating]);
 
-  const prevSlide = () => {
+  const prevSlide = useCallback(() => {
     if (isAnimating) return;
     
     setIsAnimating(true);
     setDirection('left');
     
-    // Update index immediately but don't re-render cards yet
     setCurrentIndex((prevIndex) => 
       prevIndex === 0 ? teamMembers.length - 1 : prevIndex - 1
     );
+  }, [isAnimating]);
+
+  // Handle auto-scrolling
+  useEffect(() => {
+    let autoScrollTimer: NodeJS.Timeout;
+
+    const startAutoScroll = () => {
+      autoScrollTimer = setInterval(() => {
+        if (!autoScrollPaused) {
+          nextSlide();
+        }
+      }, 5000); // Auto scroll every 5 seconds
+    };
+
+    startAutoScroll();
+
+    // Cleanup function
+    return () => {
+      clearInterval(autoScrollTimer);
+    };
+  }, [nextSlide, autoScrollPaused]);
+
+  // Handle navigation click pause
+  const handleNavClick = (direction: 'prev' | 'next') => {
+    setAutoScrollPaused(true);
+    
+    if (direction === 'prev') {
+      prevSlide();
+    } else {
+      nextSlide();
+    }
+
+    // Resume auto-scrolling after 8 seconds
+    setTimeout(() => {
+      setAutoScrollPaused(false);
+    }, 8000);
   };
 
   // When animation completes, update the visible cards
@@ -126,14 +161,14 @@ const Carousel: React.FC = () => {
       <div style={{ display: 'flex', justifyContent: 'center', gap: '1rem' }}>
         <button 
           className={`${styles.navButton} ${styles.prevButton}`} 
-          onClick={prevSlide}
+          onClick={() => handleNavClick('prev')}
           disabled={isAnimating}
         >
           <FaChevronLeft />
         </button>
         <button 
           className={`${styles.navButton} ${styles.nextButton}`} 
-          onClick={nextSlide}
+          onClick={() => handleNavClick('next')}
           disabled={isAnimating}
         >
           <FaChevronRight />
