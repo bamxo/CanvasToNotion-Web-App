@@ -2,13 +2,52 @@
 import express, { Request, Response } from 'express';
 import axios from 'axios';
 import { Client } from '@notionhq/client';
-import { verifyToken } from '../middleware/auth';
+import { adminDb } from '../db';
+import { database } from 'firebase-admin';
 
 const router = express.Router();
 
+interface UserData {
+  accessToken?: string;
+  workspaceId?: string;
+  pageIDs?: any[];
+  lastUpdated?: string;
+}
+const updateUserByEmail = async (
+  db: database.Database,
+  email: string,
+  userData: UserData
+): Promise<boolean> => {
+  try {
+    const usersRef = db.ref('users');
+
+    const snapshot = await usersRef.orderByChild('email').equalTo(email).once('value');
+
+    if (snapshot.exists()) {
+      const userEntries = Object.entries(snapshot.val());
+      if (userEntries.length > 0) {
+        const [userId] = userEntries[0];
+        const userRef = db.ref(`users/${userId}`);
+        await userRef.update(userData);
+        console.log(`Updated user with email: ${email}`);
+        return true;
+      }
+    } else {
+      console.log(`No user found with email: ${email}`);
+      return false;
+    }
+  } catch (error) {
+    console.error("Error updating user by email:", error);
+    throw error;
+  }
+    return false
+};
+
+
+
 router.post('/token', async (req: Request, res: Response) => {
   try {
-    const { code } = req.body;
+    const { code, email } = req.body;
 
     // Exchange code for access token
     const tokenResponse = await axios.post(
@@ -40,8 +79,19 @@ router.post('/token', async (req: Request, res: Response) => {
       title: 'title' in item ? item.title : 'Untitled'
     }));
 
+    // Update the user's data in Firebase
+    const userData = {
+      accessToken: access_token,
+      workspaceId: workspace_id,
+      pageIDs: accessibleResources,
+      lastUpdated: new Date().toISOString()
+    };
+    
+    const updated = await updateUserByEmail(adminDb, email, userData);
+
     res.json({
       success: true,
+      updated: updated,
       accessToken: access_token,
       workspaceId: workspace_id,
       accessibleResources
@@ -55,9 +105,9 @@ router.post('/token', async (req: Request, res: Response) => {
     });
   }
 });
-
+//tanvi template modify
 // Apply the existing token verification middleware to the sync endpoint
-router.post('/sync', verifyToken, async (req: Request, res: Response) => {
+router.post('/sync', async (req: Request, res: Response) => {
   try {
     // Get Notion token and page ID from the request body
     const { notionAccessToken, pageId, courses, assignments } = req.body;

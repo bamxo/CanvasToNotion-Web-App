@@ -9,7 +9,7 @@ if (!admin.apps.length) {
       clientEmail: serviceAccount.client_email,
       privateKey: serviceAccount.private_key,
     }),
-    databaseURL: `https://${serviceAccount.project_id}.firebaseio.com`,
+    databaseURL: process.env.FIREBASE_DATABASE_URL 
   });
 }
 
