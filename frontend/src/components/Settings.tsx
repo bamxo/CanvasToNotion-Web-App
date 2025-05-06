@@ -11,142 +11,25 @@
  * integration with Notion's OAuth flow for account connection.
  */
 
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
 import styles from './Settings.module.css';
 import logo from '../assets/c2n-favicon.svg';
-
-interface UserInfo {
-  email: string;
-  firstName?: string;
-}
-
-interface NotionConnection {
-  email: string;
-  isConnected: boolean;
-}
-
-/**
- * Temporary utility function to decode JWT token
- * This is for testing/verification purposes only
- * In production, token handling should be done through a proper auth service
- */
-const decodeJWT = (token: string) => {
-  try {
-    const base64Url = token.split('.')[1];
-    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-    const jsonPayload = decodeURIComponent(
-      atob(base64)
-        .split('')
-        .map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
-        .join('')
-    );
-    return JSON.parse(jsonPayload);
-  } catch (error) {
-    console.error('Error decoding token:', error);
-    return null;
-  }
-};
+import { useNotionAuth } from '../hooks/useNotionAuth';
 
 /**
  * Settings component to display user information and manage Notion connection
  */
 const Settings: React.FC = () => {
   const navigate = useNavigate();
-  const [userInfo, setUserInfo] = useState<UserInfo | null>(null);
-  const [notionConnection, setNotionConnection] = useState<NotionConnection>({
-    email: '',
-    isConnected: false
-  });
-  const [isConnecting, setIsConnecting] = useState(false);
-  const [error, setError] = useState<string>('');
-
-  useEffect(() => {
-    const authToken = localStorage.getItem('authToken');
-    
-    if (!authToken) {
-      navigate('/login');
-      return;
-    }
-
-    // Check for Notion authorization code in URL
-    const urlParams = new URLSearchParams(window.location.search);
-    const notionCode = urlParams.get('code');
-    
-    if (notionCode) {
-      // Send the code to our backend
-      const exchangeNotionToken = async () => {
-        try {
-          setIsConnecting(true);
-          const response = await axios.post('http://localhost:3000/api/notion/token', {
-            code: notionCode
-          }, {
-            headers: {
-              'Content-Type': 'application/json'
-            }
-          });
-          
-          if (response.data.success) {
-            setNotionConnection({
-              email: response.data.workspaceId || 'Connected',
-              isConnected: true
-            });
-          }
-        } catch (err) {
-          console.error('Error exchanging Notion code for token:', err);
-          setError('Failed to connect to Notion. Please try again.');
-        } finally {
-          setIsConnecting(false);
-        }
-      };
-
-      exchangeNotionToken();
-      // Clear the URL parameters after successful token exchange
-      window.history.replaceState({}, document.title, window.location.pathname);
-    }
-
-    // Temporary: Decode token to display email for testing
-    const decodedToken = decodeJWT(authToken);
-    if (decodedToken && decodedToken.email) {
-      setUserInfo({ email: decodedToken.email });
-    }
-
-    // Fetch user info
-    const fetchUserInfo = async () => {
-      try {
-        const response = await axios.get('http://localhost:5173/api/auth/user', {
-          headers: {
-            Authorization: `Bearer ${authToken}`,
-            'Content-Type': 'application/json'
-          },
-          withCredentials: true
-        });
-        
-        if (response.data && response.data.email) {
-          setUserInfo(response.data);
-        }
-      } catch (err) {
-        // Don't overwrite the email we got from the token
-        if (!userInfo?.email) {
-          if (axios.isAxiosError(err)) {
-            if (err.response) {
-              console.error(`Server Error: ${err.response.data?.message || err.response.statusText}`);
-            } else if (err.request) {
-              console.error('No response received from server. Please check if the backend server is running.');
-            } else {
-              console.error(`Request Error: ${err.message}`);
-            }
-          } else {
-            console.error('An unexpected error occurred');
-          }
-        }
-        console.error('Error fetching user info:', err);
-      }
-    };
-
-    fetchUserInfo();
-  }, [navigate]);
+  const {
+    userInfo,
+    notionConnection,
+    isConnecting,
+    error,
+    setNotionConnection
+  } = useNotionAuth();
+  const [isButtonLoading, setIsButtonLoading] = useState(false);
 
   const handleLogout = () => {
     localStorage.removeItem('authToken');
@@ -159,7 +42,7 @@ const Settings: React.FC = () => {
   };
 
   const handleNotionConnection = () => {
-    setIsConnecting(true);
+    setIsButtonLoading(true);
     window.location.href = 'https://api.notion.com/v1/oauth/authorize?client_id=1e3d872b-594c-8008-9ec9-003741e22a0f&response_type=code&owner=user&redirect_uri=http%3A%2F%2Flocalhost%3A5173%2Fsettings';
   };
 
@@ -251,10 +134,13 @@ const Settings: React.FC = () => {
             <button 
               className={styles.changeConnectionButton}
               onClick={handleNotionConnection}
-              disabled={isConnecting}
+              disabled={isButtonLoading || isConnecting}
             >
-              {isConnecting ? <div className={styles.spinner}></div> : 
-                notionConnection.isConnected ? 'Change Connection' : 'Add Connection'}
+              {(isButtonLoading || isConnecting) ? (
+                <div className={styles.spinner} />
+              ) : (
+                notionConnection.isConnected ? 'Change Connection' : 'Add Connection'
+              )}
             </button>
             {notionConnection.isConnected && (
               <button 
