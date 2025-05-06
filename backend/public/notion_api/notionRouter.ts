@@ -171,4 +171,34 @@ router.post('/sync', async (req: Request, res: Response) => {
   }
 });
 
+// src/notion_api/notionRouter.ts
+router.get('/pages', async (req: Request, res: Response) => {
+  try {
+    const { email } = req.query;
+
+    if (!email || typeof email !== 'string') {
+      return res.status(400).json({ success: false, error: 'Email is required' });
+    }
+
+    const usersRef = adminDb.ref('users');
+    const snapshot = await usersRef.orderByChild('email').equalTo(email).once('value');
+
+    if (snapshot.exists()) {
+      const userData = Object.values(snapshot.val())[0] as any;
+      const pages = userData.pageIDs?.map((page: any) => ({
+        id: page.id,
+        title: page.title,
+      })) || [];
+
+      res.json({ pages });
+    } else {
+      res.status(404).json({ success: false, error: 'User not found' });
+    }
+  } catch (error) {
+    console.error('Error fetching pages:', error);
+    res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+});
+
+
 export default router;
