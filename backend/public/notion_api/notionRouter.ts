@@ -13,6 +13,31 @@ interface UserData {
   pageIDs?: any[];
   lastUpdated?: string;
 }
+
+// Helper function to get user data by email
+const getUserByEmail = async (
+  db: database.Database,
+  email: string
+): Promise<UserData | null> => {
+  try {
+    const usersRef = db.ref('users');
+    const snapshot = await usersRef.orderByChild('email').equalTo(email).once('value');
+
+    if (snapshot.exists()) {
+      const userEntries = Object.entries(snapshot.val());
+      if (userEntries.length > 0) {
+        const [_, userData] = userEntries[0];
+        return userData as UserData;
+      }
+    }
+    console.log(`No user found with email: ${email}`);
+    return null;
+  } catch (error) {
+    console.error("Error fetching user by email:", error);
+    throw error;
+  }
+};
+
 const updateUserByEmail = async (
   db: database.Database,
   email: string,
@@ -40,15 +65,13 @@ const updateUserByEmail = async (
     console.error("Error updating user by email:", error);
     throw error;
   }
-    return false
+  return false;
 };
-
-
 
 router.post('/token', async (req: Request, res: Response) => {
   try {
     const { code, email } = req.body;
-
+    
     // Exchange code for access token
     const tokenResponse = await axios.post(
       'https://api.notion.com/v1/oauth/token',
@@ -67,18 +90,50 @@ router.post('/token', async (req: Request, res: Response) => {
         }
       }
     );
-
+    
     const { access_token, workspace_id } = tokenResponse.data;
     const notion = new Client({ auth: access_token });
-
-    // Get accessible resources
+    
+    // Get accessible resources with correct title extraction
     const searchResponse = await notion.search({});
-    const accessibleResources = searchResponse.results.map(item => ({
-      id: item.id,
-      type: item.object,
-      title: 'title' in item ? item.title : 'Untitled'
-    }));
-
+    const accessibleResources = searchResponse.results.map(item => {
+      let title = 'Untitled';
+      
+      if (item.object === 'page') {
+        // For pages, title is in properties.title if it exists
+        if ('properties' in item && item.properties.title) {
+          if ('title' in item.properties.title && Array.isArray(item.properties.title.title) && item.properties.title.title.length > 0) {
+            title = item.properties.title.title.map(textObj => textObj.plain_text).join('');
+          }
+        } else if ('parent' in item && item.parent.type === 'database_id') {
+          // If it's a database page, use a different approach to find the title
+          const titleProperty = Object.values(item.properties).find(
+            prop => ('rich_text' in prop && prop.rich_text.length > 0) || 
+                   ('title' in prop && prop.title.length > 0)
+          );
+          
+          if (titleProperty) {
+            if ('rich_text' in titleProperty) {
+              title = titleProperty.rich_text.map(textObj => textObj.plain_text).join('');
+            } else if ('title' in titleProperty) {
+              title = titleProperty.title.map(textObj => textObj.plain_text).join('');
+            }
+          }
+        }
+      } else if (item.object === 'database') {
+        // For databases, title is in title array
+        if ('title' in item && Array.isArray(item.title) && item.title.length > 0) {
+          title = item.title.map(textObj => textObj.plain_text).join('');
+        }
+      }
+      
+      return {
+        id: item.id,
+        type: item.object,
+        title
+      };
+    });
+    
     // Update the user's data in Firebase
     const userData = {
       accessToken: access_token,
@@ -88,7 +143,7 @@ router.post('/token', async (req: Request, res: Response) => {
     };
     
     const updated = await updateUserByEmail(adminDb, email, userData);
-
+    
     res.json({
       success: true,
       updated: updated,
@@ -96,7 +151,6 @@ router.post('/token', async (req: Request, res: Response) => {
       workspaceId: workspace_id,
       accessibleResources
     });
-
   } catch (error: any) {
     console.error('Notion API Error:', error);
     res.status(500).json({
@@ -105,14 +159,29 @@ router.post('/token', async (req: Request, res: Response) => {
     });
   }
 });
-//tanvi template modify
-// Apply the existing token verification middleware to the sync endpoint
+// Modified sync endpoint to use email instead of token in the request
 router.post('/sync', async (req: Request, res: Response) => {
   try {
-    // Get Notion token and page ID from the request body
-    const { notionAccessToken, pageId, courses, assignments } = req.body;
+    // Get user email and page ID from the request body
+    const { email, pageId, courses, assignments } = req.body;
     
-    // Initialize Notion client with the user's Notion access token
+    if (!email || typeof email !== 'string') {
+      return res.status(400).json({ success: false, error: 'Valid email is required' });
+    }
+
+    // Get the user's data from Firebase including Notion access token
+    const userData = await getUserByEmail(adminDb, email);
+    
+    if (!userData || !userData.accessToken) {
+      return res.status(404).json({ 
+        success: false, 
+        error: 'User not found or Notion access token not available' 
+      });
+    }
+
+    const notionAccessToken = userData.accessToken;
+    
+    // Initialize Notion client with the retrieved access token
     const notion = new Client({ auth: notionAccessToken });
 
     // Create databases and pages
@@ -163,11 +232,17 @@ router.post('/sync', async (req: Request, res: Response) => {
       });
     }
 
-    res.json({ success: true });
+    res.json({ 
+      success: true, 
+      message: 'Canvas data successfully synced to Notion'
+    });
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Sync error:', error);
-    res.status(500).json({ success: false, error: 'Sync failed' });
+    res.status(500).json({ 
+      success: false, 
+      error: error.response?.data || error.message || 'Sync failed' 
+    });
   }
 });
 
@@ -200,5 +275,4 @@ router.get('/pages', async (req: Request, res: Response) => {
   }
 });
 
-
-export default router;
+export default router;  
