@@ -1,0 +1,391 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap');
+
+:root {
+  --primary-font: 'Poppins', sans-serif;
+}
+
+.pageWrapper {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  width: 100vw;
+  height: 100vh;
+  margin: 0;
+  padding: 0;
+  background-color: #191919;
+  color: #ffffff;
+  align-items: center;
+}
+
+.header {
+  padding: 24px 48px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.logo {
+  height: 48px;
+  width: auto;
+  cursor: pointer;
+}
+
+.container {
+  padding: 48px 96px;
+  width: 100%;
+  box-sizing: border-box;
+  margin: 0;
+  text-align: left;
+  max-width: 1200px;
+}
+
+.sectionTitle {
+  font-family: var(--primary-font);
+  font-size: 20px;
+  font-weight: 700;
+  color: #ffffff;
+  margin: 0;
+  margin-bottom: 16px;
+}
+
+.divider {
+  height: 1px;
+  background-color: rgba(255, 255, 255, 0.1);
+  margin: 16px 0;
+  width: 100%;
+}
+
+.spacer-sm {
+  height: 16px;
+}
+
+.spacer-md {
+  height: 32px;
+}
+
+.spacer-lg {
+  height: 48px;
+}
+
+.profileSection {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 120px;
+  margin: 24px 0;
+  width: 100%;
+  align-items: center;
+}
+
+.profileGroup {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.profilePic {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background-color: #EA5C24;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 18px;
+  color: white;
+  flex-shrink: 0;
+}
+
+.profileInfo {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.userName {
+  font-size: 20px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.userEmail {
+  font-size: 14px;
+  color: #888888;
+  margin: 0;
+}
+
+.actionButtons {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-left: 0;
+}
+
+.button {
+  background: none;
+  border: none;
+  color: red;
+  padding: 8px 16px;
+  font-family: var(--primary-font);
+  font-size: 18px;
+  cursor: pointer;
+  transition: opacity 0.2s;
+  text-align: center;
+}
+
+.button:hover {
+  opacity: 0.8;
+}
+
+.deleteButton {
+  color: #464646;
+  font-size: 16px;
+}
+
+.connectionsSection {
+  margin-top: 48px;
+  width: 100%;
+}
+
+.connectionStatus {
+  display: flex;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.05);
+  padding: 16px 24px;
+  border-radius: 12px;
+  margin-top: 16px;
+  margin-bottom: 24px;
+  transition: all 0.3s ease;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  width: fit-content;
+}
+
+.connectionStatus:hover {
+  background: rgba(255, 255, 255, 0.08);
+  transform: translateY(-1px);
+}
+
+.statusIndicator {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background-color: #4CAF50;
+  position: relative;
+  margin-right: 16px;
+}
+
+.statusIndicator::after {
+  content: '';
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid #4CAF50;
+  opacity: 0.3;
+  top: -4px;
+  left: -4px;
+  animation: pulse 2s infinite;
+}
+
+.disconnected {
+  background-color: #888888;
+}
+
+.disconnected::after {
+  border-color: #888888;
+}
+
+.connectionEmail {
+  font-size: 15px;
+  color: #ffffff;
+  font-weight: 500;
+  flex-grow: 1;
+}
+
+.connectionInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.connectionStatus .connectionLabel {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.6);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.changeConnectionButton {
+  background-color: #EA5C24;
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-family: var(--primary-font);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  margin-left: auto;
+  margin-top: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 160px;
+  justify-content: center;
+}
+
+.changeConnectionButton:hover {
+  background-color: #D14813;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(234, 92, 36, 0.2);
+}
+
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+    opacity: 0.3;
+  }
+  50% {
+    transform: scale(1.2);
+    opacity: 0.15;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 0.3;
+  }
+}
+
+.title {
+  font-family: var(--primary-font);
+  font-size: 24px;
+  font-weight: 600;
+  color: #303030;
+  margin: 0;
+  margin-bottom: 1.5rem;
+}
+
+.subtitle {
+  font-family: var(--primary-font);
+  font-size: 18px;
+  font-weight: 500;
+  color: #303030;
+  margin-bottom: 1rem;
+}
+
+.infoContainer {
+  background-color: #FFFFFF;
+  padding: 1.5rem;
+  border-radius: 8px;
+  margin: 1rem 0;
+  border: 1px solid #DADADA;
+}
+
+.infoItem {
+  font-family: var(--primary-font);
+  margin: 0.8rem 0;
+  font-size: 14px;
+  color: #303030;
+}
+
+.infoItem strong {
+  font-weight: 500;
+  color: #7C7C7C;
+}
+
+.tokenText {
+  font-family: monospace;
+  background-color: #F6F6F7;
+  padding: 0.5rem;
+  border-radius: 4px;
+  word-break: break-all;
+  color: #303030;
+  font-size: 12px;
+  margin-top: 0.5rem;
+  display: block;
+}
+
+.buttonGroup {
+  display: flex;
+  gap: 1rem;
+  justify-content: flex-start;
+  margin-top: 1.5rem;
+}
+
+.secondaryButton {
+  background-color: #DADADA;
+  color: #212B36;
+}
+
+.secondaryButton:hover {
+  background-color: #CCCCCC;
+}
+
+.errorContainer {
+  background-color: rgba(255, 59, 48, 0.1);
+  border-radius: 8px;
+  padding: 1rem;
+  margin: 1rem 0;
+  text-align: left;
+}
+
+.errorText {
+  font-family: var(--primary-font);
+  color: #ff3b30;
+  margin: 0;
+  line-height: 1.5;
+  font-size: 14px;
+}
+
+.notionButton {
+  background-color: #000000;
+  color: white;
+}
+
+.notionButton:hover {
+  background-color: #2E2E2E;
+}
+
+.connectionButtons {
+  display: flex;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.removeConnectionButton {
+  background-color: transparent;
+  color: #EA5C24;
+  border: 1px solid #EA5C24;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-family: var(--primary-font);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.removeConnectionButton:hover {
+  background-color: rgba(234, 92, 36, 0.1);
+  transform: translateY(-1px);
+}
+
+.spinner {
+  width: 20px;
+  height: 20px;
+  border: 3px solid rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  border-top-color: #fff;
+  animation: spin 1s ease-in-out infinite;
+  display: inline-block;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+} 

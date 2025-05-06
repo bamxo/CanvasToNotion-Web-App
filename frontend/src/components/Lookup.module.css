@@ -1,0 +1,141 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap');
+
+:root {
+  --primary-font: 'Poppins', sans-serif;
+}
+
+/* Parent container for centering */
+.pageWrapper {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100vw;
+  height: 100vh;
+  margin: 0;
+  padding: 0;
+}
+
+.container {
+  background-color: #F6F6F7;
+  border-radius: 20px;
+  padding: 60px 60px 60px 60px;
+  width: 543px;
+  height: 380px;
+  box-sizing: border-box;
+  margin: 0;
+}
+
+.header {
+  font-family: var(--primary-font);
+  font-size: 24px;
+  font-weight: 600;
+  color: #303030;
+  margin: 0;
+  text-align: left;
+}
+
+.subtext {
+  font-family: var(--primary-font);
+  color: #7C7C7C;
+  font-size: 14px;
+  margin-top: 8px;
+  text-align: left;
+}
+
+.button-rectangle {
+  background-color: #DADADA;
+  border-radius: 7px;
+  padding: 12px;
+  margin-top: 16px;
+  text-align: center;
+  font-family: var(--primary-font);
+  font-size: 14px;
+  color: #212B36;
+  cursor: pointer;
+  border: none;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-weight: 500;
+  transition: background-color 0.3s ease, transform 0.2s ease;
+}
+
+.button-rectangle:hover {
+  background-color: #CCCCCC;
+  transform: translateY(-1px);
+}
+
+.button-rectangle:active {
+  transform: translateY(0);
+}
+
+.button-icon {
+  width: 20px;
+  height: 20px;
+}
+
+.divider {
+  display: flex;
+  align-items: center;
+  margin: 20px 0;
+  gap: 10px;
+  justify-content: center;
+}
+
+.divider-line {
+  flex-grow: 1;
+  height: 1px;
+  background-color: #616161;
+  max-width: 170px;
+}
+
+.divider-text {
+  font-family: var(--primary-font);
+  color: #616161;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.login-section {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 20px;
+  text-align: center;
+}
+
+.login-text {
+  font-family: var(--primary-font);
+  color: #303030;
+  font-size: 14px;
+}
+
+.login-link {
+  font-family: var(--primary-font);
+  color: #2771FF;
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+}
+
+.arrow-icon {
+  width: 16px;
+  height: 16px;
+  transition: transform 0.2s ease-in-out;
+}
+
+.login-link:hover .arrow-icon {
+  transform: translateX(4px);
+} 

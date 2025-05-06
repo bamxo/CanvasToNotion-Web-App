@@ -11,7 +11,8 @@ dotenv.config();
 import authRoutes from './routes/auth';
 import databaseRoutes from './routes/database';
 import userRoutes from './routes/users';
-import notionRouter from './notion_api/notionRouter'
+import notionRouter from './notion_api/notionRouter';
+
 
 const app: Express = express();
 const PORT: number = parseInt(process.env.PORT || '3000', 10);
