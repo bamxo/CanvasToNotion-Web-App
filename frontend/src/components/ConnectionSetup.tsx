@@ -1,14 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
 import { SiNotion } from 'react-icons/si';
 import { FaBook, FaLock, FaPuzzlePiece, FaThumbtack } from 'react-icons/fa';
 import styles from './ConnectionSetup.module.css';
 import GradientBackgroundWrapper from './GradientBackgroundWrapper';
-
-interface UserInfo {
-  email: string;
-}
+import { useNotionAuth } from '../hooks/useNotionAuth';
 
 const C2NIcon = () => (
   <svg width="20" height="20" viewBox="0 0 184 108" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -130,124 +126,28 @@ const NotionGraphic: React.FC = () => {
   );
 };
 
-const decodeJWT = (token: string) => {
-  try {
-    const base64Url = token.split('.')[1];
-    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-    const jsonPayload = decodeURIComponent(
-      atob(base64)
-        .split('')
-        .map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
-        .join('')
-    );
-    return JSON.parse(jsonPayload);
-  } catch (error) {
-    console.error('Error decoding token:', error);
-    return null;
-  }
-};
-
 const ConnectionSetup: React.FC = () => {
   const navigate = useNavigate();
-  const [isNotionConnected, setIsNotionConnected] = useState(false);
-  const [isConnecting, setIsConnecting] = useState(false);
-  const [error, setError] = useState<string>('');
-  const [userInfo, setUserInfo] = useState<UserInfo | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    // Check for Notion authorization code in URL
-    const urlParams = new URLSearchParams(window.location.search);
-    const notionCode = urlParams.get('code');
-    
-    if (notionCode) {
-      // Send the code to our backend
-      const sendNotionCode = async () => {
-        try {
-          const response = await axios.post('http://localhost:3000/api/notion/token', {
-            code: notionCode
-          }, {
-            headers: {
-              'Content-Type': 'application/json'
-            }
-          });
-          
-          if (response.data) {
-            setIsNotionConnected(true);
-          }
-        } catch (err) {
-          console.error('Error exchanging Notion code for token:', err);
-          setError('Failed to connect to Notion. Please try again.');
-        }
-      };
-
-      sendNotionCode();
-      
-      // Clear the URL parameters after successful token exchange
-      window.history.replaceState({}, document.title, window.location.pathname);
-    }
-
-    const authToken = localStorage.getItem('authToken');
-    
-    if (!authToken) {
-      navigate('/login');
-      return;
-    }
-
-    // Decode token to get user info
-    const decodedToken = decodeJWT(authToken);
-    if (decodedToken && decodedToken.email) {
-      setUserInfo({ email: decodedToken.email });
-    }
-
-    // Verify token with backend
-    const verifyAuth = async () => {
-      try {
-        const response = await axios.get('http://localhost:5173/api/auth/user', {
-          headers: {
-            Authorization: `Bearer ${authToken}`,
-            'Content-Type': 'application/json'
-          },
-          withCredentials: true
-        });
-        
-        if (response.data && response.data.email) {
-          setUserInfo(response.data);
-        }
-      } catch (err) {
-        if (!userInfo?.email) {
-          if (axios.isAxiosError(err)) {
-            if (err.response) {
-              setError(`Authentication Error: ${err.response.data?.message || err.response.statusText}`);
-            } else if (err.request) {
-              setError('No response received from server. Please check your connection.');
-            } else {
-              setError(`Request Error: ${err.message}`);
-            }
-          } else {
-            setError('An unexpected error occurred');
-          }
-          navigate('/login');
-        }
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    verifyAuth();
-  }, [navigate]);
+  const {
+    userInfo,
+    notionConnection,
+    isConnecting,
+    error,
+    isLoading
+  } = useNotionAuth();
+  const [isButtonLoading, setIsButtonLoading] = useState(false);
 
   const handleNotionConnect = async () => {
     try {
-      setIsConnecting(true);
+      setIsButtonLoading(true);
       // Open Notion OAuth in same tab
       window.open(
         'https://api.notion.com/v1/oauth/authorize?client_id=1e3d872b-594c-8008-9ec9-003741e22a0f&response_type=code&owner=user&redirect_uri=http%3A%2F%2Flocalhost%3A5173%2Fsettings',
         '_self'
       );
     } catch (err) {
-      setIsConnecting(false);
-      setError('Failed to connect to Notion. Please try again.');
+      setIsButtonLoading(false);
+      console.error('Failed to connect to Notion:', err);
     }
   };
 
@@ -301,12 +201,12 @@ const ConnectionSetup: React.FC = () => {
                 </div>
                 {error && <div className={styles.error}>{error}</div>}
                 <button 
-                  className={`${styles.buttonRectangle} ${isNotionConnected ? styles.connected : ''} ${isConnecting ? styles.connecting : ''}`}
+                  className={`${styles.buttonRectangle} ${notionConnection.isConnected ? styles.connected : ''} ${(isConnecting || isButtonLoading) ? styles.connecting : ''}`}
                   onClick={handleNotionConnect}
-                  disabled={isNotionConnected || isConnecting}
+                  disabled={notionConnection.isConnected || isConnecting || isButtonLoading}
                 >
-                  {isNotionConnected ? 'Connected to Notion ✓' : 
-                   isConnecting ? <div className={styles.spinner}></div> : 'Connect to Notion'}
+                  {notionConnection.isConnected ? 'Connected to Notion ✓' : 
+                   (isConnecting || isButtonLoading) ? <div className={styles.spinner}></div> : 'Connect to Notion'}
                 </button>
                 <p className={styles.helperText}>
                   Allow access to your target Notion page
