@@ -1,5 +1,6 @@
 // src/notion_api/notionRouter.ts
 import express, { Request, Response } from 'express';
+import type { DatabaseObjectResponse, PageObjectResponse } from "@notionhq/client/build/src/api-endpoints";
 import axios from 'axios';
 import { Client } from '@notionhq/client';
 import { adminDb } from '../db';
@@ -94,9 +95,27 @@ router.post('/token', async (req: Request, res: Response) => {
     const { access_token, workspace_id } = tokenResponse.data;
     const notion = new Client({ auth: access_token });
     
-    // Get accessible resources with correct title extraction
+     const botUser = await notion.users.me({});
+    const botId = botUser.id;
+
+    // Modified search logic with type-safe filtering
     const searchResponse = await notion.search({});
-    const accessibleResources = searchResponse.results.map(item => {
+    const accessibleResources = searchResponse.results
+      .filter(item => {
+        // Handle databases
+        if (item.object === 'database') {
+          const db = item as DatabaseObjectResponse;
+          return db.created_by?.id !== botId;
+        }
+        
+        // Handle pages
+        if (item.object === 'page') {
+          const page = item as PageObjectResponse;
+          return page.created_by?.id !== botId;
+        }
+        
+        return true;
+      }).map(item => {
       let title = 'Untitled';
       
       if (item.object === 'page') {
