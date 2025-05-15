@@ -6,6 +6,6 @@ import App from '../App';
 describe('App component', () => {
   it('renders without crashing', () => {
     render(<App />);
-    expect(screen.getByText('Canvas Integration Available')).toBeInTheDocument();
+    expect(screen.getByText('Canvas Integration')).toBeInTheDocument();
   });
 }); 

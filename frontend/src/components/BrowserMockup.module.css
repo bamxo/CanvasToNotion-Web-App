@@ -115,6 +115,28 @@
   background: rgba(30, 30, 30, 0.9);
 }
 
+/* Animation classes */
+.hidden {
+  opacity: 0;
+  visibility: hidden;
+}
+
+.fromLeft {
+  transform: translateX(-50px);
+  transition: opacity 0.6s ease, transform 0.8s ease;
+}
+
+.fromRight {
+  transform: translateX(50px);
+  transition: opacity 0.6s ease, transform 0.8s ease;
+}
+
+.visible {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(0);
+}
+
 @media (max-width: 1200px) {
   .mockupContent {
     gap: 2rem;
