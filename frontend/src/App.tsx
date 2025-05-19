@@ -5,7 +5,7 @@ import Lookup from './components/Lookup'
 import SignUp from './components/SignUp'
 import Login from './components/Login'
 import ForgotPassword from './components/ForgotPassword'
-import ConnectionSetup from './components/ConnectionSetup'
+import GetStarted from './components/GetStarted'
 import Settings from './components/Settings'
 import ResetPassword from './components/ResetPassword'
 import Terms from './components/Terms'
@@ -21,7 +21,7 @@ function App() {
         <Route path="/signup" element={<SignUp />} />
         <Route path="/login" element={<Login />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
-        <Route path="/connection-setup" element={<ConnectionSetup />} />
+        <Route path="/get-started" element={<GetStarted />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/terms" element={<Terms />} />

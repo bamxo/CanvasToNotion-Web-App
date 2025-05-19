@@ -196,6 +196,26 @@
   margin-right: auto;
 }
 
+@media (max-width: 960px) {
+  .cardsContainer {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .cardsContainer {
+    grid-template-columns: 1fr;
+  }
+  
+  .card {
+    max-width: 400px;
+  }
+  
+  .header {
+    font-size: 32px;
+  }
+}
+
 .card {
   background-color: #F6F6F7;
   border-radius: 12px;
@@ -210,6 +230,7 @@
   gap: 20px;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
   margin: 0 auto;
+  justify-content: space-between;
 }
 
 .card:hover {
@@ -245,8 +266,12 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  margin: 0;
-  min-height: 180px;
+  margin: 0 auto;
+  min-height: 200px;
+  width: 100%;
+  position: relative;
+  overflow: hidden;
+  padding: 10px 0;
 }
 
 .stepImage {
@@ -264,6 +289,7 @@
   justify-content: center;
   align-items: center;
   position: relative;
+  max-width: 100%;
 }
 
 /* Pin Extension Graphic Styles */
@@ -443,10 +469,13 @@
   padding: 20px;
   width: 100%;
   justify-content: center;
+  flex-wrap: wrap;
 }
 
 .canvasBox, .notionBox {
-  width: 100px;
+  width: 45%;
+  min-width: 120px;
+  max-width: 140px;
   background: white;
   border-radius: 8px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
@@ -468,19 +497,19 @@
 }
 
 .notionBox .boxHeader {
-  background: #000;
+  background: #EA5C24;
 }
 
 .boxContent {
-  padding: 12px;
+  padding: 8px;
 }
 
 .assignmentLine, .notionLine {
   height: 8px;
-  background: #f0f0f0;
+  background-color: rgba(48, 48, 48, 0.1);
   border-radius: 4px;
-  margin-bottom: 8px;
-  transition: width 0.3s ease;
+  margin: 8px 0;
+  transition: all 0.3s ease;
 }
 
 .canvasBox:hover .assignmentLine,
@@ -513,61 +542,71 @@
 /* Notion Connection Graphic Styles */
 .notionGraphicContainer {
   width: 100%;
-  max-width: 300px;
+  max-width: 380px;
   margin: 0 auto;
+  position: relative;
 }
 
 .connectionFlow {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+  justify-content: center;
+  gap: 16px;
   padding: 8px;
+  flex-wrap: nowrap;
 }
 
 /* App Window Styles */
 .appWindow {
-  background: white;
+  width: 130px;
+  height: 130px;
+  background-color: white;
   border-radius: 8px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   overflow: hidden;
-  width: 150px;
-  transition: transform 0.2s ease;
-  cursor: default;  
-}
-
-.appWindow:hover {
-  transform: scale(1.02);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  position: relative;
+  flex-shrink: 0;
 }
 
 .appHeader {
   background: #EA5C24;
-  padding: 8px;
+  padding: 6px 8px;
   display: flex;
   justify-content: space-between;
   align-items: center;
+  height: 28px;
+  box-sizing: border-box;
 }
 
 .appTitle {
   font-family: var(--primary-font);
   font-weight: 600;
-  font-size: 12px;
+  font-size: 11px;
   color: white;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .appDot {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
   background: white;
   border-radius: 50%;
   opacity: 0.8;
+  flex-shrink: 0;
 }
 
 .appContent {
-  padding: 12px;
+  padding: 8px;
+  height: calc(100% - 28px);
   display: flex;
-  justify-content: center;
+  flex-direction: column;
   align-items: center;
+  justify-content: center;
+  background-color: #FFFFFF;
+  overflow: hidden;
 }
 
 .appIcon {
@@ -591,14 +630,15 @@
   display: flex;
   align-items: center;
   gap: 4px;
-  flex: 1;
+  width: 40px;
   justify-content: center;
-  padding: 0 8px;
+  padding: 0;
+  flex-shrink: 0;
 }
 
 .connectionDot {
-  width: 6px;
-  height: 6px;
+  width: 7px;
+  height: 7px;
   background: #EA5C24;
   border-radius: 50%;
   animation: pulse 1.5s infinite;
@@ -633,58 +673,69 @@
   border-radius: 8px;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
   overflow: hidden;
-  width: 200px;
+  width: 130px;
+  height: 130px;
   transition: transform 0.2s ease;
   cursor: default;
-}
-
-.notionWindow:hover {
-  transform: scale(1.02);
+  flex-shrink: 0;
 }
 
 .notionHeader {
   background: #ffffff;
   border-bottom: 1px solid #e0e0e0;
-  padding: 10px;
+  padding: 6px 8px;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
+  height: 28px;
+  box-sizing: border-box;
 }
 
 .notionLogo {
-  width: 18px;
-  height: 18px;
+  width: 16px;
+  height: 16px;
   display: flex;
   align-items: center;
   justify-content: center;
   color: #000;
-  font-size: 18px;
+  font-size: 16px;
 }
 
 .notionTitle {
   font-family: var(--primary-font);
   font-weight: 500;
-  font-size: 12px;
+  font-size: 11px;
   color: #37352f;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .notionContent {
-  padding: 12px;
+  padding: 8px;
+  height: calc(100% - 28px);
+  display: flex;
+  flex-direction: column;
+  position: relative;
 }
 
 .notionPage {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  height: 100%;
+  padding-top: 10px;
+  padding-bottom: 10px;
 }
 
 .notionBlock {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 6px;
+  gap: 6px;
+  padding: 4px;
   border-radius: 4px;
   transition: background 0.2s ease;
+  width: 90%;
+  margin: 0 auto 12px;
 }
 
 .notionBlock:hover {
@@ -692,31 +743,36 @@
 }
 
 .notionIcon {
-  font-size: 14px;
+  font-size: 12px;
   color: #37352f;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 20px;
-  height: 20px;
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
 }
 
 .notionText {
   font-family: var(--primary-font);
-  font-size: 12px;
+  font-size: 11px;
   color: #37352f;
+  white-space: nowrap;
 }
 
 .notionPermission {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   background: #f1f1ef;
-  padding: 6px 10px;
+  padding: 6px 8px;
   border-radius: 4px;
   cursor: default;
   transition: background 0.2s ease;
-  margin-top: 4px;
+  width: 90%;
+  text-align: center;
+  justify-content: center;
+  margin: 8px auto 0;
 }
 
 .notionPermission:hover {
@@ -724,15 +780,295 @@
 }
 
 .lockIcon {
-  font-size: 12px;
+  font-size: 10px;
   color: #37352f;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.permissionText {
+  font-family: var(--primary-font);
+  font-size: 10px;
+  color: #37352f;
+  white-space: nowrap;
+}
+
+.manageConnectionsUI {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+}
+
+.connectionTitle {
+  font-family: var(--primary-font);
+  font-size: 14px;
+  font-weight: 500;
+  color: #303030;
+  margin-bottom: 8px;
+  text-align: center;
+}
+
+.connectionsList {
+  width: 100%;
+  height: 60px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background-color: rgba(0, 0, 0, 0.03);
+  border-radius: 6px;
+  margin-bottom: 10px;
+}
+
+.emptyState {
+  font-family: var(--primary-font);
+  font-size: 12px;
+  color: #7C7C7C;
+  text-align: center;
+}
+
+.addConnectionButton {
+  background-color: #EA5C24;
+  color: white;
+  font-family: var(--primary-font);
+  font-size: 11px;
+  font-weight: 500;
+  border: none;
+  border-radius: 5px;
+  padding: 6px 8px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  text-align: center;
+  line-height: 1.2;
+  width: 90px;
+}
+
+.addConnectionButton:hover {
+  background-color: #D14813;
+}
+
+.bounceAnimation {
+  animation: bounce 0.6s ease infinite;
+}
+
+/* Media Queries for Responsiveness */
+@media (max-width: 768px) {
+  .imageContainer {
+    min-height: 150px;
+  }
+  
+  .notionGraphicContainer {
+    max-width: 350px;
+  }
+  
+  .appWindow, .notionWindow {
+    width: 120px;
+    height: 120px;
+  }
+  
+  .connectionLine {
+    width: 40px;
+  }
+  
+  .addConnectionButton {
+    width: 85px;
+    font-size: 10px;
+  }
+  
+  .notionPermission {
+    width: 90%;
+    padding: 5px 7px;
+  }
+  
+  .notionPage {
+    gap: 20px;
+  }
+}
+
+@media (max-width: 480px) {
+  .imageContainer {
+    min-height: 130px;
+  }
+  
+  .notionGraphicContainer {
+    max-width: 320px;
+  }
+  
+  .appWindow, .notionWindow {
+    width: 110px;
+    height: 110px;
+  }
+  
+  .connectionLine {
+    width: 30px;
+  }
+  
+  .appHeader, .notionHeader {
+    height: 24px;
+    padding: 5px 7px;
+  }
+  
+  .appContent, .notionContent {
+    height: calc(100% - 24px);
+  }
+  
+  .addConnectionButton {
+    width: 80px;
+    font-size: 9px;
+    padding: 5px 6px;
+  }
+  
+  .notionPermission {
+    width: 90%;
+    padding: 4px 6px;
+  }
+  
+  .syncArrows {
+    font-size: 20px;
+  }
+  
+  .boxHeader {
+    font-size: 12px;
+    padding: 6px;
+  }
+  
+  .notionPage {
+    gap: 16px;
+  }
+}
+
+.pageSelectorUI {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  gap: 4px;
+}
+
+.pageOption {
+  padding: 8px;
+  background: #f0f0f0;
+  border-radius: 4px;
+  font-family: var(--primary-font);
+  font-size: 11px;
+  color: #303030;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: center;
+}
+
+.pageOption.createNew {
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
-.permissionText {
+.pageOption.createNew span::before {
+  content: '+';
+  display: inline-block;
+  margin-right: 4px;
+  font-weight: 500;
+}
+
+.pageOption:hover {
+  background: #e6e6e6;
+}
+
+/* Dashboard UI in Notion Box */
+.dashboardUI {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  gap: 6px;
+}
+
+.assignmentTitle {
   font-family: var(--primary-font);
-  font-size: 11px;
+  font-size: 10px;
+  font-weight: 500;
+  color: #303030;
+  background-color: #f0f0f0;
+  padding: 4px 6px;
+  border-radius: 4px;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.syncItems {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  gap: 4px;
+}
+
+.itemsLabel {
+  font-family: var(--primary-font);
+  font-size: 9px;
   color: #37352f;
+  display: flex;
+  align-items: center;
+  margin-bottom: 2px;
+}
+
+.itemsLabel::before {
+  content: '!';
+  display: inline-block;
+  color: #ffffff;
+  background-color: #EA5C24;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  font-size: 8px;
+  line-height: 10px;
+  text-align: center;
+  margin-right: 4px;
+  font-weight: bold;
+}
+
+.assignmentItem {
+  height: 12px;
+  background-color: rgba(48, 48, 48, 0.05);
+  border-radius: 3px;
+  position: relative;
+  margin-bottom: 4px;
+}
+
+.assignmentDot {
+  position: absolute;
+  left: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: #EA5C24;
+}
+
+.syncButton {
+  height: 20px;
+  background-color: #EA5C24;
+  border-radius: 4px;
+  margin-top: 2px;
+  color: white;
+  font-family: var(--primary-font);
+  font-size: 10px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: bounce 0.6s ease infinite;
+  transition: background 0.2s;
+  cursor: pointer;
+}
+
+.syncButton:hover {
+  background-color: #D14813;
 } 

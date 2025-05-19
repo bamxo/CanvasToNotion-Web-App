@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { SiNotion } from 'react-icons/si';
 import { FaBook, FaLock, FaPuzzlePiece, FaThumbtack } from 'react-icons/fa';
-import styles from './ConnectionSetup.module.css';
+import styles from './GetStarted.module.css';
 import GradientBackgroundWrapper from './GradientBackgroundWrapper';
 import { useNotionAuth } from '../hooks/useNotionAuth';
 
@@ -54,20 +54,35 @@ const SyncCanvasGraphic: React.FC = () => {
     <div className={styles.graphicContainer}>
       <div className={styles.syncIllustration}>
         <div className={styles.canvasBox}>
-          <div className={styles.boxHeader}>Canvas</div>
+          <div className={styles.boxHeader}>Select a Page</div>
           <div className={styles.boxContent}>
-            <div className={styles.assignmentLine}></div>
-            <div className={styles.assignmentLine}></div>
+            <div className={styles.pageSelectorUI}>
+              <div className={`${styles.pageOption} ${styles.createNew}`}>
+                <span>Create New Page</span>
+              </div>
+              <div className={styles.pageOption}>My Assignments</div>
+            </div>
           </div>
         </div>
         <div className={styles.syncArrows}>
           <div className={styles.arrow}>→</div>
         </div>
         <div className={styles.notionBox}>
-          <div className={styles.boxHeader}>Notion</div>
+          <div className={styles.boxHeader}>Dashboard</div>
           <div className={styles.boxContent}>
-            <div className={styles.notionLine}></div>
-            <div className={styles.notionLine}></div>
+            <div className={styles.dashboardUI}>
+              <div className={styles.assignmentTitle}>My Assignments</div>
+              <div className={styles.syncItems}>
+                <div className={styles.itemsLabel}>Items to Sync</div>
+                <div className={styles.assignmentItem}>
+                  <div className={styles.assignmentDot}></div>
+                </div>
+                <div className={styles.assignmentItem}>
+                  <div className={styles.assignmentDot}></div>
+                </div>
+              </div>
+              <div className={styles.syncButton}>Sync</div>
+            </div>
           </div>
         </div>
       </div>
@@ -81,12 +96,14 @@ const NotionGraphic: React.FC = () => {
       <div className={styles.connectionFlow}>
         <div className={styles.appWindow}>
           <div className={styles.appHeader}>
-            <div className={styles.appTitle}>C2N App</div>
+            <div className={styles.appTitle}>Settings</div>
             <div className={styles.appDot}></div>
           </div>
           <div className={styles.appContent}>
-            <div className={styles.appIcon}>
-              <span>C2N</span>
+            <div className={styles.manageConnectionsUI}>
+              <button className={`${styles.addConnectionButton} ${styles.bounceAnimation}`}>
+                Add<br />Connection
+              </button>
             </div>
           </div>
         </div>
@@ -130,25 +147,17 @@ const ConnectionSetup: React.FC = () => {
   const navigate = useNavigate();
   const {
     userInfo,
-    notionConnection,
-    isConnecting,
-    error,
-    isLoading
+    isLoading,
+    error
   } = useNotionAuth();
-  const [isButtonLoading, setIsButtonLoading] = useState(false);
+  const [isSettingsButtonLoading, setIsSettingsButtonLoading] = useState(false);
 
-  const handleNotionConnect = async () => {
-    try {
-      setIsButtonLoading(true);
-      // Open Notion OAuth in same tab
-      window.open(
-        'https://api.notion.com/v1/oauth/authorize?client_id=1e3d872b-594c-8008-9ec9-003741e22a0f&response_type=code&owner=user&redirect_uri=http%3A%2F%2Flocalhost%3A5173%2Fsettings',
-        '_self'
-      );
-    } catch (err) {
-      setIsButtonLoading(false);
-      console.error('Failed to connect to Notion:', err);
-    }
+  const handleSettingsNavigation = () => {
+    setIsSettingsButtonLoading(true);
+    // Navigate after a short delay to show the loading animation
+    setTimeout(() => {
+      navigate('/settings');
+    }, 500);
   };
 
   return (
@@ -199,20 +208,18 @@ const ConnectionSetup: React.FC = () => {
                 <div className={styles.imageContainer}>
                   <NotionGraphic />
                 </div>
-                {error && <div className={styles.error}>{error}</div>}
                 <button 
-                  className={`${styles.buttonRectangle} ${notionConnection.isConnected ? styles.connected : ''} ${(isConnecting || isButtonLoading) ? styles.connecting : ''}`}
-                  onClick={handleNotionConnect}
-                  disabled={notionConnection.isConnected || isConnecting || isButtonLoading}
+                  className={`${styles.buttonRectangle} ${isSettingsButtonLoading ? styles.connecting : ''}`}
+                  onClick={handleSettingsNavigation}
+                  disabled={isSettingsButtonLoading}
                 >
-                  {notionConnection.isConnected ? 'Connected to Notion ✓' : 
-                   (isConnecting || isButtonLoading) ? <div className={styles.spinner}></div> : 'Connect to Notion'}
+                  {isSettingsButtonLoading ? <div className={styles.spinner}></div> : 'Go to Settings'}
                 </button>
                 <p className={styles.helperText}>
-                  Allow access to your target Notion page
+                  Head to Settings and click "Add Connection" to authorize Notion
                 </p>
                 <p className={styles.note}>
-                  Note: You can change your settings later in the Settings page.
+                  Choose a page or workspace where you want your assignments to sync
                 </p>
               </div>
 
@@ -225,12 +232,6 @@ const ConnectionSetup: React.FC = () => {
                 <p className={styles.helperText}>
                   Open Canvas and click the extension icon to start syncing your assignments
                 </p>
-                <button 
-                  className={styles.buttonRectangle}
-                  onClick={() => navigate('/settings')}
-                >
-                  Go to Settings
-                </button>
                 <p className={styles.note}>
                   Configure your sync preferences in the settings
                 </p>

@@ -1,44 +1,56 @@
 import React, { useState, useEffect, useCallback, useRef, TouchEvent, KeyboardEvent } from 'react';
 import styles from './Carousel.module.css';
-import { FaChevronLeft, FaChevronRight } from 'react-icons/fa';
+import { FaChevronLeft, FaChevronRight, FaLinkedin, FaGithub } from 'react-icons/fa';
 
 interface TeamMember {
   name: string;
   role: string;
   bio: string;
   image: string;
+  linkedin?: string;
+  github?: string;
 }
 
 const teamMembers: TeamMember[] = [
   {
-    name: "Team Member 1",
-    role: "Role 1",
-    bio: "Short bio describing the first team member's contributions and interests.",
-    image: "/placeholder1.jpg"
+    name: "Ben Liu",
+    role: "Backend Engineer",
+    bio: "Ben designed and implemented the Canvas data pulling logic and handled the general OAuth integration with Notion. He focused on making sure assignment data could be fetched and transferred smoothly.",
+    image: "/placeholder1.jpg",
+    linkedin: "https://www.linkedin.com/in/besaliu",
+    github: "https://github.com/besaliu"
   },
   {
-    name: "Team Member 2",
-    role: "Role 2",
-    bio: "Short bio describing the second team member's contributions and interests.",
-    image: "/placeholder2.jpg"
+    name: "Milan Moslehi",
+    role: "Scrum Master, Backend Engineer",
+    bio: "Milan led development of the authentication flow, managing user states and sessions. He also handled most of the backend logic and coordination across sprints.",
+    image: "/placeholder2.jpg",
+    linkedin: "https://www.linkedin.com/in/milan-moslehi-190429253",
+    github: "https://github.com/milanmos13"
   },
   {
-    name: "Team Member 3",
-    role: "Role 3",
-    bio: "Short bio describing the third team member's contributions and interests.",
-    image: "/placeholder3.jpg"
+    name: "Juan-Fernando Morales",
+    role: "QA Engineer",
+    bio: "Juan focused on testing backend functionality, ensuring that data syncing, authentication, and API logic performed reliably under different conditions.",
+    image: "/placeholder3.jpg",
+    linkedin: "https://www.linkedin.com/in/cosmichippo",
+    github: "https://github.com/juprmora"
   },
   {
-    name: "Team Member 4",
-    role: "Role 4",
-    bio: "Short bio describing the fourth team member's contributions and interests.",
-    image: "/placeholder4.jpg"
+    name: "Tanvi Herwadkar",
+    role: "Backend Engineer",
+    bio: "Tanvi designed clean and functional Notion templates to present Canvas assignment data in a user-friendly database format, making the extension more useful for students.",
+    image: "/placeholder4.jpg",
+    linkedin: "https://www.linkedin.com/in/tanvi-herwadkar-a29847218",
+    github: "https://github.com/tanviherwadkar"
   },
   {
-    name: "Team Member 5",
-    role: "Role 5",
-    bio: "Short bio describing the fifth team member's contributions and interests.",
-    image: "/placeholder5.jpg"
+    name: "Landon Nguyen",
+    role: "Product Owner, Frontend Engineer",
+    bio: "Landon designed and built the UI/UX for both the web app and Chrome extension, focusing on simplicity and speed. He also acted as the product owner, guiding the overall vision of the project.",
+    image: "/src/assets/7E9B29F4-B802-4FB0-9A42-69A9C65116D9.jpeg",
+    linkedin: "https://www.linkedin.com/in/landon-nguyen-678555238",
+    github: "https://github.com/bamxo"
   }
 ];
 
@@ -432,6 +444,30 @@ const Carousel: React.FC = () => {
               <h3 className={styles.memberName}>{member.name}</h3>
               <h4 className={styles.memberRole}>{member.role}</h4>
               <p className={styles.memberBio}>{member.bio}</p>
+              <div className={styles.socialLinks}>
+                {member.linkedin && (
+                  <a 
+                    href={member.linkedin} 
+                    target="_blank" 
+                    rel="noopener noreferrer" 
+                    aria-label={`${member.name}'s LinkedIn profile`}
+                    className={styles.socialLink}
+                  >
+                    <FaLinkedin size={20} />
+                  </a>
+                )}
+                {member.github && (
+                  <a 
+                    href={member.github} 
+                    target="_blank" 
+                    rel="noopener noreferrer" 
+                    aria-label={`${member.name}'s GitHub profile`}
+                    className={styles.socialLink}
+                  >
+                    <FaGithub size={20} />
+                  </a>
+                )}
+              </div>
             </div>
           </div>
         ))}
