@@ -48,7 +48,7 @@ const teamMembers: TeamMember[] = [
     name: "Landon Nguyen",
     role: "Product Owner, Frontend Engineer",
     bio: "Landon designed and built the UI/UX for both the web app and Chrome extension, focusing on simplicity and speed. He also acted as the product owner, guiding the overall vision of the project.",
-    image: "/src/assets/7E9B29F4-B802-4FB0-9A42-69A9C65116D9.jpeg",
+    image: "/placeholder5.jpg",
     linkedin: "https://www.linkedin.com/in/landon-nguyen-678555238",
     github: "https://github.com/bamxo"
   }
