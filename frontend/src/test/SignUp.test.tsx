@@ -258,7 +258,7 @@ describe('SignUp Component', () => {
       expect(localStorage.getItem('authToken')).toBe('fake-token-123');
       
       // Check navigation
-      expect(mockNavigate).toHaveBeenCalledWith('/connection-setup');
+      expect(mockNavigate).toHaveBeenCalledWith('/get-started');
     });
   });
 

@@ -103,11 +103,45 @@ export const useNotionAuth = (): UseNotionAuthReturn => {
       window.history.replaceState({}, document.title, window.location.pathname);
     };
 
+    const checkNotionConnection = async (email: string) => {
+      try {
+        const response = await axios.get(`http://localhost:3000/api/notion/connected?email=${encodeURIComponent(email)}`, {
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        if (!isMounted) return;
+
+        if (response.data.success && response.data.connected) {
+          setNotionConnection({
+            email: email,
+            isConnected: true
+          });
+        } else {
+          setNotionConnection({
+            email: '',
+            isConnected: false
+          });
+        }
+      } catch (err) {
+        if (!isMounted) return;
+        console.error('Error checking Notion connection status:', err);
+        // Don't set error here, just log it as this is not critical
+        setNotionConnection({
+          email: '',
+          isConnected: false
+        });
+      }
+    };
+
     const initializeUserInfo = async () => {
       // First try to get basic info from token
       const decodedToken = decodeJWT(authToken);
       if (decodedToken && decodedToken.email && isMounted) {
         setUserInfo({ email: decodedToken.email });
+        // Check Notion connection status
+        await checkNotionConnection(decodedToken.email);
         // If we got user info from token, handle Notion code if present
         if (notionCode) {
           await handleNotionCode(decodedToken.email);
@@ -128,6 +162,10 @@ export const useNotionAuth = (): UseNotionAuthReturn => {
 
         if (response.data && response.data.email) {
           setUserInfo(response.data);
+          // Check Notion connection if we haven't already
+          if (!decodedToken || !decodedToken.email) {
+            await checkNotionConnection(response.data.email);
+          }
           // If we haven't handled Notion code yet and it's present, handle it now
           if (notionCode && (!decodedToken || !decodedToken.email)) {
             await handleNotionCode(response.data.email);

@@ -80,7 +80,7 @@ const SignUp: React.FC = () => {
           // Store the auth token and redirect
           if (loginResponse.data) {
             localStorage.setItem('authToken', loginResponse.data.idToken);
-            navigate('/connection-setup');
+            navigate('/get-started');
           }
         } catch (loginErr) {
           setError('Account created but automatic login failed. Please try logging in manually.');
