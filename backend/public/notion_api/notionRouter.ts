@@ -116,42 +116,50 @@ router.post('/token', async (req: Request, res: Response) => {
         
         return true;
       }).map(item => {
-      let title = 'Untitled';
-      
-      if (item.object === 'page') {
-        // For pages, title is in properties.title if it exists
-        if ('properties' in item && item.properties.title) {
-          if ('title' in item.properties.title && Array.isArray(item.properties.title.title) && item.properties.title.title.length > 0) {
-            title = item.properties.title.title.map(textObj => textObj.plain_text).join('');
-          }
-        } else if ('parent' in item && item.parent.type === 'database_id') {
-          // If it's a database page, use a different approach to find the title
-          const titleProperty = Object.values(item.properties).find(
-            prop => ('rich_text' in prop && prop.rich_text.length > 0) || 
-                   ('title' in prop && prop.title.length > 0)
-          );
-          
-          if (titleProperty) {
-            if ('rich_text' in titleProperty) {
-              title = titleProperty.rich_text.map(textObj => textObj.plain_text).join('');
-            } else if ('title' in titleProperty) {
-              title = titleProperty.title.map(textObj => textObj.plain_text).join('');
+        let title = 'Untitled';
+        let icon: string | null = null;
+
+        // Extract icon emoji if present
+        if ('icon' in item && item.icon && item.icon.type === 'emoji') {
+          icon = item.icon.emoji;
+        }
+
+        if (item.object === 'page') {
+          // For pages, title is in properties.title if it exists
+          if ('properties' in item && item.properties.title) {
+            if ('title' in item.properties.title && Array.isArray(item.properties.title.title) && item.properties.title.title.length > 0) {
+              title = item.properties.title.title.map(textObj => textObj.plain_text).join('');
+            }
+          } else if ('parent' in item && item.parent.type === 'database_id') {
+            // If it's a database page, use a different approach to find the title
+            const titleProperty = Object.values(item.properties).find(
+              prop => ('rich_text' in prop && prop.rich_text.length > 0) || 
+                    ('title' in prop && prop.title.length > 0)
+            );
+            
+            if (titleProperty) {
+              if ('rich_text' in titleProperty) {
+                title = titleProperty.rich_text.map(textObj => textObj.plain_text).join('');
+              } else if ('title' in titleProperty) {
+                title = titleProperty.title.map(textObj => textObj.plain_text).join('');
+              }
             }
           }
+        } else if (item.object === 'database') {
+          // For databases, title is in title array
+          if ('title' in item && Array.isArray(item.title) && item.title.length > 0) {
+            title = item.title.map(textObj => textObj.plain_text).join('');
+          }
         }
-      } else if (item.object === 'database') {
-        // For databases, title is in title array
-        if ('title' in item && Array.isArray(item.title) && item.title.length > 0) {
-          title = item.title.map(textObj => textObj.plain_text).join('');
-        }
-      }
-      
-      return {
-        id: item.id,
-        type: item.object,
-        title
-      };
-    });
+        
+        return {
+          id: item.id,
+          type: item.object,
+          title,
+          icon // <-- include the icon emoji here
+        };
+      })
+
     
     // Update the user's data in Firebase
     const userData = {
@@ -310,24 +318,128 @@ router.get('/pages', async (req: Request, res: Response) => {
       return res.status(400).json({ success: false, error: 'Email is required' });
     }
 
+    // 1. Get user's accessToken from your database
     const usersRef = adminDb.ref('users');
     const snapshot = await usersRef.orderByChild('email').equalTo(email).once('value');
 
-    if (snapshot.exists()) {
-      const userData = Object.values(snapshot.val())[0] as any;
-      const pages = userData.pageIDs?.map((page: any) => ({
-        id: page.id,
-        title: page.title,
-      })) || [];
-
-      res.json({ pages });
-    } else {
-      res.status(404).json({ success: false, error: 'User not found' });
+    if (!snapshot.exists()) {
+      return res.status(404).json({ success: false, error: 'User not found' });
     }
+
+    const userKey = Object.keys(snapshot.val())[0];
+    const userData = Object.values(snapshot.val())[0] as any;
+    const accessToken = userData.accessToken;
+
+    if (!accessToken) {
+      return res.status(401).json({ success: false, error: 'User not connected to Notion' });
+    }
+
+    // 2. Use accessToken to instantiate Notion client
+    const notion = new Client({ auth: accessToken });
+
+    // 3. Get bot user ID
+    const botUser = await notion.users.me({});
+    const botId = botUser.id;
+
+    // 4. Perform the Notion search
+    const searchResponse = await notion.search({});
+
+    // 5. Filter and map results (same as in your /token endpoint)
+    const accessibleResources = searchResponse.results
+      .filter(item => {
+        if (item.object === 'database') {
+          const db = item as DatabaseObjectResponse;
+          return db.created_by?.id !== botId;
+        }
+        if (item.object === 'page') {
+          const page = item as PageObjectResponse;
+          return page.created_by?.id !== botId;
+        }
+        return true;
+      })
+      .map(item => {
+        let title = 'Untitled';
+        let icon: string | null = null;
+
+        // Extract icon emoji if present
+        if ('icon' in item && item.icon && item.icon.type === 'emoji') {
+          icon = item.icon.emoji;
+        }
+
+        if (item.object === 'page') {
+          if ('properties' in item && item.properties.title) {
+            if (
+              'title' in item.properties.title &&
+              Array.isArray(item.properties.title.title) &&
+              item.properties.title.title.length > 0
+            ) {
+              title = item.properties.title.title.map(textObj => textObj.plain_text).join('');
+            }
+          } else if ('parent' in item && item.parent.type === 'database_id') {
+            const titleProperty = Object.values(item.properties).find(
+              prop =>
+                ('rich_text' in prop && prop.rich_text.length > 0) ||
+                ('title' in prop && prop.title.length > 0)
+            );
+
+            if (titleProperty) {
+              if ('rich_text' in titleProperty) {
+                title = titleProperty.rich_text.map(textObj => textObj.plain_text).join('');
+              } else if ('title' in titleProperty) {
+                title = titleProperty.title.map(textObj => textObj.plain_text).join('');
+              }
+            }
+          }
+        } else if (item.object === 'database') {
+          if ('title' in item && Array.isArray(item.title) && item.title.length > 0) {
+            title = item.title.map(textObj => textObj.plain_text).join('');
+          }
+        }
+
+        return {
+          id: item.id,
+          type: item.object,
+          title,
+          icon,
+        };
+      });
+
+    // 6. Update the user's pages in the database
+    await adminDb.ref(`users/${userKey}/pageIDs`).set(accessibleResources);
+    await adminDb.ref(`users/${userKey}/lastUpdated`).set(new Date().toISOString());
+
+    // 7. Return the fresh data
+    res.json({ pages: accessibleResources });
   } catch (error) {
     console.error('Error fetching pages:', error);
     res.status(500).json({ success: false, error: 'Internal server error' });
   }
 });
 
+
+
+router.get('/connected', async (req: Request, res: Response) => {
+  try {
+    const { email } = req.query;
+
+    if (!email || typeof email !== 'string') {
+      return res.status(400).json({ success: false, error: 'Email is required' });
+    }
+
+    // Use the existing helper to get user data
+    const userData = await getUserByEmail(adminDb, email);
+
+    if (!userData) {
+      return res.status(404).json({ success: false, connected: false, error: 'User not found' });
+    }
+
+    // Check if accessToken exists and is non-empty
+    const connected = !!userData.accessToken;
+
+    res.json({ success: true, connected });
+  } catch (error) {
+    console.error('Error checking connection:', error);
+    res.status(500).json({ success: false, connected: false, error: 'Internal server error' });
+  }
+});
 export default router;  
