@@ -124,14 +124,18 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     
     // If client requests a token for extension
     if (requestExtensionToken) {
+      console.log('Generating custom token for extension...');
       // Generate a custom token for the extension
       const customToken = await admin.auth().createCustomToken(authData.localId);
+      console.log('Custom token generated successfully');
       
       res.json({
         ...authData,
         extensionToken: customToken
       });
+      console.log('Sent response with extension token');
     } else {
+      console.log('No extension token requested');
       res.json(authData);
     }
   } catch (error) {
