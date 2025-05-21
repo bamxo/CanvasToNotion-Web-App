@@ -31,9 +31,29 @@ const Settings: React.FC = () => {
   } = useNotionAuth();
   const [isButtonLoading, setIsButtonLoading] = useState(false);
 
-  const handleLogout = () => {
-    localStorage.removeItem('authToken');
-    navigate('/login');
+  const handleLogout = async () => {
+    try {
+      // Notify extension about logout
+      try {
+        await window.chrome.runtime.sendMessage(
+          'pnambdilelidpleodeielckfnmmjfhji',
+          { type: 'LOGOUT' }
+        );
+        console.log('Notified extension about logout');
+      } catch (extError) {
+        console.error('Failed to notify extension about logout:', extError);
+        // Continue with logout even if extension notification fails
+      }
+
+      // Clear local storage and redirect
+      localStorage.removeItem('authToken');
+      navigate('/login');
+    } catch (error) {
+      console.error('Logout error:', error);
+      // Still try to clear storage and redirect even if there's an error
+      localStorage.removeItem('authToken');
+      navigate('/login');
+    }
   };
 
   const handleDeleteAccount = () => {
