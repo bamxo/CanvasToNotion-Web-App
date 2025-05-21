@@ -36,7 +36,7 @@ const Settings: React.FC = () => {
       // Notify extension about logout
       try {
         await window.chrome.runtime.sendMessage(
-          'pnambdilelidpleodeielckfnmmjfhji',
+          'dgfemogdacdldapjcmfjcenbofgfdfei',
           { type: 'LOGOUT' }
         );
         console.log('Notified extension about logout');

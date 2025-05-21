@@ -84,7 +84,7 @@ const Login: React.FC = () => {
             // Send token to extension
             console.log('Sending token to extension ID:', 'pnambdilelidpleodeielckfnmmjfhji');
             const result = await window.chrome.runtime.sendMessage(
-              'pnambdilelidpleodeielckfnmmjfhji', // Extension ID from manifest
+              'dgfemogdacdldapjcmfjcenbofgfdfei', // Extension ID from manifest
               {
                 type: 'AUTH_TOKEN',
                 token: response.data.extensionToken
@@ -167,7 +167,7 @@ const Login: React.FC = () => {
               if (response.data.extensionToken) {
                 // Send token to extension
                 await window.chrome.runtime.sendMessage(
-                  'pnambdilelidpleodeielckfnmmjfhji',
+                  'dgfemogdacdldapjcmfjcenbofgfdfei',
                   {
                     type: 'AUTH_TOKEN',
                     token: response.data.extensionToken
