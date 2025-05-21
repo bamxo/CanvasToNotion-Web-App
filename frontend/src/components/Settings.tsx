@@ -16,6 +16,7 @@ import { useNavigate } from 'react-router-dom';
 import styles from './Settings.module.css';
 import logo from '../assets/c2n-favicon.svg';
 import { useNotionAuth } from '../hooks/useNotionAuth';
+import axios from 'axios';
 
 /**
  * Settings component to display user information and manage Notion connection
@@ -66,12 +67,35 @@ const Settings: React.FC = () => {
     window.location.href = 'https://api.notion.com/v1/oauth/authorize?client_id=1e3d872b-594c-8008-9ec9-003741e22a0f&response_type=code&owner=user&redirect_uri=http%3A%2F%2Flocalhost%3A5173%2Fsettings';
   };
 
-  const handleRemoveConnection = () => {
-    // TODO: Implement connection removal logic
-    setNotionConnection({
-      email: '',
-      isConnected: false
-    });
+  const handleRemoveConnection = async () => {
+    if (!userInfo?.email) {
+      console.error('No user email found');
+      return;
+    }
+    
+    try {
+      setIsButtonLoading(true);
+      const response = await axios.get(`http://localhost:3000/api/notion/disconnect`, {
+        params: { email: userInfo.email },
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (response.data.success) {
+        // Update the notion connection state
+        setNotionConnection({
+          email: '',
+          isConnected: false
+        });
+      } else {
+        console.error('Failed to disconnect from Notion:', response.data.error);
+      }
+    } catch (error) {
+      console.error('Error disconnecting from Notion:', error);
+    } finally {
+      setIsButtonLoading(false);
+    }
   };
 
   const getInitials = (email: string, firstName?: string) => {
@@ -166,8 +190,13 @@ const Settings: React.FC = () => {
               <button 
                 className={styles.removeConnectionButton}
                 onClick={handleRemoveConnection}
+                disabled={isButtonLoading}
               >
-                Remove Connection
+                {isButtonLoading ? (
+                  <div className={styles.spinner} />
+                ) : (
+                  'Remove Connection'
+                )}
               </button>
             )}
           </div>
