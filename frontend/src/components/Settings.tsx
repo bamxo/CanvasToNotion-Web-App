@@ -17,6 +17,7 @@ import styles from './Settings.module.css';
 import logo from '../assets/c2n-favicon.svg';
 import { useNotionAuth } from '../hooks/useNotionAuth';
 import axios from 'axios';
+import { EXTENSION_ID } from '../utils/constants';
 
 /**
  * Settings component to display user information and manage Notion connection
@@ -37,7 +38,7 @@ const Settings: React.FC = () => {
       // Notify extension about logout
       try {
         await window.chrome.runtime.sendMessage(
-          'dgfemogdacdldapjcmfjcenbofgfdfei',
+          EXTENSION_ID,
           { type: 'LOGOUT' }
         );
         console.log('Notified extension about logout');

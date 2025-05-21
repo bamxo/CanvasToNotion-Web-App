@@ -16,6 +16,7 @@ import eyeSlashIcon from '../assets/eye-slash.svg?url';
 import googleIcon from '../assets/google.svg?url';
 import arrowIcon from '../assets/arrow.svg?url';
 import authButtons from '../data/authButtons.json';
+import { EXTENSION_ID } from '../utils/constants';
 
 // Add Chrome types
 declare global {
@@ -82,9 +83,9 @@ const Login: React.FC = () => {
           console.log('Received extension token, attempting to send to extension...');
           try {
             // Send token to extension
-            console.log('Sending token to extension ID:', 'pnambdilelidpleodeielckfnmmjfhji');
+            console.log('Sending token to extension ID:', EXTENSION_ID);
             const result = await window.chrome.runtime.sendMessage(
-              'dgfemogdacdldapjcmfjcenbofgfdfei', // Extension ID from manifest
+              EXTENSION_ID, // Extension ID from constants
               {
                 type: 'AUTH_TOKEN',
                 token: response.data.extensionToken
@@ -167,7 +168,7 @@ const Login: React.FC = () => {
               if (response.data.extensionToken) {
                 // Send token to extension
                 await window.chrome.runtime.sendMessage(
-                  'dgfemogdacdldapjcmfjcenbofgfdfei',
+                  EXTENSION_ID,
                   {
                     type: 'AUTH_TOKEN',
                     token: response.data.extensionToken
