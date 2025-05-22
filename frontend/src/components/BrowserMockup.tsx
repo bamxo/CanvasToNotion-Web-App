@@ -1,6 +1,6 @@
 import React, { memo, useEffect, useRef } from 'react';
 import styles from './BrowserMockup.module.css';
-import { FaCheck, FaChevronRight, FaCalendarAlt, FaListUl, FaUsers, FaBook, FaInbox, FaQuestion, FaClock, FaCog, FaSignOutAlt, FaFile, FaQuestionCircle, FaRegClock, FaExclamationTriangle, FaFileAlt, FaRegFileAlt } from 'react-icons/fa';
+import { FaCheck, FaChevronRight, FaCalendarAlt, FaBook, FaInbox, FaQuestion, FaCog, FaSignOutAlt, FaFile, FaRegClock, FaExclamationTriangle, FaRegFileAlt } from 'react-icons/fa';
 
 const FeatureItem = memo(({ children }: { children: React.ReactNode }) => (
   <div className={styles.featureItem}>

@@ -3,6 +3,12 @@ import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { BrowserRouter } from 'react-router-dom';
 import Settings from '../components/Settings';
 import * as useNotionAuthModule from '../hooks/useNotionAuth';
+import axios from 'axios';
+import { EXTENSION_ID } from '../utils/constants';
+
+// Mock axios
+vi.mock('axios');
+const mockedAxios = axios as jest.Mocked<typeof axios>;
 
 // Mock useNavigate
 const mockNavigate = vi.fn();
@@ -48,6 +54,17 @@ Object.defineProperty(window, 'localStorage', {
   value: localStorageMock
 });
 
+// Mock chrome runtime
+const mockSendMessage = vi.fn().mockResolvedValue({ success: true });
+Object.defineProperty(window, 'chrome', {
+  value: {
+    runtime: {
+      sendMessage: mockSendMessage
+    }
+  },
+  writable: true
+});
+
 // Mock window.open
 const mockOpen = vi.fn();
 vi.spyOn(window, 'open').mockImplementation(mockOpen);
@@ -83,6 +100,9 @@ describe('Settings Component', () => {
     
     // Set up localStorage with a mock auth token
     localStorage.setItem('authToken', 'mock-token');
+    
+    // Mock axios get to resolve successfully
+    mockedAxios.get.mockResolvedValue({ data: { success: true } });
   });
 
   afterEach(() => {
@@ -131,16 +151,19 @@ describe('Settings Component', () => {
     expect(screen.getByText('User')).toBeInTheDocument();
   });
   
-  it('signs out when the sign out button is clicked', () => {
+  it('signs out when the sign out button is clicked', async () => {
     renderSettings();
     
     // Find and click the sign out button
     const signOutButton = screen.getByText('Sign out');
     fireEvent.click(signOutButton);
     
-    // Expect the authToken to be removed and navigation to login page
-    expect(localStorage.getItem('authToken')).toBeNull();
-    expect(mockNavigate).toHaveBeenCalledWith('/login');
+    // Wait for the async operation to complete
+    await vi.waitFor(() => {
+      // Expect the authToken to be removed and navigation to login page
+      expect(localStorage.getItem('authToken')).toBeNull();
+      expect(mockNavigate).toHaveBeenCalledWith('/login');
+    });
   });
   
   it('calls handleDeleteAccount when delete account button is clicked', () => {
@@ -222,7 +245,8 @@ describe('Settings Component', () => {
     expect(window.location.href).toContain('client_id=1e3d872b-594c-8008-9ec9-003741e22a0f');
   });
   
-  it('calls setNotionConnection when Remove Connection button is clicked', () => {
+  it('calls setNotionConnection when Remove Connection button is clicked', async () => {
+    // Mock connected state
     useNotionAuthSpy.mockReturnValue({
       userInfo: { email: 'test@example.com', firstName: 'Test' },
       notionConnection: { email: 'notion@example.com', isConnected: true },
@@ -232,16 +256,32 @@ describe('Settings Component', () => {
       setNotionConnection: mockSetNotionConnection,
     });
     
+    // Mock successful API response
+    mockedAxios.get.mockResolvedValueOnce({
+      data: { success: true }
+    });
+    
     renderSettings();
     
     // Find and click the Remove Connection button
     const removeConnectionButton = screen.getByText('Remove Connection');
     fireEvent.click(removeConnectionButton);
     
-    // Verify that setNotionConnection was called with the correct arguments
-    expect(mockSetNotionConnection).toHaveBeenCalledWith({
-      email: '',
-      isConnected: false
+    // Wait for the async operation to complete
+    await vi.waitFor(() => {
+      // Verify that axios.get was called with correct parameters
+      expect(mockedAxios.get).toHaveBeenCalledWith(
+        'http://localhost:3000/api/notion/disconnect',
+        expect.objectContaining({
+          params: { email: 'test@example.com' }
+        })
+      );
+      
+      // Verify that setNotionConnection was called with the correct arguments
+      expect(mockSetNotionConnection).toHaveBeenCalledWith({
+        email: '',
+        isConnected: false
+      });
     });
   });
 

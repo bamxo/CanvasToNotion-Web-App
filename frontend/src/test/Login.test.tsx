@@ -3,6 +3,7 @@ import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
 import Login from '../components/Login';
 import axios from 'axios';
 import { BrowserRouter } from 'react-router-dom';
+import { EXTENSION_ID } from '../utils/constants';
 
 // Mock axios
 vi.mock('axios');
@@ -257,7 +258,7 @@ describe('Login Component', () => {
     await vi.waitFor(() => {
       // Check chrome runtime sendMessage was called with correct data
       expect(mockSendMessage).toHaveBeenCalledWith(
-        'dgfemogdacdldapjcmfjcenbofgfdfei',
+        EXTENSION_ID,
         {
           type: 'AUTH_TOKEN',
           token: 'extension-token-456'
@@ -610,7 +611,7 @@ describe('Login Component', () => {
     });
     
     expect(mockSendMessage).toHaveBeenCalledWith(
-      'dgfemogdacdldapjcmfjcenbofgfdfei',
+      EXTENSION_ID,
       {
         type: 'AUTH_TOKEN',
         token: 'extension-token-from-google-auth'

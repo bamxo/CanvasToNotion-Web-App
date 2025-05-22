@@ -24,9 +24,20 @@ vi.mock('../components/BrowserMockup.module.css', () => ({
   }
 }));
 
-// Mock FaCheck icon component
+// Mock all icons from react-icons/fa
 vi.mock('react-icons/fa', () => ({
-  FaCheck: () => <span className="checkIcon">✓</span>
+  FaCheck: () => <span className="checkIcon">✓</span>,
+  FaChevronRight: () => <span>→</span>,
+  FaCalendarAlt: () => <span>📅</span>,
+  FaBook: () => <span>📚</span>,
+  FaInbox: () => <span>📥</span>,
+  FaQuestion: () => <span>❓</span>,
+  FaCog: () => <span>⚙️</span>,
+  FaSignOutAlt: () => <span>🚪</span>,
+  FaFile: () => <span>📄</span>,
+  FaRegClock: () => <span>🕒</span>,
+  FaExclamationTriangle: () => <span>⚠️</span>,
+  FaRegFileAlt: () => <span>📃</span>
 }));
 
 // Mock IntersectionObserver
