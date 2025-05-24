@@ -1,6 +1,10 @@
 import React, { useState, useEffect, useCallback, useRef, TouchEvent, KeyboardEvent } from 'react';
 import styles from './Carousel.module.css';
 import { FaChevronLeft, FaChevronRight, FaLinkedin, FaGithub } from 'react-icons/fa';
+import benImage from '../assets/IMG_6342.jpg?url';
+import milanImage from '../assets/IMG_2899.jpeg?url';
+import tanviImage from '../assets/IMG_0524.jpg?url';
+import landonImage from '../assets/IMG_5966.png?url';
 
 interface TeamMember {
   name: string;
@@ -16,7 +20,7 @@ const teamMembers: TeamMember[] = [
     name: "Ben Liu",
     role: "Backend Engineer",
     bio: "Ben designed and implemented the Canvas data pulling logic and handled the general OAuth integration with Notion. He focused on making sure assignment data could be fetched and transferred smoothly.",
-    image: "/placeholder1.jpg",
+    image: benImage,
     linkedin: "https://www.linkedin.com/in/besaliu",
     github: "https://github.com/besaliu"
   },
@@ -24,7 +28,7 @@ const teamMembers: TeamMember[] = [
     name: "Milan Moslehi",
     role: "Scrum Master, Backend Engineer",
     bio: "Milan led development of the authentication flow, managing user states and sessions. He also handled most of the backend logic and coordination across sprints.",
-    image: "/placeholder2.jpg",
+    image: milanImage,
     linkedin: "https://www.linkedin.com/in/milan-moslehi-190429253",
     github: "https://github.com/milanmos13"
   },
@@ -40,7 +44,7 @@ const teamMembers: TeamMember[] = [
     name: "Tanvi Herwadkar",
     role: "Backend Engineer",
     bio: "Tanvi designed clean and functional Notion templates to present Canvas assignment data in a user-friendly database format, making the extension more useful for students.",
-    image: "/placeholder4.jpg",
+    image: tanviImage,
     linkedin: "https://www.linkedin.com/in/tanvi-herwadkar-a29847218",
     github: "https://github.com/tanviherwadkar"
   },
@@ -48,7 +52,7 @@ const teamMembers: TeamMember[] = [
     name: "Landon Nguyen",
     role: "Product Owner, Frontend Engineer",
     bio: "Landon designed and built the UI/UX for both the web app and Chrome extension, focusing on simplicity and speed. He also acted as the product owner, guiding the overall vision of the project.",
-    image: "/placeholder5.jpg",
+    image: landonImage,
     linkedin: "https://www.linkedin.com/in/landon-nguyen-678555238",
     github: "https://github.com/bamxo"
   }

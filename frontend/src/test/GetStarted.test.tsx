@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { BrowserRouter } from 'react-router-dom';
 import GetStarted from '../components/GetStarted';
@@ -72,7 +72,7 @@ describe('GetStarted Component', () => {
   });
 
   it('navigates to settings when the Go to Settings button is clicked', async () => {
-    const { container } = renderGetStarted();
+    renderGetStarted();
     
     // Find the "Go to Settings" button directly by its text content
     const settingsButton = screen.getByText('Go to Settings', { selector: 'button' });
@@ -127,7 +127,7 @@ describe('GetStarted Component', () => {
   });
 
   it('shows settings button in a loading state when clicked', async () => {
-    const { container } = renderGetStarted();
+    renderGetStarted();
     
     // Find the "Go to Settings" button directly by its text content
     const settingsButton = screen.getByText('Go to Settings', { selector: 'button' });

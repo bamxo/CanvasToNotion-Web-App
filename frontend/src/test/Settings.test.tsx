@@ -4,7 +4,6 @@ import { BrowserRouter } from 'react-router-dom';
 import Settings from '../components/Settings';
 import * as useNotionAuthModule from '../hooks/useNotionAuth';
 import axios from 'axios';
-import { EXTENSION_ID } from '../utils/constants';
 
 // Mock axios
 vi.mock('axios');
