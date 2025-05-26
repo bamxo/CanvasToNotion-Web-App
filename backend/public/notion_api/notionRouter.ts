@@ -186,6 +186,7 @@ router.post('/token', async (req: Request, res: Response) => {
     });
   }
 });
+
 // Modified sync endpoint to use email instead of token in the request
 router.post('/sync', async (req: Request, res: Response) => {
   try {
@@ -231,18 +232,18 @@ router.post('/sync', async (req: Request, res: Response) => {
 
       const courseName = course.name;
 
-      const databaseAlreadyExists = childrenResponse.results.some(child => {
+      const existingDatabase = childrenResponse.results.find(child => {
         if ("type" in child && child.type === "child_database") {
           return child.child_database?.title === courseName;
         }
         return false;
       });
 
-      if (databaseAlreadyExists) {
+      if (existingDatabase && "type" in existingDatabase && existingDatabase.type === "child_database") {
         console.log(`database for ${courseName} already exists.`);
+        courseDatabases.set(course.id, existingDatabase.id);
         continue;
       }
-
 
       try {
         const newDb = await notion.databases.create({
@@ -461,6 +462,50 @@ router.get('/connected', async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Error checking connection:', error);
     res.status(500).json({ success: false, connected: false, error: 'Internal server error' });
+  }
+});
+
+router.get('/disconnect', async (req: Request, res: Response) => {
+  try {
+    const { email } = req.query;
+
+    if (!email || typeof email !== 'string') {
+      return res.status(400).json({ success: false, error: 'Email is required' });
+    }
+
+    // Get users reference
+    const usersRef = adminDb.ref('users');
+    
+    // Find user by email
+    const snapshot = await usersRef.orderByChild('email').equalTo(email).once('value');
+
+    if (!snapshot.exists()) {
+      return res.status(404).json({ success: false, connected: false, error: 'User not found' });
+    }
+
+    const userEntries = Object.entries(snapshot.val());
+    if (userEntries.length === 0) {
+      return res.status(404).json({ success: false, connected: false, error: 'User data not found' });
+    }
+
+    // Get the user's ID and data
+    const [userId, userData] = userEntries[0] as [string, UserData];
+
+    // Check if accessToken exists and is non-empty
+    const connected = !!userData.accessToken;
+
+    if (connected) {
+      // Remove the accessToken to disconnect the user
+      const userRef = adminDb.ref(`users/${userId}/accessToken`);
+      await userRef.remove();
+      
+      return res.json({ success: true, connected: false, message: 'User disconnected successfully' });
+    }
+
+    res.json({ success: true, connected, message: 'User is already disconnected' });
+  } catch (error) {
+    console.error('Error during disconnect:', error);
+    res.status(500).json({ success: false, error: 'Internal server error' });
   }
 });
 export default router;  
