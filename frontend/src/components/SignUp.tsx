@@ -13,6 +13,7 @@ import eyeIcon from '../assets/ph_eye.svg?url';
 import eyeSlashIcon from '../assets/eye-slash.svg?url';
 import arrowIcon from '../assets/arrow.svg?url';
 import axios from 'axios';
+import { mapFirebaseError, validateForm } from '../utils/errorMessages';
 
 const SignUp: React.FC = () => {
   // State for form data management
@@ -46,16 +47,10 @@ const SignUp: React.FC = () => {
     setError('');
     setIsLoading(true);
 
-    // Validate password length
-    if (formData.password.length < 8) {
-      setError('Password must be at least 8 characters long');
-      setIsLoading(false);
-      return;
-    }
-
-    // Validate passwords match
-    if (formData.password !== formData.confirmPassword) {
-      setError('Passwords do not match');
+    // Validate form using the utility function
+    const validationError = validateForm(formData.email, formData.password, formData.confirmPassword);
+    if (validationError) {
+      setError(validationError);
       setIsLoading(false);
       return;
     }
@@ -88,11 +83,9 @@ const SignUp: React.FC = () => {
         }
       }
     } catch (err) {
-      if (axios.isAxiosError(err)) {
-        setError(err.response?.data?.error || 'Failed to create account');
-      } else {
-        setError('An unexpected error occurred');
-      }
+      // Use the new error mapping utility
+      const userFriendlyMessage = mapFirebaseError(err, 'Failed to create account. Please try again.');
+      setError(userFriendlyMessage);
     } finally {
       setIsLoading(false);
     }

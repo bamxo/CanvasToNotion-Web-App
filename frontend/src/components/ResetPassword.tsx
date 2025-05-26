@@ -11,6 +11,7 @@ import styles from './ResetPassword.module.css';
 import GradientBackgroundWrapper from './GradientBackgroundWrapper';
 import eyeIcon from '../assets/ph_eye.svg';
 import eyeSlashIcon from '../assets/eye-slash.svg';
+import { validateForm, mapFirebaseError } from '../utils/errorMessages';
 
 const ResetPassword: React.FC = () => {
   // State for form data management
@@ -46,16 +47,11 @@ const ResetPassword: React.FC = () => {
     setError('');
     setIsLoading(true);
 
-    // Validate password length
-    if (formData.password.length < 8) {
-      setError('Password must be at least 8 characters long');
-      setIsLoading(false);
-      return;
-    }
-
-    // Validate passwords match
-    if (formData.password !== formData.confirmPassword) {
-      setError('Passwords do not match');
+    // Validate form using the utility function
+    // For validation, we'll use a dummy email since this is just password validation
+    const validationError = validateForm('dummy@email.com', formData.password, formData.confirmPassword);
+    if (validationError) {
+      setError(validationError);
       setIsLoading(false);
       return;
     }
@@ -66,7 +62,9 @@ const ResetPassword: React.FC = () => {
       await new Promise(resolve => setTimeout(resolve, 1000));
       navigate('/login');
     } catch (err) {
-      setError('Failed to reset password. Please try again.');
+      // Use the new error mapping utility
+      const userFriendlyMessage = mapFirebaseError(err, 'Failed to reset password. Please try again.');
+      setError(userFriendlyMessage);
     } finally {
       setIsLoading(false);
     }

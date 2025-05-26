@@ -9,6 +9,7 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import styles from './ForgotPassword.module.css';
 import GradientBackgroundWrapper from './GradientBackgroundWrapper';
+import { mapFirebaseError } from '../utils/errorMessages';
 
 const ForgotPassword: React.FC = () => {
   const navigate = useNavigate();
@@ -55,12 +56,22 @@ const ForgotPassword: React.FC = () => {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error);
+        // Create an error object that our utility can handle
+        const errorObj = {
+          response: {
+            data: {
+              error: data.error
+            }
+          }
+        };
+        throw errorObj;
       }
 
       setSuccess(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to send password reset email');
+      // Use the new error mapping utility
+      const userFriendlyMessage = mapFirebaseError(err, 'Failed to send password reset email. Please try again.');
+      setError(userFriendlyMessage);
     } finally {
       setIsLoading(false);
     }

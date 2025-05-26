@@ -17,6 +17,7 @@ import googleIcon from '../assets/google.svg?url';
 import arrowIcon from '../assets/arrow.svg?url';
 import authButtons from '../data/authButtons.json';
 import { EXTENSION_ID } from '../utils/constants';
+import { mapFirebaseError } from '../utils/errorMessages';
 
 // Add Chrome types
 declare global {
@@ -112,11 +113,9 @@ const Login: React.FC = () => {
         navigate('/settings');
       }
     } catch (err) {
-      if (axios.isAxiosError(err)) {
-        setError(err.response?.data?.error || 'Invalid email or password');
-      } else {
-        setError('An unexpected error occurred');
-      }
+      // Use the new error mapping utility
+      const userFriendlyMessage = mapFirebaseError(err, 'Login failed. Please try again.');
+      setError(userFriendlyMessage);
     } finally {
       setIsLoading(false);
     }
