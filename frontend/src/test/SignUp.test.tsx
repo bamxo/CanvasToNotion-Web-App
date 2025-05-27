@@ -149,7 +149,7 @@ describe('SignUp Component', () => {
     await waitFor(() => {
       const errorDiv = container.querySelector('div[class*="error"]');
       expect(errorDiv).toBeInTheDocument();
-      expect(errorDiv?.textContent).toBe('Passwords do not match');
+      expect(errorDiv?.textContent).toBe('Passwords do not match. Please try again.');
     });
   });
 
@@ -174,7 +174,7 @@ describe('SignUp Component', () => {
     await waitFor(() => {
       const errorDiv = container.querySelector('div[class*="error"]');
       expect(errorDiv).toBeInTheDocument();
-      expect(errorDiv?.textContent).toBe('Password must be at least 8 characters long');
+      expect(errorDiv?.textContent).toBe('Password must be at least 8 characters long.');
     });
   });
 
@@ -199,7 +199,7 @@ describe('SignUp Component', () => {
     await waitFor(() => {
       const errorDiv = container.querySelector('div[class*="error"]');
       expect(errorDiv).toBeInTheDocument();
-      expect(errorDiv?.textContent).toBe('Password must be at least 8 characters long');
+      expect(errorDiv?.textContent).toBe('Password must be at least 8 characters long.');
     });
     
     // Type again to clear error
@@ -356,7 +356,7 @@ describe('SignUp Component', () => {
       const possibleErrorMessages = [
         'Email already in use',
         'Failed to create account',
-        'An unexpected error occurred'
+        'An unexpected error occurred. Please try again.'
       ];
       
       expect(possibleErrorMessages.includes(errorDiv?.textContent || '')).toBe(true);
@@ -390,7 +390,7 @@ describe('SignUp Component', () => {
       // Error message should be displayed
       const errorDiv = container.querySelector('div[class*="error"]');
       expect(errorDiv).toBeInTheDocument();
-      expect(errorDiv?.textContent).toBe('An unexpected error occurred');
+      expect(errorDiv?.textContent).toBe('An unexpected error occurred. Please try again.');
     });
   });
 

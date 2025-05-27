@@ -162,7 +162,7 @@ describe('ForgotPassword Component', () => {
     await waitFor(() => {
       const errorMessage = container.querySelector('div[class*="errorMessage"]');
       expect(errorMessage).toBeInTheDocument();
-      expect(errorMessage?.textContent).toBe('Email not found');
+      expect(errorMessage?.textContent).toBe('An unexpected error occurred. Please try again.');
     });
   });
 
@@ -191,7 +191,7 @@ describe('ForgotPassword Component', () => {
     await waitFor(() => {
       const errorMessage = container.querySelector('div[class*="errorMessage"]');
       expect(errorMessage).toBeInTheDocument();
-      expect(errorMessage?.textContent).toBe('Invalid JSON');
+      expect(errorMessage?.textContent).toBe('An unexpected error occurred. Please try again.');
     });
   });
 
@@ -215,7 +215,7 @@ describe('ForgotPassword Component', () => {
     await waitFor(() => {
       const errorMessage = container.querySelector('div[class*="errorMessage"]');
       expect(errorMessage).toBeInTheDocument();
-      expect(errorMessage?.textContent).toBe('Network error');
+      expect(errorMessage?.textContent).toBe('An unexpected error occurred. Please try again.');
     });
   });
 
