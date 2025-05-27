@@ -5,6 +5,7 @@ import benImage from '../assets/IMG_6342.jpg?url';
 import milanImage from '../assets/IMG_2899.jpeg?url';
 import tanviImage from '../assets/IMG_0524.jpg?url';
 import landonImage from '../assets/IMG_5966.png?url';
+import juanImage from '../assets/IMG_0000.jpeg?url';
 
 interface TeamMember {
   name: string;
@@ -36,7 +37,7 @@ const teamMembers: TeamMember[] = [
     name: "Juan-Fernando Morales",
     role: "QA Engineer",
     bio: "Juan focused on testing backend functionality, ensuring that data syncing, authentication, and API logic performed reliably under different conditions.",
-    image: "/placeholder3.jpg",
+    image: juanImage,
     linkedin: "https://www.linkedin.com/in/cosmichippo",
     github: "https://github.com/juprmora"
   },
