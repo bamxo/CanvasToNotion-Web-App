@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 
@@ -49,8 +49,12 @@ export const useNotionAuth = (): UseNotionAuthReturn => {
   const [error, setError] = useState<string>('');
   const [isLoading, setIsLoading] = useState(true);
 
+  // Prevent double-processing of the code
+  const codeProcessedRef = useRef(false);
+  const mountedRef = useRef(true);
+
   useEffect(() => {
-    let isMounted = true;
+    mountedRef.current = true;
     const authToken = localStorage.getItem('authToken');
     
     if (!authToken) {
@@ -58,64 +62,77 @@ export const useNotionAuth = (): UseNotionAuthReturn => {
       return;
     }
 
-    // Check for Notion authorization code in URL
+    // Extract and clear the Notion code from the URL immediately
     const urlParams = new URLSearchParams(window.location.search);
     const notionCode = urlParams.get('code');
-    
-    const handleNotionCode = async (email: string) => {
-      if (!notionCode) return;
+    if (notionCode) {
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+
+    const handleNotionCode = async (email: string, code: string) => {
+      if (!code || codeProcessedRef.current || !mountedRef.current) return;
+      
+      codeProcessedRef.current = true;
+      setIsConnecting(true);
+      setError(''); // Clear any previous errors
       
       try {
-        setIsConnecting(true);
         const response = await axios.post('http://localhost:3000/api/notion/token', {
-          code: notionCode,
-          email: email
+          code,
+          email
         }, {
-          headers: {
-            'Content-Type': 'application/json'
-          }
+          headers: { 'Content-Type': 'application/json' }
         });
-        
-        if (!isMounted) return;
+
+        if (!mountedRef.current) return;
 
         if (response.data.success) {
           setNotionConnection({
-            email: response.data.workspaceId || 'Connected',
+            email: response.data.workspaceId || email,
             isConnected: true
           });
-        } else if (response.data) {
+        } else {
           setNotionConnection({
             email: '',
-            isConnected: true
+            isConnected: false
           });
+          setError(response.data.error || 'Failed to connect to Notion.');
         }
-      } catch (err) {
-        if (!isMounted) return;
+      } catch (err: any) {
+        if (!mountedRef.current) return;
+        
         console.error('Error exchanging Notion code for token:', err);
-        setError('Failed to connect to Notion. Please try again.');
+        setNotionConnection({
+          email: '',
+          isConnected: false
+        });
+        
+        const errorMessage = err?.response?.data?.error?.error_description ||
+                           err?.response?.data?.error ||
+                           err?.response?.data?.message ||
+                           err?.message ||
+                           'Failed to connect to Notion. Please try again.';
+        setError(errorMessage);
       } finally {
-        if (isMounted) {
+        if (mountedRef.current) {
           setIsConnecting(false);
         }
       }
-
-      // Clear the URL parameters after attempting token exchange
-      window.history.replaceState({}, document.title, window.location.pathname);
     };
 
     const checkNotionConnection = async (email: string) => {
+      if (!mountedRef.current) return;
+      
       try {
         const response = await axios.get(`http://localhost:3000/api/notion/connected?email=${encodeURIComponent(email)}`, {
-          headers: {
-            'Content-Type': 'application/json'
-          }
+          headers: { 'Content-Type': 'application/json' }
         });
-        
-        if (!isMounted) return;
+
+        if (!mountedRef.current) return;
 
         if (response.data.success && response.data.connected) {
           setNotionConnection({
-            email: email,
+            email,
             isConnected: true
           });
         } else {
@@ -125,12 +142,11 @@ export const useNotionAuth = (): UseNotionAuthReturn => {
           });
         }
       } catch (err) {
-        if (!isMounted) return;
+        if (!mountedRef.current) return;
         console.error('Error checking Notion connection status:', err);
-        // Don't set error here, just log it as this is not critical
-        setNotionConnection({
-          email: '',
-          isConnected: false
+        setNotionConnection({ 
+          email: '', 
+          isConnected: false 
         });
       }
     };
@@ -138,17 +154,21 @@ export const useNotionAuth = (): UseNotionAuthReturn => {
     const initializeUserInfo = async () => {
       // First try to get basic info from token
       const decodedToken = decodeJWT(authToken);
-      if (decodedToken && decodedToken.email && isMounted) {
-        setUserInfo({ email: decodedToken.email });
-        // Check Notion connection status
-        await checkNotionConnection(decodedToken.email);
-        // If we got user info from token, handle Notion code if present
-        if (notionCode) {
-          await handleNotionCode(decodedToken.email);
+      let email = decodedToken?.email;
+
+      if (email && mountedRef.current) {
+        setUserInfo({ email });
+        // Check connection status first if no code to process
+        if (!notionCode) {
+          await checkNotionConnection(email);
+        }
+        // Process Notion code if present
+        if (notionCode && !codeProcessedRef.current) {
+          await handleNotionCode(email, notionCode);
         }
       }
 
-      // Then try to get full user info
+      // Then try to get full user info from API
       try {
         const response = await axios.get('http://localhost:5173/api/auth/user', {
           headers: {
@@ -157,53 +177,47 @@ export const useNotionAuth = (): UseNotionAuthReturn => {
           },
           withCredentials: true
         });
-        
-        if (!isMounted) return;
+
+        if (!mountedRef.current) return;
 
         if (response.data && response.data.email) {
           setUserInfo(response.data);
-          // Check Notion connection if we haven't already
-          if (!decodedToken || !decodedToken.email) {
-            await checkNotionConnection(response.data.email);
-          }
-          // If we haven't handled Notion code yet and it's present, handle it now
-          if (notionCode && (!decodedToken || !decodedToken.email)) {
-            await handleNotionCode(response.data.email);
+          
+          // If we didn't get email from token, handle code processing and connection check
+          if (!email) {
+            if (notionCode && !codeProcessedRef.current) {
+              await handleNotionCode(response.data.email, notionCode);
+            } else {
+              await checkNotionConnection(response.data.email);
+            }
           }
         }
-      } catch (err) {
-        if (!isMounted) return;
+      } catch (err: any) {
+        if (!mountedRef.current) return;
         
         // Only set error if we don't have any user info yet
         if (!userInfo?.email) {
-          if (axios.isAxiosError(err)) {
-            if (err.response) {
-              setError(`Authentication Error: ${err.response.data?.message || err.response.statusText}`);
-            } else if (err.request) {
-              setError('No response received from server. Please check your connection.');
-            } else {
-              setError(`Request Error: ${err.message}`);
-            }
-          } else {
-            setError('An unexpected error occurred');
-          }
+          console.error('Error fetching user info:', err);
+          const errorMessage = err?.response?.data?.message ||
+                              err?.response?.statusText ||
+                              err?.message ||
+                              'Authentication Error';
+          setError(errorMessage);
           navigate('/login');
         }
       } finally {
-        if (isMounted) {
+        if (mountedRef.current) {
           setIsLoading(false);
         }
       }
     };
 
-    // Run initialization
     initializeUserInfo();
 
-    // Cleanup function
     return () => {
-      isMounted = false;
+      mountedRef.current = false;
     };
-  }, [navigate]); // Only depend on navigate
+  }, [navigate]);
 
   return {
     userInfo,

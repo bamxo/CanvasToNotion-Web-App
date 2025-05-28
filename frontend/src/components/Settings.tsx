@@ -11,7 +11,7 @@
  * integration with Notion's OAuth flow for account connection.
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import styles from './Settings.module.css';
 import logo from '../assets/c2n-favicon.svg';
@@ -32,6 +32,18 @@ const Settings: React.FC = () => {
     setNotionConnection
   } = useNotionAuth();
   const [isButtonLoading, setIsButtonLoading] = useState(false);
+
+  // Clear button loading state when connection process completes
+  useEffect(() => {
+    if (!isConnecting) {
+      setIsButtonLoading(false);
+    }
+  }, [isConnecting]);
+
+  // Clear button loading state when connection status changes
+  useEffect(() => {
+    setIsButtonLoading(false);
+  }, [notionConnection.isConnected]);
 
   const handleLogout = async () => {
     try {
@@ -65,6 +77,7 @@ const Settings: React.FC = () => {
 
   const handleNotionConnection = () => {
     setIsButtonLoading(true);
+    // The loading state will be cleared by the useEffect hooks when the OAuth process completes
     window.location.href = 'https://api.notion.com/v1/oauth/authorize?client_id=1e3d872b-594c-8008-9ec9-003741e22a0f&response_type=code&owner=user&redirect_uri=http%3A%2F%2Flocalhost%3A5173%2Fsettings';
   };
 
