@@ -75,8 +75,8 @@ const Carousel: React.FC = () => {
   const velocityX = useRef<number>(0);
   const [isDraggingState, setIsDraggingState] = useState(false);
   const [dragOffset, setDragOffset] = useState(0);
-  const minSwipeDistance = 50;
-  const minSwipeVelocity = 0.2; // pixels per millisecond
+  const minSwipeDistance = 30; // Reduced from 50 for quicker response
+  const minSwipeVelocity = 0.15; // Reduced from 0.2 for easier triggering
   
   // Mouse-specific state
   const [isMouseDown, setIsMouseDown] = useState(false);
@@ -177,13 +177,13 @@ const Carousel: React.FC = () => {
     
     transitionEndRef.current = handleTransitionEnd;
     
-    // Start the animation timer - slightly shorter than CSS transition time
-    // to ensure we're ready for the next swipe before the visual transition fully completes
+    // Reduced timeout to allow for quicker successive swipes
+    // CSS transition is 400ms, we complete state change much earlier for responsiveness
     animationTimeoutRef.current = setTimeout(() => {
       if (transitionEndRef.current) {
         transitionEndRef.current();
       }
-    }, 500); // CSS transition is 600ms, we complete state change earlier
+    }, 250); // Reduced from 500ms to 250ms for quicker response
   };
 
   // Clean up animation timers on unmount
@@ -295,15 +295,15 @@ const Carousel: React.FC = () => {
     const distance = startX.current - endX.current;
     const absVelocity = Math.abs(velocityX.current);
     
-    // Apply different thresholds based on velocity and distance
-    const isLeftSwipe = distance > minSwipeDistance || (distance > minSwipeDistance / 2 && velocityX.current < -minSwipeVelocity);
-    const isRightSwipe = distance < -minSwipeDistance || (distance < -minSwipeDistance / 2 && velocityX.current > minSwipeVelocity);
+    // More aggressive swipe detection for quicker response
+    const isLeftSwipe = distance > minSwipeDistance || (distance > minSwipeDistance * 0.4 && velocityX.current < -minSwipeVelocity);
+    const isRightSwipe = distance < -minSwipeDistance || (distance < -minSwipeDistance * 0.4 && velocityX.current > minSwipeVelocity);
     
     // Determine direction based on distance and velocity
     let swipeResult: 'left' | 'right' | null = null;
     
-    // Check high velocity swipes even with small distance
-    if (absVelocity > minSwipeVelocity * 2) {
+    // Check high velocity swipes even with smaller distance
+    if (absVelocity > minSwipeVelocity * 1.5) { // Reduced from 2x for easier triggering
       swipeResult = velocityX.current > 0 ? 'right' : 'left';
     } 
     // Otherwise use the distance-based approach
@@ -318,7 +318,7 @@ const Carousel: React.FC = () => {
       // If we're not changing slides, animate the drag offset back to 0
       // This is handled by CSS transition added to .card:not(.dragging)
       setDragOffset(0);
-      setTimeout(() => resetTouchState(), 300); // Match transition time in CSS
+      setTimeout(() => resetTouchState(), 200); // Reduced from 300ms for quicker response
     } else {
       // Set direction for animated transition
       if (swipeResult === 'left') {
@@ -327,7 +327,7 @@ const Carousel: React.FC = () => {
         prevSlide();
       }
       
-      // Reset touch state
+      // Reset touch state immediately for next swipe
       resetTouchState();
     }
 
@@ -590,15 +590,15 @@ const Carousel: React.FC = () => {
     const distance = startX.current - endX.current;
     const absVelocity = Math.abs(velocityX.current);
     
-    // Apply different thresholds based on velocity and distance
-    const isLeftSwipe = distance > minSwipeDistance || (distance > minSwipeDistance / 2 && velocityX.current < -minSwipeVelocity);
-    const isRightSwipe = distance < -minSwipeDistance || (distance < -minSwipeDistance / 2 && velocityX.current > minSwipeVelocity);
+    // More aggressive swipe detection for quicker response
+    const isLeftSwipe = distance > minSwipeDistance || (distance > minSwipeDistance * 0.4 && velocityX.current < -minSwipeVelocity);
+    const isRightSwipe = distance < -minSwipeDistance || (distance < -minSwipeDistance * 0.4 && velocityX.current > minSwipeVelocity);
     
     // Determine direction based on distance and velocity
     let swipeResult: 'left' | 'right' | null = null;
     
-    // Check high velocity swipes even with small distance
-    if (absVelocity > minSwipeVelocity * 2) {
+    // Check high velocity swipes even with smaller distance
+    if (absVelocity > minSwipeVelocity * 1.5) { // Reduced from 2x for easier triggering
       swipeResult = velocityX.current > 0 ? 'right' : 'left';
     } 
     // Otherwise use the distance-based approach
@@ -612,7 +612,7 @@ const Carousel: React.FC = () => {
     if (!swipeResult) {
       // If we're not changing slides, animate the drag offset back to 0
       setDragOffset(0);
-      setTimeout(() => resetTouchState(), 300); // Match transition time in CSS
+      setTimeout(() => resetTouchState(), 200); // Reduced from 300ms for quicker response
     } else {
       // Set direction for animated transition
       if (swipeResult === 'left') {
@@ -621,7 +621,7 @@ const Carousel: React.FC = () => {
         prevSlide();
       }
       
-      // Reset state
+      // Reset state immediately for next swipe
       resetTouchState();
     }
 

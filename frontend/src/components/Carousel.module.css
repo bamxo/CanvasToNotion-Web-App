@@ -77,7 +77,7 @@
 
 /* Faster, more responsive transition when not dragging */
 .card:not(.dragging) {
-  transition: transform 0.4s cubic-bezier(0.19, 1, 0.22, 1);
+  transition: transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94); /* Faster and more responsive */
 }
 
 /* Active dragging card styles */
@@ -231,7 +231,7 @@
   background: rgba(30, 41, 59, 0.85);
   border: 2px solid rgba(255, 255, 255, 0.3);
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-  transition: all 0.4s cubic-bezier(0.19, 1, 0.22, 1);
+  transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94); /* Faster and more responsive */
   pointer-events: auto; /* Allow center card to be interactive */
 }
 
@@ -288,7 +288,7 @@
 
 /* Animation classes */
 .animateRight .card, .animateLeft .card {
-  transition: all 0.4s cubic-bezier(0.19, 1, 0.22, 1); /* Faster easing */
+  transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94); /* Faster and more responsive */
 }
 
 /* Optimize the individual position animations */
@@ -300,7 +300,7 @@
   background: rgba(30, 41, 59, 0.4);
   border: 1px solid rgba(255, 255, 255, 0.2);
   box-shadow: none;
-  transition-duration: 0.4s;
+  transition-duration: 0.3s; /* Faster for responsiveness */
 }
 
 .animateRight .position0 {
@@ -311,7 +311,7 @@
   background: rgba(30, 41, 59, 0.4);
   border: 1px solid rgba(255, 255, 255, 0.2);
   box-shadow: none;
-  transition-duration: 0.4s;
+  transition-duration: 0.3s; /* Faster for responsiveness */
 }
 
 .animateLeft .position-1 {
@@ -322,7 +322,7 @@
   border: 2px solid rgba(255, 255, 255, 0.3);
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
   filter: saturate(1);
-  transition-duration: 0.4s;
+  transition-duration: 0.3s; /* Faster for responsiveness */
 }
 
 .animateRight .position1 {
@@ -333,7 +333,7 @@
   border: 2px solid rgba(255, 255, 255, 0.3);
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
   filter: saturate(1);
-  transition-duration: 0.4s;
+  transition-duration: 0.3s; /* Faster for responsiveness */
 }
 
 .animateLeft .position-2 {
@@ -341,7 +341,7 @@
   z-index: 4;
   opacity: 0.6;
   filter: saturate(0.8);
-  transition-duration: 0.4s;
+  transition-duration: 0.3s; /* Faster for responsiveness */
 }
 
 .animateRight .position2 {
@@ -349,42 +349,42 @@
   z-index: 4;
   opacity: 0.6;
   filter: saturate(0.8);
-  transition-duration: 0.4s;
+  transition-duration: 0.3s; /* Faster for responsiveness */
 }
 
 .animateLeft .position1 {
   transform: scale(0.6) translateX(200%) rotateY(-10deg);
   z-index: 3;
   opacity: 0.3;
-  transition-duration: 0.4s;
+  transition-duration: 0.3s; /* Faster for responsiveness */
 }
 
 .animateRight .position-1 {
   transform: scale(0.6) translateX(-200%) rotateY(10deg);
   z-index: 3;
   opacity: 0.3;
-  transition-duration: 0.4s;
+  transition-duration: 0.3s; /* Faster for responsiveness */
 }
 
 .animateLeft .position2 {
   transform: scale(0.4) translateX(300%) rotateY(-15deg);
   z-index: 2;
   opacity: 0;
-  transition-duration: 0.4s;
+  transition-duration: 0.3s; /* Faster for responsiveness */
 }
 
 .animateRight .position-2 {
   transform: scale(0.4) translateX(-300%) rotateY(15deg);
   z-index: 2;
   opacity: 0;
-  transition-duration: 0.4s;
+  transition-duration: 0.3s; /* Faster for responsiveness */
 }
 
 .animateLeft .position3,
 .animateRight .position-3 {
   transform: scale(0);
   opacity: 0;
-  transition-duration: 0.4s;
+  transition-duration: 0.3s; /* Faster for responsiveness */
 }
 
 .animateLeft .position-3 {
@@ -392,7 +392,7 @@
   z-index: 3;
   opacity: 0.3;
   filter: saturate(0.6);
-  transition-duration: 0.4s;
+  transition-duration: 0.3s; /* Faster for responsiveness */
 }
 
 .animateRight .position3 {
@@ -400,22 +400,22 @@
   z-index: 3;
   opacity: 0.3;
   filter: saturate(0.6);
-  transition-duration: 0.4s;
+  transition-duration: 0.3s; /* Faster for responsiveness */
 }
 
 /* Mobile responsive styles */
 @media (max-width: 992px) {
   .carouselContainer {
-    height: 670px;
+    height: 700px;
   }
   
   .carouselTrack {
-    height: 500px;
+    height: 520px;
   }
   
   .card {
     width: 340px;
-    height: 500px;
+    height: 460px;
   }
   
   .imageContainer {
@@ -444,22 +444,22 @@
 
 @media (max-width: 768px) {
   .carouselContainer {
-    height: 620px;
+    height: 650px;
   }
   
   .carouselTrack {
-    height: 480px;
+    height: 500px;
     width: 90%;
     margin: 0 auto 3rem;
   }
   
   .card {
-    width: 320px;
-    height: 480px;
+    width: 300px;
+    height: 420px;
   }
   
   .cardContent {
-    padding: 1.5rem;
+    padding: 1.25rem;
     padding-bottom: 1rem;
     display: flex;
     flex-direction: column;
@@ -467,10 +467,10 @@
   }
   
   .imageContainer {
-    width: 140px;
-    height: 140px;
-    min-width: 140px;
-    min-height: 140px;
+    width: 130px;
+    height: 130px;
+    min-width: 130px;
+    min-height: 130px;
     border-width: 2px;
     flex-shrink: 0;
     position: relative;
@@ -480,21 +480,21 @@
   }
   
   .memberName {
-    font-size: 1.2rem;
-    margin: 0.35rem 0;
+    font-size: 1.15rem;
+    margin: 0.3rem 0;
   }
   
   .memberRole {
-    font-size: 0.9rem;
-    margin-bottom: 0.75rem;
+    font-size: 0.85rem;
+    margin-bottom: 0.6rem;
   }
   
   .memberBio {
-    font-size: 0.85rem;
-    line-height: 1.3;
+    font-size: 0.8rem;
+    line-height: 1.25;
     overflow: visible;
     flex-grow: 1;
-    margin-bottom: 0.75rem;
+    margin-bottom: 0.6rem;
     text-align: center;
   }
   
@@ -510,77 +510,79 @@
     height: 32px;
   }
   
-  /* Adjust position transformations for better mobile display */
+  /* Adjust position transformations for better mobile display with improved scaling */
   .position-1 {
-    transform: scale(0.7) translateX(-80%) rotateY(5deg);
+    transform: scale(0.75) translateX(-85%) rotateY(5deg);
   }
   
   .position1 {
-    transform: scale(0.7) translateX(80%) rotateY(-5deg);
+    transform: scale(0.75) translateX(85%) rotateY(-5deg);
   }
   
   .position-2 {
-    transform: scale(0.5) translateX(-150%) rotateY(8deg);
+    transform: scale(0.55) translateX(-160%) rotateY(8deg);
   }
   
   .position2 {
-    transform: scale(0.5) translateX(150%) rotateY(-8deg);
+    transform: scale(0.55) translateX(160%) rotateY(-8deg);
   }
   
   .animateLeft .position0 {
-    transform: scale(0.7) translateX(80%) rotateY(-5deg);
+    transform: scale(0.75) translateX(85%) rotateY(-5deg);
   }
   
   .animateRight .position0 {
-    transform: scale(0.7) translateX(-80%) rotateY(5deg);
+    transform: scale(0.75) translateX(-85%) rotateY(5deg);
   }
   
   .animateLeft .position-2 {
-    transform: scale(0.7) translateX(-80%) rotateY(5deg);
+    transform: scale(0.75) translateX(-85%) rotateY(5deg);
   }
   
   .animateRight .position2 {
-    transform: scale(0.7) translateX(80%) rotateY(-5deg);
+    transform: scale(0.75) translateX(85%) rotateY(-5deg);
   }
   
   .animateLeft .position1 {
-    transform: scale(0.5) translateX(150%) rotateY(-8deg);
+    transform: scale(0.55) translateX(160%) rotateY(-8deg);
   }
   
   .animateRight .position-1 {
-    transform: scale(0.5) translateX(-150%) rotateY(8deg);
+    transform: scale(0.55) translateX(-160%) rotateY(8deg);
   }
 }
 
 @media (max-width: 480px) {
   .carouselContainer {
-    height: 580px;
+    height: 600px;
+    padding-top: 0;
   }
   
   .carouselTrack {
-    height: 450px;
+    height: 460px;
     width: 85%;
+    margin-bottom: 1rem;
   }
   
   .card {
-    width: 280px;
-    height: 450px;
+    width: 260px;
+    height: 380px;
   }
   
   .cardContent {
-    padding: 1.25rem;
-    padding-bottom: 1rem;
+    padding: 1rem;
+    padding-bottom: 0.8rem;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
   }
   
   .imageContainer {
-    width: 120px;
-    height: 120px;
-    min-width: 120px;
-    min-height: 120px;
-    margin-bottom: 0.75rem;
+    width: 110px;
+    height: 110px;
+    min-width: 110px;
+    min-height: 110px;
+    margin-bottom: 0.6rem;
     border-width: 2px;
     flex-shrink: 0;
     position: relative;
@@ -590,31 +592,31 @@
   }
   
   .memberName {
-    font-size: 1.1rem;
-    margin: 0.25rem 0;
+    font-size: 1.05rem;
+    margin: 0.2rem 0;
     transform: translateZ(0);
   }
   
   .memberRole {
-    font-size: 0.9rem;
-    margin-bottom: 0.75rem;
+    font-size: 0.8rem;
+    margin-bottom: 0.6rem;
     transform: translateZ(0);
   }
   
   .memberBio {
-    font-size: 0.8rem;
-    line-height: 1.3;
+    font-size: 0.75rem;
+    line-height: 1.2;
     overflow: visible;
     transform: translateZ(0);
     flex-grow: 1;
-    margin-bottom: 0.75rem;
+    margin-bottom: 0.6rem;
     text-align: center;
   }
   
   .socialLinks {
-    gap: 0.7rem;
+    gap: 0.6rem;
     margin-top: auto;
-    margin-bottom: 0.5rem;
+    margin-bottom: 0.4rem;
     flex-shrink: 0;
   }
   
@@ -623,64 +625,74 @@
     height: 28px;
   }
   
-  /* Further reduce transform distances for smallest screens */
+  /* Improved transform distances with better scaling for clarity */
   .position-1 {
-    transform: scale(0.65) translateX(-70%) rotateY(5deg);
+    transform: scale(0.7) translateX(-75%) rotateY(5deg);
   }
   
   .position1 {
-    transform: scale(0.65) translateX(70%) rotateY(-5deg);
+    transform: scale(0.7) translateX(75%) rotateY(-5deg);
   }
   
   .position-2 {
-    transform: scale(0.4) translateX(-120%) rotateY(8deg);
+    transform: scale(0.5) translateX(-130%) rotateY(8deg);
   }
   
   .position2 {
-    transform: scale(0.4) translateX(120%) rotateY(-8deg);
+    transform: scale(0.5) translateX(130%) rotateY(-8deg);
   }
   
   .animateLeft .position0 {
-    transform: scale(0.65) translateX(70%) rotateY(-5deg);
+    transform: scale(0.7) translateX(75%) rotateY(-5deg);
   }
   
   .animateRight .position0 {
-    transform: scale(0.65) translateX(-70%) rotateY(5deg);
+    transform: scale(0.7) translateX(-75%) rotateY(5deg);
   }
   
   .animateLeft .position-2 {
-    transform: scale(0.65) translateX(-70%) rotateY(5deg);
+    transform: scale(0.7) translateX(-75%) rotateY(5deg);
   }
   
   .animateRight .position2 {
-    transform: scale(0.65) translateX(70%) rotateY(-5deg);
+    transform: scale(0.7) translateX(75%) rotateY(-5deg);
   }
   
   .animateLeft .position1 {
-    transform: scale(0.4) translateX(120%) rotateY(-8deg);
+    transform: scale(0.5) translateX(130%) rotateY(-8deg);
   }
   
   .animateRight .position-1 {
-    transform: scale(0.4) translateX(-120%) rotateY(8deg);
+    transform: scale(0.5) translateX(-130%) rotateY(8deg);
   }
 }
 
 /* Add a media query for extra small devices */
 @media (max-width: 360px) {
   .carouselContainer {
-    height: 550px; 
+    height: 570px;
   }
   
-  .card {
-    width: 260px;
+  .carouselTrack {
     height: 430px;
   }
   
+  .card {
+    width: 240px;
+    height: 350px;
+  }
+  
+  .cardContent {
+    padding: 0.9rem;
+    padding-bottom: 0.7rem;
+  }
+  
   .imageContainer {
-    width: 110px;
-    height: 110px;
-    min-width: 110px;
-    min-height: 110px;
+    width: 100px;
+    height: 100px;
+    min-width: 100px;
+    min-height: 100px;
+    margin-bottom: 0.5rem;
     flex-shrink: 0;
     position: relative;
     display: flex;
@@ -688,8 +700,70 @@
     justify-content: center;
   }
   
-  .memberBio {
+  .memberName {
+    font-size: 1rem;
+    margin: 0.15rem 0;
+  }
+  
+  .memberRole {
     font-size: 0.75rem;
-    line-height: 1.25;
+    margin-bottom: 0.5rem;
+  }
+  
+  .memberBio {
+    font-size: 0.7rem;
+    line-height: 1.15;
+    margin-bottom: 0.5rem;
+  }
+  
+  .socialLinks {
+    gap: 0.5rem;
+    margin-bottom: 0.3rem;
+  }
+  
+  .socialLink {
+    width: 26px;
+    height: 26px;
+  }
+  
+  /* Maintain better scaling for very small screens */
+  .position-1 {
+    transform: scale(0.68) translateX(-70%) rotateY(5deg);
+  }
+  
+  .position1 {
+    transform: scale(0.68) translateX(70%) rotateY(-5deg);
+  }
+  
+  .position-2 {
+    transform: scale(0.48) translateX(-125%) rotateY(8deg);
+  }
+  
+  .position2 {
+    transform: scale(0.48) translateX(125%) rotateY(-8deg);
+  }
+  
+  .animateLeft .position0 {
+    transform: scale(0.68) translateX(70%) rotateY(-5deg);
+  }
+  
+  .animateRight .position0 {
+    transform: scale(0.68) translateX(-70%) rotateY(5deg);
+  }
+  
+  .animateLeft .position-2 {
+    transform: scale(0.68) translateX(-70%) rotateY(5deg);
+  }
+  
+  .animateRight .position2 {
+    transform: scale(0.68) translateX(70%) rotateY(-5deg);
+  }
+  
+  .animateLeft .position1 {
+    transform: scale(0.48) translateX(125%) rotateY(-8deg);
+  }
+  
+  .animateRight .position-1 {
+    transform: scale(0.48) translateX(-125%) rotateY(8deg);
   }
 } 
