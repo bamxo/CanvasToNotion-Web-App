@@ -37,10 +37,22 @@
   cursor: grab; /* Show a grab cursor to indicate the carousel is swipeable */
   user-select: none; /* Prevent text selection during swipe */
   will-change: transform; /* Performance optimization hint */
+  contain: layout style paint; /* CSS containment for better performance */
 }
 
 .carouselTrack:active {
   cursor: grabbing; /* Show grabbing cursor while actively swiping */
+}
+
+.swiping {
+  cursor: grabbing !important;
+  will-change: transform; /* Optimize for transform changes during swiping */
+}
+
+.swiping .card {
+  will-change: transform, box-shadow; /* Optimize cards during swiping */
+  backface-visibility: hidden; /* Prevent flickering */
+  transform-style: preserve-3d;
 }
 
 .card {
@@ -53,7 +65,14 @@
   backdrop-filter: blur(10px);
   transform-style: preserve-3d;
   will-change: transform, opacity;
-  pointer-events: none; /* Make cards non-interactive during swipe */
+  pointer-events: auto; /* Make cards interactive for mouse dragging */
+  cursor: grab; /* Show grab cursor on cards */
+  backface-visibility: hidden; /* Prevent flickering during transforms */
+  contain: layout style paint; /* CSS containment for better performance */
+}
+
+.card:active {
+  cursor: grabbing;
 }
 
 /* Faster, more responsive transition when not dragging */
@@ -66,6 +85,7 @@
   transition: none !important;
   box-shadow: 0 15px 45px rgba(0, 0, 0, 0.35);
   border: 1px solid rgba(255, 255, 255, 0.3);
+  will-change: transform, box-shadow; /* Optimize for frequent updates */
 }
 
 .cardContent {
