@@ -1,11 +1,21 @@
 // src/notion_api/notionRouter.ts
 import express, { Request, Response } from 'express';
-import type { DatabaseObjectResponse, PageObjectResponse } from "@notionhq/client/build/src/api-endpoints";
+import type { PartialBlockObjectResponse, BlockObjectResponse, DatabaseObjectResponse, PageObjectResponse } from "@notionhq/client/build/src/api-endpoints";
 import axios from 'axios';
 import { Client } from '@notionhq/client';
 import { adminDb } from '../db';
 import { database } from 'firebase-admin';
 
+function isChildDatabaseBlock(
+  block: PartialBlockObjectResponse | BlockObjectResponse
+): block is BlockObjectResponse & { type: 'child_database', child_database: { title: string } } {
+  return (
+    'type' in block &&
+    block.type === 'child_database' &&
+    'child_database' in block &&
+    typeof block.child_database?.title === 'string'
+  );
+}
 const router = express.Router();
 
 interface UserData {
@@ -508,4 +518,147 @@ router.get('/disconnect', async (req: Request, res: Response) => {
     res.status(500).json({ success: false, error: 'Internal server error' });
   }
 });
-export default router;  
+
+router.post('/compare', async (req: Request, res: Response) => {
+  try {
+    // Log the entire incoming payload
+    console.log('--- /compare endpoint called ---');
+    console.log('Received payload:', JSON.stringify(req.body, null, 2));
+
+    const { email, pageId, courses, assignments } = req.body;
+
+    // Step 1: Validate input
+    if (!email || !pageId || !Array.isArray(courses) || !Array.isArray(assignments)) {
+      console.log('Missing required fields');
+      return res.status(400).json({ success: false, error: 'Missing required fields' });
+    }
+    console.log('Step 1: Payload validated');
+
+    // Step 2: Get user data and access token
+    const userData = await getUserByEmail(adminDb, email);
+    if (!userData?.accessToken) {
+      console.log('Notion integration not connected for user:', email);
+      return res.status(403).json({ success: false, error: 'Notion integration not connected' });
+    }
+    console.log('Step 2: Fetched Notion access token for user:', email);
+
+    const notion = new Client({ auth: userData.accessToken });
+
+    // Step 3: Get all child blocks under the page
+    const children = await notion.blocks.children.list({ block_id: pageId });
+    console.log('Step 3: Pulled Notion children blocks:', JSON.stringify(children.results, null, 2));
+
+    // Step 4: Map course.id to Notion database id
+    const courseDatabases = new Map<number, string>();
+    for (const course of courses) {
+      const dbBlock = children.results.find(block =>
+        isChildDatabaseBlock(block) && block.child_database.title === course.name
+      );
+      if (dbBlock) {
+        courseDatabases.set(course.id, dbBlock.id);
+        console.log(`Matched Notion database for course "${course.name}" (id: ${course.id}):`, dbBlock.id);
+      } else {
+        console.log(`No Notion database found for course "${course.name}" (id: ${course.id})`);
+      }
+    }
+    console.log('Step 4: Course to Notion database mapping:', Array.from(courseDatabases.entries()));
+
+    // Step 5: For each course, fetch all assignment names from the corresponding Notion database
+    const notionAssignmentsByCourse: Record<number, string[]> = {};
+    for (const [courseId, dbId] of courseDatabases.entries()) {
+      const pages = await notion.databases.query({ database_id: dbId });
+      console.log(`Step 5: Notion database query result for courseId ${courseId}:`, JSON.stringify(pages.results, null, 2));
+      
+      // Enhanced debugging for property extraction
+      console.log(`Step 5: Processing ${pages.results.length} pages for courseId ${courseId}`);
+      const assignmentNames = pages.results.map((page, index) => {
+        console.log(`Step 5: Processing page ${index + 1} properties:`, JSON.stringify((page as any).properties, null, 2));
+        
+        // Try different common property names
+        const possibleNameProps = ['Name', 'Title', 'Assignment Name', 'Assignment', 'Task'];
+        let extractedName = '';
+        
+        for (const propName of possibleNameProps) {
+          const prop = (page as any).properties?.[propName];
+          if (prop) {
+            console.log(`Step 5: Found property "${propName}":`, JSON.stringify(prop, null, 2));
+            if (prop.title && prop.title.length > 0) {
+              extractedName = prop.title.map((t: any) => t.plain_text).join('');
+              console.log(`Step 5: Extracted name from "${propName}":`, extractedName);
+              break;
+            }
+          }
+        }
+        
+        if (!extractedName) {
+          console.log(`Step 5: No valid name property found for page ${index + 1}`);
+        }
+        
+        return extractedName;
+      }).filter((name: string) => !!name);
+      
+      notionAssignmentsByCourse[courseId] = assignmentNames;
+      console.log(`Step 5: Final assignment names for courseId ${courseId}:`, notionAssignmentsByCourse[courseId]);
+    }
+
+    // Step 6: Compare Canvas assignments to Notion assignments by course
+    const comparison: Record<
+      string,
+      { onlyInCanvas: any[]; onlyInNotion: string[] }
+    > = {};
+
+    for (const course of courses) {
+      console.log(`\n--- Processing course: ${course.name} (ID: ${course.id}) ---`);
+      
+      // All Canvas assignments for this course
+      const canvasAssignments = assignments
+        .filter((a: any) => a.courseId === course.id);
+      console.log(`Step 6: Canvas assignments for courseId ${course.id}:`, 
+        canvasAssignments.map(a => ({ name: a.name, id: a.id })));
+
+      // All Notion assignment names for this course
+      const notionAssignments = notionAssignmentsByCourse[course.id] || [];
+      console.log(`Step 6: Notion assignments for courseId ${course.id}:`, notionAssignments);
+
+      // Find Canvas assignments not present in Notion (by name)
+      const onlyInCanvas = canvasAssignments.filter(
+        (a: any) => !notionAssignments.includes(a.name)
+      );
+      console.log(`Step 6: Assignments only in Canvas for courseId ${course.id}:`, 
+        onlyInCanvas.map(a => ({ name: a.name, id: a.id })));
+
+      // Find Notion assignment names not present in Canvas
+      const canvasAssignmentNames = canvasAssignments.map((a: any) => a.name);
+      const onlyInNotion = notionAssignments.filter(
+        (name: string) => !canvasAssignmentNames.includes(name)
+      );
+      console.log(`Step 6: Assignments only in Notion for courseId ${course.id}:`, onlyInNotion);
+
+      // Use course name as key instead of course ID
+      comparison[course.name] = { onlyInCanvas, onlyInNotion };
+      console.log(`Step 6: Comparison result for course "${course.name}":`, {
+        onlyInCanvas: onlyInCanvas.length,
+        onlyInNotion: onlyInNotion.length
+      });
+    }
+
+    // Step 7: Respond with the comparison result
+    console.log('Step 7: Final comparison result:', JSON.stringify(comparison, null, 2));
+    
+    // Add summary logging
+    console.log('\n--- COMPARISON SUMMARY ---');
+    Object.entries(comparison).forEach(([courseName, data]) => {
+      console.log(`Course "${courseName}": ${data.onlyInCanvas.length} Canvas-only, ${data.onlyInNotion.length} Notion-only`);
+    });
+    
+    res.json({
+      success: true,
+      comparison
+    });
+  } catch (error: any) {
+    console.error('Compare endpoint error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+export default router;
