@@ -18,6 +18,7 @@ import arrowIcon from '../assets/arrow.svg?url';
 import authButtons from '../data/authButtons.json';
 import { EXTENSION_ID } from '../utils/constants';
 import { mapFirebaseError } from '../utils/errorMessages';
+import { AUTH_ENDPOINTS } from '../utils/api';
 
 // Add Chrome types
 declare global {
@@ -68,7 +69,7 @@ const Login: React.FC = () => {
     setIsLoading(true);
 
     try {
-      const response = await axios.post('http://localhost:3000/api/auth/login', {
+      const response = await axios.post(AUTH_ENDPOINTS.LOGIN, {
         email: formData.email,
         password: formData.password,
         requestExtensionToken: true // Request token for extension
@@ -136,7 +137,7 @@ const Login: React.FC = () => {
     const top = window.screenY + (window.outerHeight - height) / 2;
     
     const popup = window.open(
-      'http://localhost:3000/api/auth/google',
+      AUTH_ENDPOINTS.GOOGLE,
       'Google Login',
       `width=${width},height=${height},left=${left},top=${top},popup=1`
     );
@@ -159,7 +160,7 @@ const Login: React.FC = () => {
             
             // Request extension token
             try {
-              const response = await axios.post('http://localhost:3000/api/auth/login', {
+              const response = await axios.post(AUTH_ENDPOINTS.LOGIN, {
                 idToken: event.data.token,
                 requestExtensionToken: true
               });

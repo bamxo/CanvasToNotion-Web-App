@@ -14,6 +14,7 @@ import eyeSlashIcon from '../assets/eye-slash.svg?url';
 import arrowIcon from '../assets/arrow.svg?url';
 import axios from 'axios';
 import { mapFirebaseError, validateForm } from '../utils/errorMessages';
+import { AUTH_ENDPOINTS } from '../utils/api';
 
 const SignUp: React.FC = () => {
   // State for form data management
@@ -57,7 +58,7 @@ const SignUp: React.FC = () => {
 
     try {
       // First create the account
-      const signupResponse = await axios.post('http://localhost:3000/api/auth/signup', {
+      const signupResponse = await axios.post(AUTH_ENDPOINTS.SIGNUP, {
         email: formData.email,
         password: formData.password,
         displayName: formData.email.split('@')[0] // Using email prefix as display name
@@ -67,7 +68,7 @@ const SignUp: React.FC = () => {
       if (signupResponse.data) {
         try {
           // Perform automatic login
-          const loginResponse = await axios.post('http://localhost:3000/api/auth/login', {
+          const loginResponse = await axios.post(AUTH_ENDPOINTS.LOGIN, {
             email: formData.email,
             password: formData.password
           });

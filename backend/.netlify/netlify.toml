@@ -1,0 +1,67 @@
+functionsDirectory = "/Users/landonnguyen/Desktop/CS/CSE 115A/Project/CanvasToNotion-Web-App/backend/netlify/functions"
+functionsDirectoryOrigin = "config-v1"
+headersOrigin = "config"
+redirectsOrigin = "config"
+plugins = []
+
+[build]
+publish = "/Users/landonnguyen/Desktop/CS/CSE 115A/Project/CanvasToNotion-Web-App/backend/dist"
+publishOrigin = "config"
+commandOrigin = "config"
+base = "/Users/landonnguyen/Desktop/CS/CSE 115A/Project/CanvasToNotion-Web-App/backend"
+command = "npm run build"
+functions = "/Users/landonnguyen/Desktop/CS/CSE 115A/Project/CanvasToNotion-Web-App/backend/netlify/functions"
+
+[build.environment]
+
+[build.processing]
+
+[build.processing.css]
+
+[build.processing.html]
+
+[build.processing.images]
+
+[build.processing.js]
+
+[build.services]
+
+[dev]
+command = "npm run dev"
+port = 8888.0
+
+[functions]
+
+[functions."*"]
+
+[[headers]]
+for = "/*"
+
+[headers.values]
+Access-Control-Allow-Origin = "*"
+Access-Control-Allow-Methods = "GET, POST, PUT, DELETE, OPTIONS"
+Access-Control-Allow-Headers = "Origin, X-Requested-With, Content-Type, Accept, Authorization"
+
+[[redirects]]
+from = "/api/*"
+to = "/.netlify/functions/api/api/:splat"
+status = 200.0
+force = false
+
+[redirects.query]
+
+[redirects.conditions]
+
+[redirects.headers]
+
+[[redirects]]
+from = "/*"
+to = "/index.html"
+status = 200.0
+force = false
+
+[redirects.query]
+
+[redirects.conditions]
+
+[redirects.headers]

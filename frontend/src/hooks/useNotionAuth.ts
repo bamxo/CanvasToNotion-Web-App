@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { AUTH_ENDPOINTS, NOTION_ENDPOINTS, USE_CREDENTIALS } from '../utils/api';
 
 interface UserInfo {
   email: string;
@@ -77,11 +78,12 @@ export const useNotionAuth = (): UseNotionAuthReturn => {
       setError(''); // Clear any previous errors
       
       try {
-        const response = await axios.post('http://localhost:3000/api/notion/token', {
+        const response = await axios.post(NOTION_ENDPOINTS.TOKEN, {
           code,
           email
         }, {
-          headers: { 'Content-Type': 'application/json' }
+          headers: { 'Content-Type': 'application/json' },
+          withCredentials: USE_CREDENTIALS
         });
 
         if (!mountedRef.current) return;
@@ -124,8 +126,9 @@ export const useNotionAuth = (): UseNotionAuthReturn => {
       if (!mountedRef.current) return;
       
       try {
-        const response = await axios.get(`http://localhost:3000/api/notion/connected?email=${encodeURIComponent(email)}`, {
-          headers: { 'Content-Type': 'application/json' }
+        const response = await axios.get(`${NOTION_ENDPOINTS.CONNECTED}?email=${encodeURIComponent(email)}`, {
+          headers: { 'Content-Type': 'application/json' },
+          withCredentials: USE_CREDENTIALS
         });
 
         if (!mountedRef.current) return;
@@ -170,12 +173,12 @@ export const useNotionAuth = (): UseNotionAuthReturn => {
 
       // Then try to get full user info from API
       try {
-        const response = await axios.get('http://localhost:5173/api/auth/user', {
+        const response = await axios.get(AUTH_ENDPOINTS.USER, {
           headers: {
             Authorization: `Bearer ${authToken}`,
             'Content-Type': 'application/json'
           },
-          withCredentials: true
+          withCredentials: USE_CREDENTIALS
         });
 
         if (!mountedRef.current) return;
