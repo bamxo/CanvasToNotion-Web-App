@@ -17,7 +17,7 @@ import styles from './Settings.module.css';
 import logo from '../assets/c2n-favicon.svg';
 import { useNotionAuth } from '../hooks/useNotionAuth';
 import axios from 'axios';
-import { EXTENSION_ID } from '../utils/constants';
+import { EXTENSION_ID, NOTION_REDIRECT_URI } from '../utils/constants';
 
 /**
  * Settings component to display user information and manage Notion connection
@@ -78,7 +78,9 @@ const Settings: React.FC = () => {
   const handleNotionConnection = () => {
     setIsButtonLoading(true);
     // The loading state will be cleared by the useEffect hooks when the OAuth process completes
-    window.location.href = 'https://api.notion.com/v1/oauth/authorize?client_id=1e3d872b-594c-8008-9ec9-003741e22a0f&response_type=code&owner=user&redirect_uri=http%3A%2F%2Flocalhost%3A5173%2Fsettings';
+    const notionClientId = '1e3d872b-594c-8008-9ec9-003741e22a0f';
+    const encodedRedirectUri = encodeURIComponent(NOTION_REDIRECT_URI);
+    window.location.href = `https://api.notion.com/v1/oauth/authorize?client_id=${notionClientId}&response_type=code&owner=user&redirect_uri=${encodedRedirectUri}`;
   };
 
   const handleRemoveConnection = async () => {
