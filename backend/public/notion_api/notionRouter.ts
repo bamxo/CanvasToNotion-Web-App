@@ -198,20 +198,170 @@ router.post('/token', async (req: Request, res: Response) => {
 });
 
 // Modified sync endpoint to use email instead of token in the request
-router.post('/sync', async (req: Request, res: Response) => {
-  try {
-    const { email, pageId, courses, assignments } = req.body;
+// router.post('/sync', async (req: Request, res: Response) => {
+//   try {
+//     const { email, pageId, courses, assignments } = req.body;
     
-    // Validate input
+//     // Validate input
+//     if (!email || typeof email !== 'string' || !pageId) {
+//       return res.status(400).json({ 
+//         success: false, 
+//         error: 'Valid email and page ID are required' 
+//       });
+//     }
+
+//     // Get user data
+//     const userData = await getUserByEmail(adminDb, email);
+//     if (!userData?.accessToken) {
+//       return res.status(403).json({ 
+//         success: false, 
+//         error: 'Notion integration not connected' 
+//       });
+//     }
+
+//     // Initialize Notion client
+//     const notion = new Client({ auth: userData.accessToken });
+//     const courseDatabases = new Map<number, string>();
+
+//     // Verify parent page access first
+//     try {
+//       await notion.pages.retrieve({ page_id: pageId });
+//     } catch (error) {
+//       return res.status(403).json({
+//         success: false,
+//         error: `No access to parent page (${pageId}). Share it with your integration via Notion's page connections.`
+//       });
+//     }
+
+//     const childrenResponse = await notion.blocks.children.list({
+//       block_id: pageId,
+//     });
+
+//     // Create course databases under the selected parent
+//     for (const course of courses) {
+
+//       const courseName = course.name;
+
+//       const databaseAlreadyExists = childrenResponse.results.some(child => {
+//         if ("type" in child && child.type === "child_database") {
+//           return child.child_database?.title === courseName;
+//         }
+//         return false;
+//       });
+
+//       if (databaseAlreadyExists) {
+//         console.log(`database for ${courseName} already exists.`);
+//         continue;
+//       }
+
+
+//       try {
+//         const newDb = await notion.databases.create({
+//           parent: { type: "page_id", page_id: pageId },
+//           title: [{ type: "text", text: { content: course.name } }],
+//           is_inline: true,
+//           properties: {
+//             Name: { title: {} },
+//             DueDate: { date: {} },
+//             Points: { number: {} },
+//             URL: { url: {} },
+//             Status: {
+//               select: {
+//                 options: [
+//                   { name: "Not Started", color: "red" },
+//                   { name: "In Progress", color: "yellow" },
+//                   { name: "Completed", color: "green" }
+//                 ]
+//               }
+//             }
+//           }
+//         });
+//         courseDatabases.set(course.id, newDb.id);
+//       } catch (error) {
+//         console.error(`Failed to create database for ${course.name}:`, error);
+//         continue; // Skip this course but continue with others
+//       }
+//     }
+
+//     // Create assignments in their respective databases
+//     const assignmentResults = [];
+//     for (const assignment of assignments) {
+//       const databaseId = courseDatabases.get(assignment.courseId);
+//       if (!databaseId) {
+//         assignmentResults.push({
+//           assignment: assignment.name,
+//           success: false,
+//           error: 'Parent database not found'
+//         });
+//         continue;
+//       }
+
+//       try {
+//         const dueDate = assignment.due_at ? 
+//           { date: { start: new Date(assignment.due_at).toISOString() } } : 
+//           { date: null };
+
+//         await notion.pages.create({
+//           parent: { database_id: databaseId },
+//           properties: {
+//             Name: { title: [{ text: { content: assignment.name } }] },
+//             DueDate: dueDate,
+//             Points: { number: assignment.points_possible || 0 },
+//             URL: { url: assignment.html_url },
+//             Status: { select: { name: "Not Started" } }
+//           }
+//         });
+//         assignmentResults.push({ assignment: assignment.name, success: true });
+//       } catch (error) {
+//         assignmentResults.push({
+//           assignment: assignment.name,
+//           success: false,
+//         });
+//       }
+//     }
+
+//     res.json({
+//       success: true,
+//       message: 'Sync completed with partial results',
+//       results: {
+//         courses: courses.length,
+//         assignments: assignmentResults
+//       }
+//     });
+
+//   } catch (error: any) {
+//     console.error('Sync error:', error);
+//     res.status(500).json({
+//       success: false,
+//       error: error.code === 'object_not_found' 
+//         ? 'Verify page sharing with your Notion integration' 
+//         : error.message
+//     });
+//   }
+// });
+
+router.post('/sync', async (req: Request, res: Response) => {
+  
+  try {
+
+    /*########## extracts canvas request data ##########*/
+    const { email, pageId, courses, assignments } = req.body;
+    console.log("First assignment object:", assignments[0]);
+    /*########################################################################################################*/
+
+
+    /*########## ensures pageID and email are present and valid ##########*/
     if (!email || typeof email !== 'string' || !pageId) {
       return res.status(400).json({ 
         success: false, 
         error: 'Valid email and page ID are required' 
       });
     }
+    /*########################################################################################################*/
 
-    // Get user data
-    const userData = await getUserByEmail(adminDb, email);
+
+    /*########## gets user data and access token from firebase ##########*/
+    const userData = await getUserByEmail(adminDb, email); //
     if (!userData?.accessToken) {
       return res.status(403).json({ 
         success: false, 
@@ -219,11 +369,12 @@ router.post('/sync', async (req: Request, res: Response) => {
       });
     }
 
-    // Initialize Notion client
+    // initialize notion client using token
     const notion = new Client({ auth: userData.accessToken });
-    const courseDatabases = new Map<number, string>();
+    /*########################################################################################################*/
 
-    // Verify parent page access first
+
+    /*########## are we able to connect to the specified parent page? ##########*/
     try {
       await notion.pages.retrieve({ page_id: pageId });
     } catch (error) {
@@ -232,99 +383,186 @@ router.post('/sync', async (req: Request, res: Response) => {
         error: `No access to parent page (${pageId}). Share it with your integration via Notion's page connections.`
       });
     }
+    /*##############################################################################################################################*/
 
-    const childrenResponse = await notion.blocks.children.list({
-      block_id: pageId,
-    });
 
-    // Create course databases under the selected parent
-    for (const course of courses) {
+    /*########## get all child blocks in parent page hierarchy ##########*/
+    const childrenResponse = await notion.blocks.children.list({ block_id: pageId });
+    /*########################################################################################################*/
 
-      const courseName = course.name;
 
-      const existingDatabase = childrenResponse.results.find(child => {
-        if ("type" in child && child.type === "child_database") {
-          return child.child_database?.title === courseName;
+    /*########## check to see if the Courses and Assignments DBs already exist ##########*/
+    const existingCoursesDb = childrenResponse.results.find(child =>
+        "type" in child && 
+        child.type === "child_database" &&
+        child.child_database?.title == "Courses"
+    );
+    const existingAssignmentsDb = childrenResponse.results.find(child =>
+        "type" in child && 
+        child.type === "child_database" &&
+        child.child_database?.title == "Assignments"
+    );
+    /*########################################################################################################*/
+
+
+    /*########## create Courses and Assignments DB ##########*/
+    let coursesDbId = existingCoursesDb?.id;
+    if (!coursesDbId) {
+      console.log("courses database dne: ", existingCoursesDb);
+      const newCoursesDb = await notion.databases.create({
+        parent: { type: "page_id", page_id: pageId },
+        is_inline: false,
+        title: [{ type: "text", text: { content: "Courses" } }],
+        properties: {
+          Name: { title: {} }
         }
-        return false;
       });
+      coursesDbId = newCoursesDb.id;
+    }
 
-      if (existingDatabase && "type" in existingDatabase && existingDatabase.type === "child_database") {
-        console.log(`database for ${courseName} already exists.`);
-        courseDatabases.set(course.id, existingDatabase.id);
-        continue;
-      }
-
-      try {
-        const newDb = await notion.databases.create({
-          parent: { type: "page_id", page_id: pageId },
-          title: [{ type: "text", text: { content: course.name } }],
-          is_inline: true,
-          properties: {
-            Name: { title: {} },
-            DueDate: { date: {} },
-            Points: { number: {} },
-            URL: { url: {} },
-            Status: {
-              select: {
-                options: [
-                  { name: "Not Started", color: "red" },
-                  { name: "In Progress", color: "yellow" },
-                  { name: "Completed", color: "green" }
-                ]
-              }
+    let assignmentsDbId = existingAssignmentsDb?.id;
+    if (!assignmentsDbId) {
+      console.log("assignments database dne: ", existingAssignmentsDb);
+      const newAssignmentsDb = await notion.databases.create({
+        parent: { type: "page_id", page_id: pageId },
+        is_inline: true,
+        title: [{ type: "text", text: { content: "Assignments" } }],
+        properties: {
+          Name: { title: {} },
+          DueDate: { date: {} },
+          Points: { number: {} },
+          URL: { url: {} },
+          Status: {
+            select: {
+              options: [
+                { name: "Not Started", color: "red" },
+                { name: "In Progress", color: "yellow" },
+                { name: "Done", color: "green" }
+              ]
+            }
+          },
+          Course: {
+            relation: {
+              database_id: coursesDbId,
+              type: "single_property",
+              single_property: {}
             }
           }
-        });
-        courseDatabases.set(course.id, newDb.id);
-      } catch (error) {
-        console.error(`Failed to create database for ${course.name}:`, error);
-        continue; // Skip this course but continue with others
+        }
+      });
+      assignmentsDbId = newAssignmentsDb.id;
+    }
+    /*##############################################################################################################################*/
+
+
+    /*########## only add courses that aren't in the Courses DB ##########*/
+    const existingCourseNames = new Set<string>(); // save all courses in the Courses DB here
+
+    if (coursesDbId) {
+      const existingPages = await notion.databases.query({
+        database_id: coursesDbId
+      });
+
+      for (const page of existingPages.results) {
+        if (
+          'properties' in page &&
+          'Name' in page.properties &&
+          'title' in page.properties.Name &&
+          Array.isArray(page.properties.Name.title)
+        ) {
+          const titleText = page.properties.Name.title.map(t => t.plain_text).join('').trim();
+          if (titleText) {
+            existingCourseNames.add(titleText);
+          }
+        }
       }
     }
 
-    // Create assignments in their respective databases
+    const coursePageIds = new Map<string, string>();
+    for (const course of courses) {
+      if (existingCourseNames.has(course.name)) {
+        console.log(`Course "${course.name}" already exists. Finding existing page ID.`);
+
+        // Query for the page matching this course name
+        const search = await notion.databases.query({
+          database_id: coursesDbId,
+          filter: {
+            property: "Name",
+            title: {
+              equals: course.name
+            }
+          }
+        });
+
+        if (search.results.length > 0) {
+          const existingPage = search.results[0];
+          coursePageIds.set(course.name, existingPage.id);
+        } else {
+          // console.warn(`Could not find Notion page ID for existing course "${course.name}"`);
+        }
+
+        continue;
+      }
+
+      const coursePage = await notion.pages.create({
+        parent: { database_id: coursesDbId },
+        properties: {
+          Name: { title: [{ text: { content: course.name } }] }
+        }
+      });
+      coursePageIds.set(course.name, coursePage.id);
+    }
+    /*##############################################################################################################################*/
+
+
+    // Create Assignment entries
     const assignmentResults = [];
     for (const assignment of assignments) {
-      const databaseId = courseDatabases.get(assignment.courseId);
-      if (!databaseId) {
+      const courseName = courses.find((c: { id: string; name: string }) => c.id === assignment.courseId)?.name;
+      const coursePageId = coursePageIds.get(courseName);
+
+      if (!coursePageId) {
         assignmentResults.push({
           assignment: assignment.name,
           success: false,
-          error: 'Parent database not found'
+          error: 'Related course not found'
         });
         continue;
       }
 
       try {
-        const dueDate = assignment.due_at ? 
-          { date: { start: new Date(assignment.due_at).toISOString() } } : 
-          { date: null };
+        const dueDate = assignment.due_at
+          ? { date: { start: new Date(assignment.due_at).toISOString() } }
+          : { date: null };
 
         await notion.pages.create({
-          parent: { database_id: databaseId },
+          parent: { database_id: assignmentsDbId },
           properties: {
             Name: { title: [{ text: { content: assignment.name } }] },
             DueDate: dueDate,
             Points: { number: assignment.points_possible || 0 },
             URL: { url: assignment.html_url },
-            Status: { select: { name: "Not Started" } }
+            Status: { select: { name: "Not Started" } },
+            Course: { relation: [{ id: coursePageId }] }
           }
         });
+
         assignmentResults.push({ assignment: assignment.name, success: true });
+
       } catch (error) {
         assignmentResults.push({
           assignment: assignment.name,
           success: false,
+          error: 'Failed to create assignment'
         });
       }
     }
 
     res.json({
       success: true,
-      message: 'Sync completed with partial results',
+      message: 'Sync completed',
       results: {
-        courses: courses.length,
+        coursesCreated: courses.length,
         assignments: assignmentResults
       }
     });
@@ -339,6 +577,7 @@ router.post('/sync', async (req: Request, res: Response) => {
     });
   }
 });
+
 
 
 // src/notion_api/notionRouter.ts
