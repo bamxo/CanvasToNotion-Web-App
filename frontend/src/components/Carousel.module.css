@@ -1,0 +1,675 @@
+.carouselContainer {
+  position: relative;
+  width: 100%;
+  height: 720px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  overflow: hidden;
+  padding: 2rem 0;
+}
+
+/* Screen reader only class */
+:global(.sr-only) {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+.carouselTrack {
+  position: relative;
+  width: 100%;
+  height: 520px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 4rem;
+  perspective: 1000px;
+  overflow: visible;
+  touch-action: pan-y; /* Allow vertical scrolling, manage horizontal swipes ourselves */
+  cursor: grab; /* Show a grab cursor to indicate the carousel is swipeable */
+  user-select: none; /* Prevent text selection during swipe */
+  will-change: transform; /* Performance optimization hint */
+}
+
+.carouselTrack:active {
+  cursor: grabbing; /* Show grabbing cursor while actively swiping */
+}
+
+.card {
+  position: absolute;
+  width: 400px;
+  height: 520px;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  overflow: hidden;
+  backdrop-filter: blur(10px);
+  transform-style: preserve-3d;
+  will-change: transform, opacity;
+  pointer-events: none; /* Make cards non-interactive during swipe */
+}
+
+/* Faster, more responsive transition when not dragging */
+.card:not(.dragging) {
+  transition: transform 0.4s cubic-bezier(0.19, 1, 0.22, 1);
+}
+
+/* Active dragging card styles */
+.dragging {
+  transition: none !important;
+  box-shadow: 0 15px 45px rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.cardContent {
+  padding: 1.25rem;
+  padding-bottom: 1rem;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  justify-content: space-between;
+}
+
+.imageContainer {
+  width: 200px;
+  height: 200px;
+  border-radius: 50%;
+  overflow: hidden;
+  margin-bottom: 1.5rem;
+  border: 3px solid rgba(255, 255, 255, 0.2);
+  flex-shrink: 0;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.memberImage {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  display: block;
+  flex-shrink: 0;
+}
+
+.memberName {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin: 0.5rem 0;
+  color: #ffffff;
+}
+
+.memberRole {
+  font-size: 1rem;
+  color: rgba(255, 255, 255, 0.8);
+  margin-bottom: 1rem;
+}
+
+.memberBio {
+  font-size: 0.9rem;
+  color: rgba(255, 255, 255, 0.7);
+  line-height: 1.4;
+  flex-grow: 1;
+  margin-bottom: 1rem;
+  text-align: center;
+}
+
+.socialLinks {
+  display: flex;
+  gap: 1rem;
+  margin-top: auto;
+  margin-bottom: 0.5rem;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.socialLink {
+  color: rgba(255, 255, 255, 0.8);
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.socialLink:hover {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.2);
+  transform: translateY(-3px);
+}
+
+.navButton {
+  position: static;
+  transform: none;
+  background: rgba(255, 255, 255, 0.1);
+  border: none;
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: white;
+  z-index: 10;
+  transition: all 0.3s ease;
+  margin: 0 1rem;
+  animation: pulseButton 2s infinite alternate;
+}
+
+.navButton:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: scale(1.1);
+  box-shadow: 0 0 15px rgba(255, 255, 255, 0.4);
+}
+
+.navButton:active {
+  transform: scale(0.95);
+  transition: all 0.1s ease;
+}
+
+@keyframes pulseButton {
+  0% {
+    box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.1);
+  }
+  100% {
+    box-shadow: 0 0 0 10px rgba(255, 255, 255, 0);
+  }
+}
+
+.prevButton {
+  left: 20px;
+}
+
+.nextButton {
+  right: 20px;
+}
+
+/* Reset any sliding animations */
+.slidingLeft, .slidingRight {
+  display: none;
+}
+
+/* Apply transitions to the positions instead of using animations for base state */
+.position0 {
+  transform: scale(1) translateZ(0);
+  z-index: 5;
+  opacity: 1;
+  background: rgba(30, 41, 59, 0.85);
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  transition: all 0.4s cubic-bezier(0.19, 1, 0.22, 1);
+  pointer-events: auto; /* Allow center card to be interactive */
+}
+
+.position-1, .position1 {
+  z-index: 4;
+  opacity: 0.6;
+  background: rgba(30, 41, 59, 0.4);
+  filter: saturate(0.8);
+}
+
+.position-1 {
+  transform: scale(0.8) translateX(-100%) rotateY(5deg);
+}
+
+.position1 {
+  transform: scale(0.8) translateX(100%) rotateY(-5deg);
+}
+
+.position-2, .position2 {
+  z-index: 3;
+  opacity: 0.3;
+  background: rgba(30, 41, 59, 0.4);
+  filter: saturate(0.6);
+}
+
+.position-2 {
+  transform: scale(0.6) translateX(-200%) rotateY(10deg);
+}
+
+.position2 {
+  transform: scale(0.6) translateX(200%) rotateY(-10deg);
+}
+
+/* Outer cards (position -3 and 3) */
+.position-3, .position3, .positionOutside {
+  z-index: 2;
+  opacity: 0;
+  background: rgba(30, 41, 59, 0.4);
+  filter: saturate(0.4);
+}
+
+.position-3 {
+  transform: scale(0.4) translateX(-300%) rotateY(15deg);
+}
+
+.position3 {
+  transform: scale(0.4) translateX(300%) rotateY(-15deg);
+}
+
+.positionOutside {
+  transform: scale(0.4) translateX(400%);
+  display: none;
+}
+
+/* Animation classes */
+.animateRight .card, .animateLeft .card {
+  transition: all 0.4s cubic-bezier(0.19, 1, 0.22, 1); /* Faster easing */
+}
+
+/* Optimize the individual position animations */
+.animateLeft .position0 {
+  transform: scale(0.8) translateX(100%) rotateY(-5deg);
+  z-index: 4;
+  opacity: 0.6;
+  filter: saturate(0.8);
+  background: rgba(30, 41, 59, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: none;
+  transition-duration: 0.4s;
+}
+
+.animateRight .position0 {
+  transform: scale(0.8) translateX(-100%) rotateY(5deg);
+  z-index: 4;
+  opacity: 0.6;
+  filter: saturate(0.8);
+  background: rgba(30, 41, 59, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: none;
+  transition-duration: 0.4s;
+}
+
+.animateLeft .position-1 {
+  transform: scale(1) translateZ(0);
+  z-index: 5;
+  opacity: 1;
+  background: rgba(30, 41, 59, 0.85);
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  filter: saturate(1);
+  transition-duration: 0.4s;
+}
+
+.animateRight .position1 {
+  transform: scale(1) translateZ(0);
+  z-index: 5;
+  opacity: 1;
+  background: rgba(30, 41, 59, 0.85);
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  filter: saturate(1);
+  transition-duration: 0.4s;
+}
+
+.animateLeft .position-2 {
+  transform: scale(0.8) translateX(-100%) rotateY(5deg);
+  z-index: 4;
+  opacity: 0.6;
+  filter: saturate(0.8);
+  transition-duration: 0.4s;
+}
+
+.animateRight .position2 {
+  transform: scale(0.8) translateX(100%) rotateY(-5deg);
+  z-index: 4;
+  opacity: 0.6;
+  filter: saturate(0.8);
+  transition-duration: 0.4s;
+}
+
+.animateLeft .position1 {
+  transform: scale(0.6) translateX(200%) rotateY(-10deg);
+  z-index: 3;
+  opacity: 0.3;
+  transition-duration: 0.4s;
+}
+
+.animateRight .position-1 {
+  transform: scale(0.6) translateX(-200%) rotateY(10deg);
+  z-index: 3;
+  opacity: 0.3;
+  transition-duration: 0.4s;
+}
+
+.animateLeft .position2 {
+  transform: scale(0.4) translateX(300%) rotateY(-15deg);
+  z-index: 2;
+  opacity: 0;
+  transition-duration: 0.4s;
+}
+
+.animateRight .position-2 {
+  transform: scale(0.4) translateX(-300%) rotateY(15deg);
+  z-index: 2;
+  opacity: 0;
+  transition-duration: 0.4s;
+}
+
+.animateLeft .position3,
+.animateRight .position-3 {
+  transform: scale(0);
+  opacity: 0;
+  transition-duration: 0.4s;
+}
+
+.animateLeft .position-3 {
+  transform: scale(0.6) translateX(-200%) rotateY(10deg);
+  z-index: 3;
+  opacity: 0.3;
+  filter: saturate(0.6);
+  transition-duration: 0.4s;
+}
+
+.animateRight .position3 {
+  transform: scale(0.6) translateX(200%) rotateY(-10deg);
+  z-index: 3;
+  opacity: 0.3;
+  filter: saturate(0.6);
+  transition-duration: 0.4s;
+}
+
+/* Mobile responsive styles */
+@media (max-width: 992px) {
+  .carouselContainer {
+    height: 670px;
+  }
+  
+  .carouselTrack {
+    height: 500px;
+  }
+  
+  .card {
+    width: 340px;
+    height: 500px;
+  }
+  
+  .imageContainer {
+    width: 160px;
+    height: 160px;
+    margin-bottom: 1rem;
+    border-width: 2px;
+    flex-shrink: 0;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  .memberName {
+    font-size: 1.3rem;
+    margin: 0.4rem 0;
+  }
+  
+  .memberBio {
+    font-size: 0.85rem;
+    line-height: 1.35;
+    overflow: visible;
+  }
+}
+
+@media (max-width: 768px) {
+  .carouselContainer {
+    height: 620px;
+  }
+  
+  .carouselTrack {
+    height: 480px;
+    width: 90%;
+    margin: 0 auto 3rem;
+  }
+  
+  .card {
+    width: 320px;
+    height: 480px;
+  }
+  
+  .cardContent {
+    padding: 1.5rem;
+    padding-bottom: 1rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+  }
+  
+  .imageContainer {
+    width: 140px;
+    height: 140px;
+    min-width: 140px;
+    min-height: 140px;
+    border-width: 2px;
+    flex-shrink: 0;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  .memberName {
+    font-size: 1.2rem;
+    margin: 0.35rem 0;
+  }
+  
+  .memberRole {
+    font-size: 0.9rem;
+    margin-bottom: 0.75rem;
+  }
+  
+  .memberBio {
+    font-size: 0.85rem;
+    line-height: 1.3;
+    overflow: visible;
+    flex-grow: 1;
+    margin-bottom: 0.75rem;
+    text-align: center;
+  }
+  
+  .socialLinks {
+    gap: 0.8rem;
+    margin-top: auto;
+    margin-bottom: 0.5rem;
+    flex-shrink: 0;
+  }
+  
+  .socialLink {
+    width: 32px;
+    height: 32px;
+  }
+  
+  /* Adjust position transformations for better mobile display */
+  .position-1 {
+    transform: scale(0.7) translateX(-80%) rotateY(5deg);
+  }
+  
+  .position1 {
+    transform: scale(0.7) translateX(80%) rotateY(-5deg);
+  }
+  
+  .position-2 {
+    transform: scale(0.5) translateX(-150%) rotateY(8deg);
+  }
+  
+  .position2 {
+    transform: scale(0.5) translateX(150%) rotateY(-8deg);
+  }
+  
+  .animateLeft .position0 {
+    transform: scale(0.7) translateX(80%) rotateY(-5deg);
+  }
+  
+  .animateRight .position0 {
+    transform: scale(0.7) translateX(-80%) rotateY(5deg);
+  }
+  
+  .animateLeft .position-2 {
+    transform: scale(0.7) translateX(-80%) rotateY(5deg);
+  }
+  
+  .animateRight .position2 {
+    transform: scale(0.7) translateX(80%) rotateY(-5deg);
+  }
+  
+  .animateLeft .position1 {
+    transform: scale(0.5) translateX(150%) rotateY(-8deg);
+  }
+  
+  .animateRight .position-1 {
+    transform: scale(0.5) translateX(-150%) rotateY(8deg);
+  }
+}
+
+@media (max-width: 480px) {
+  .carouselContainer {
+    height: 580px;
+  }
+  
+  .carouselTrack {
+    height: 450px;
+    width: 85%;
+  }
+  
+  .card {
+    width: 280px;
+    height: 450px;
+  }
+  
+  .cardContent {
+    padding: 1.25rem;
+    padding-bottom: 1rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+  }
+  
+  .imageContainer {
+    width: 120px;
+    height: 120px;
+    min-width: 120px;
+    min-height: 120px;
+    margin-bottom: 0.75rem;
+    border-width: 2px;
+    flex-shrink: 0;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  .memberName {
+    font-size: 1.1rem;
+    margin: 0.25rem 0;
+    transform: translateZ(0);
+  }
+  
+  .memberRole {
+    font-size: 0.9rem;
+    margin-bottom: 0.75rem;
+    transform: translateZ(0);
+  }
+  
+  .memberBio {
+    font-size: 0.8rem;
+    line-height: 1.3;
+    overflow: visible;
+    transform: translateZ(0);
+    flex-grow: 1;
+    margin-bottom: 0.75rem;
+    text-align: center;
+  }
+  
+  .socialLinks {
+    gap: 0.7rem;
+    margin-top: auto;
+    margin-bottom: 0.5rem;
+    flex-shrink: 0;
+  }
+  
+  .socialLink {
+    width: 28px;
+    height: 28px;
+  }
+  
+  /* Further reduce transform distances for smallest screens */
+  .position-1 {
+    transform: scale(0.65) translateX(-70%) rotateY(5deg);
+  }
+  
+  .position1 {
+    transform: scale(0.65) translateX(70%) rotateY(-5deg);
+  }
+  
+  .position-2 {
+    transform: scale(0.4) translateX(-120%) rotateY(8deg);
+  }
+  
+  .position2 {
+    transform: scale(0.4) translateX(120%) rotateY(-8deg);
+  }
+  
+  .animateLeft .position0 {
+    transform: scale(0.65) translateX(70%) rotateY(-5deg);
+  }
+  
+  .animateRight .position0 {
+    transform: scale(0.65) translateX(-70%) rotateY(5deg);
+  }
+  
+  .animateLeft .position-2 {
+    transform: scale(0.65) translateX(-70%) rotateY(5deg);
+  }
+  
+  .animateRight .position2 {
+    transform: scale(0.65) translateX(70%) rotateY(-5deg);
+  }
+  
+  .animateLeft .position1 {
+    transform: scale(0.4) translateX(120%) rotateY(-8deg);
+  }
+  
+  .animateRight .position-1 {
+    transform: scale(0.4) translateX(-120%) rotateY(8deg);
+  }
+}
+
+/* Add a media query for extra small devices */
+@media (max-width: 360px) {
+  .carouselContainer {
+    height: 550px; 
+  }
+  
+  .card {
+    width: 260px;
+    height: 430px;
+  }
+  
+  .imageContainer {
+    width: 110px;
+    height: 110px;
+    min-width: 110px;
+    min-height: 110px;
+    flex-shrink: 0;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  .memberBio {
+    font-size: 0.75rem;
+    line-height: 1.25;
+  }
+} 

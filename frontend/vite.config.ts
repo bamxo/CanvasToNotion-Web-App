@@ -10,6 +10,10 @@ interface VitestConfigExport extends UserConfig {
 
 export default defineConfig({
   plugins: [react()],
+  server: {
+    host: true, // Listen on all local IPs
+    port: 5173,
+  },
   test: {
     globals: true,
     environment: 'happy-dom',

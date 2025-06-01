@@ -16,6 +16,19 @@ import eyeSlashIcon from '../assets/eye-slash.svg?url';
 import googleIcon from '../assets/google.svg?url';
 import arrowIcon from '../assets/arrow.svg?url';
 import authButtons from '../data/authButtons.json';
+import { EXTENSION_ID } from '../utils/constants';
+
+// Add Chrome types
+declare global {
+  namespace chrome {
+    namespace runtime {
+      function sendMessage(extensionId: string, message: any): Promise<any>;
+    }
+  }
+  interface Window {
+    chrome: typeof chrome;
+  }
+}
 
 const Login: React.FC = () => {
   const navigate = useNavigate();
@@ -56,15 +69,47 @@ const Login: React.FC = () => {
     try {
       const response = await axios.post('http://localhost:3000/api/auth/login', {
         email: formData.email,
-        password: formData.password
+        password: formData.password,
+        requestExtensionToken: true // Request token for extension
       });
 
       // If login successful, store the token and redirect
       if (response.data) {
         // Store the auth token in localStorage
         localStorage.setItem('authToken', response.data.idToken);
+        
+        // If we got an extension token, send it to the extension
+        if (response.data.extensionToken) {
+          console.log('Received extension token, attempting to send to extension...');
+          try {
+            // Send token to extension
+            console.log('Sending token to extension ID:', EXTENSION_ID);
+            const result = await window.chrome.runtime.sendMessage(
+              EXTENSION_ID, // Extension ID from constants
+              {
+                type: 'AUTH_TOKEN',
+                token: response.data.extensionToken
+              }
+            );
+            console.log('Extension response:', result);
+          } catch (extError) {
+            console.error('Failed to send token to extension:', extError);
+            // Log more details about the error
+            if (extError instanceof Error) {
+              console.error('Error details:', {
+                name: extError.name,
+                message: extError.message,
+                stack: extError.stack
+              });
+            }
+            // Don't block login if extension communication fails
+          }
+        } else {
+          console.log('No extension token received in login response');
+        }
+
         // Redirect to login success page
-        navigate('/login-success');
+        navigate('/settings');
       }
     } catch (err) {
       if (axios.isAxiosError(err)) {
@@ -85,7 +130,7 @@ const Login: React.FC = () => {
   };
 
   // Add Google OAuth popup handler
-  const handleGoogleLogin = () => {
+  const handleGoogleLogin = async () => {
     const width = 490;
     const height = 600;
     const left = window.screenX + (window.outerWidth - width) / 2;
@@ -107,11 +152,34 @@ const Login: React.FC = () => {
     }, 1000);
 
     // Handle message from popup
-    const handleMessage = (event: MessageEvent) => {
+    const handleMessage = async (event: MessageEvent) => {
       if (event.origin === window.location.origin) {
         if (event.data.type === 'googleAuthSuccess') {
           if (event.data.token) {
             localStorage.setItem('authToken', event.data.token);
+            
+            // Request extension token
+            try {
+              const response = await axios.post('http://localhost:3000/api/auth/login', {
+                idToken: event.data.token,
+                requestExtensionToken: true
+              });
+
+              if (response.data.extensionToken) {
+                // Send token to extension
+                await window.chrome.runtime.sendMessage(
+                  EXTENSION_ID,
+                  {
+                    type: 'AUTH_TOKEN',
+                    token: response.data.extensionToken
+                  }
+                );
+                console.log('Successfully sent token to extension');
+              }
+            } catch (extError) {
+              console.error('Failed to get or send extension token:', extError);
+              // Don't block login if extension communication fails
+            }
           }
           if (popup) popup.close();
           navigate('/login-success');
@@ -198,7 +266,7 @@ const Login: React.FC = () => {
           {/* Google Authentication Button */}
           {authButtons.buttons
             .filter(button => button.method === 'Google')
-            .map((button, index) => (
+            .map((_, index) => (
               <button 
                 key={index} 
                 className={styles['auth-button']}

@@ -19,8 +19,14 @@ const Hero: React.FC = () => {
       <div className={styles.heroGrid}>
         <div className={`${styles.heroContent} ${isVisible ? styles.visible : ''}`}>
           <div className={styles.tagline}>
-            <span className={styles.tag}>New</span>
-            <span className={styles.tagText}>Canvas Integration Available</span>
+
+            {/* For Release */}
+            {/* <span className={styles.tag}>New</span> */}
+            {/* <span className={styles.tagText}>Canvas Integration Available</span> */}
+
+            {/* For Current Deployment */}
+            <span className={styles.tag}>Coming Soon</span>
+            <span className={styles.tagText}>Canvas Integration</span>
           </div>
           
           <h1 className={styles.heroTitle}>
@@ -40,7 +46,11 @@ const Hero: React.FC = () => {
             >
               <div className={styles.buttonContent}>
                 <FaChrome className={styles.chromeIcon} />
-                <span>Add to Chrome</span>
+                {/* For Release */}
+                {/* <span>Add to Chrome</span> */}
+
+                {/* For Current Deployment */}
+                <span>Coming Soon</span>
                 <FaArrowRight className={styles.arrowIcon} />
               </div>
             </button>

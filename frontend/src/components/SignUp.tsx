@@ -61,15 +61,31 @@ const SignUp: React.FC = () => {
     }
 
     try {
-      const response = await axios.post('http://localhost:3000/api/auth/signup', {
+      // First create the account
+      const signupResponse = await axios.post('http://localhost:3000/api/auth/signup', {
         email: formData.email,
         password: formData.password,
         displayName: formData.email.split('@')[0] // Using email prefix as display name
       });
 
-      // If signup successful, redirect to login
-      if (response.data) {
-        navigate('/login');
+      // If signup successful, automatically log in the user
+      if (signupResponse.data) {
+        try {
+          // Perform automatic login
+          const loginResponse = await axios.post('http://localhost:3000/api/auth/login', {
+            email: formData.email,
+            password: formData.password
+          });
+
+          // Store the auth token and redirect
+          if (loginResponse.data) {
+            localStorage.setItem('authToken', loginResponse.data.idToken);
+            navigate('/get-started');
+          }
+        } catch (loginErr) {
+          setError('Account created but automatic login failed. Please try logging in manually.');
+          navigate('/login');
+        }
       }
     } catch (err) {
       if (axios.isAxiosError(err)) {

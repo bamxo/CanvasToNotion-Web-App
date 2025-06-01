@@ -23,7 +23,11 @@ const Navbar: FC<NavbarProps> = ({ isScrolled }) => {
             <a href="/about" className={styles.navLink}>About</a>
           </div>
           <button onClick={handleInstallClick} className={styles.installButton}>
-            Install Extension
+            {/* For Release */}
+            {/* Install Extension */}
+
+            {/* For Current Deployment */}
+            Coming Soon
           </button>
         </div>
       </div>

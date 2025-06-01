@@ -77,9 +77,9 @@
   background: linear-gradient(135deg, #00d16e 0%, #00a173 100%);
 }
 
-.featureCard.visible {
-  opacity: 1;
-  transform: translateY(0) translateZ(0);
+.animatedVisible {
+  opacity: 1 !important;
+  transform: translateY(0) !important;
 }
 
 .featureIcon {
@@ -165,10 +165,6 @@
 
   .sectionTitle {
     font-size: 2.5rem;
-  }
-
-  .featureCard {
-    opacity: 1;
   }
 }
 
