@@ -55,3 +55,6 @@ database-debug.log*
 
 # Vite
 .vite/
+
+# Netlify
+.netlify/
