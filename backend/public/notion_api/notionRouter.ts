@@ -199,19 +199,27 @@ router.post('/token', async (req: Request, res: Response) => {
 
 // Modified sync endpoint to use email instead of token in the request
 router.post('/sync', async (req: Request, res: Response) => {
+  
   try {
+
+    /*########## extracts canvas request data ##########*/
     const { email, pageId, courses, assignments } = req.body;
-    
-    // Validate input
+    console.log("First assignment object:", assignments[0]);
+    /*########################################################################################################*/
+
+
+    /*########## ensures pageID and email are present and valid ##########*/
     if (!email || typeof email !== 'string' || !pageId) {
       return res.status(400).json({ 
         success: false, 
         error: 'Valid email and page ID are required' 
       });
     }
+    /*########################################################################################################*/
 
-    // Get user data
-    const userData = await getUserByEmail(adminDb, email);
+
+    /*########## gets user data and access token from firebase ##########*/
+    const userData = await getUserByEmail(adminDb, email); //
     if (!userData?.accessToken) {
       return res.status(403).json({ 
         success: false, 
@@ -219,11 +227,12 @@ router.post('/sync', async (req: Request, res: Response) => {
       });
     }
 
-    // Initialize Notion client
+    // initialize notion client using token
     const notion = new Client({ auth: userData.accessToken });
-    const courseDatabases = new Map<number, string>();
+    /*########################################################################################################*/
 
-    // Verify parent page access first
+
+    /*########## are we able to connect to the specified parent page? ##########*/
     try {
       await notion.pages.retrieve({ page_id: pageId });
     } catch (error) {
@@ -232,99 +241,186 @@ router.post('/sync', async (req: Request, res: Response) => {
         error: `No access to parent page (${pageId}). Share it with your integration via Notion's page connections.`
       });
     }
+    /*##############################################################################################################################*/
 
-    const childrenResponse = await notion.blocks.children.list({
-      block_id: pageId,
-    });
 
-    // Create course databases under the selected parent
-    for (const course of courses) {
+    /*########## get all child blocks in parent page hierarchy ##########*/
+    const childrenResponse = await notion.blocks.children.list({ block_id: pageId });
+    /*########################################################################################################*/
 
-      const courseName = course.name;
 
-      const existingDatabase = childrenResponse.results.find(child => {
-        if ("type" in child && child.type === "child_database") {
-          return child.child_database?.title === courseName;
+    /*########## check to see if the Courses and Assignments DBs already exist ##########*/
+    const existingCoursesDb = childrenResponse.results.find(child =>
+        "type" in child && 
+        child.type === "child_database" &&
+        child.child_database?.title == "Courses"
+    );
+    const existingAssignmentsDb = childrenResponse.results.find(child =>
+        "type" in child && 
+        child.type === "child_database" &&
+        child.child_database?.title == "Assignments"
+    );
+    /*########################################################################################################*/
+
+
+    /*########## create Courses and Assignments DB ##########*/
+    let coursesDbId = existingCoursesDb?.id;
+    if (!coursesDbId) {
+      console.log("courses database dne: ", existingCoursesDb);
+      const newCoursesDb = await notion.databases.create({
+        parent: { type: "page_id", page_id: pageId },
+        is_inline: false,
+        title: [{ type: "text", text: { content: "Courses" } }],
+        properties: {
+          Name: { title: {} }
         }
-        return false;
       });
+      coursesDbId = newCoursesDb.id;
+    }
 
-      if (existingDatabase && "type" in existingDatabase && existingDatabase.type === "child_database") {
-        console.log(`database for ${courseName} already exists.`);
-        courseDatabases.set(course.id, existingDatabase.id);
-        continue;
-      }
-
-      try {
-        const newDb = await notion.databases.create({
-          parent: { type: "page_id", page_id: pageId },
-          title: [{ type: "text", text: { content: course.name } }],
-          is_inline: true,
-          properties: {
-            Name: { title: {} },
-            DueDate: { date: {} },
-            Points: { number: {} },
-            URL: { url: {} },
-            Status: {
-              select: {
-                options: [
-                  { name: "Not Started", color: "red" },
-                  { name: "In Progress", color: "yellow" },
-                  { name: "Completed", color: "green" }
-                ]
-              }
+    let assignmentsDbId = existingAssignmentsDb?.id;
+    if (!assignmentsDbId) {
+      console.log("assignments database dne: ", existingAssignmentsDb);
+      const newAssignmentsDb = await notion.databases.create({
+        parent: { type: "page_id", page_id: pageId },
+        is_inline: true,
+        title: [{ type: "text", text: { content: "Assignments" } }],
+        properties: {
+          Name: { title: {} },
+          DueDate: { date: {} },
+          Points: { number: {} },
+          URL: { url: {} },
+          Status: {
+            select: {
+              options: [
+                { name: "Not Started", color: "red" },
+                { name: "In Progress", color: "yellow" },
+                { name: "Done", color: "green" }
+              ]
+            }
+          },
+          Course: {
+            relation: {
+              database_id: coursesDbId,
+              type: "single_property",
+              single_property: {}
             }
           }
-        });
-        courseDatabases.set(course.id, newDb.id);
-      } catch (error) {
-        console.error(`Failed to create database for ${course.name}:`, error);
-        continue; // Skip this course but continue with others
+        }
+      });
+      assignmentsDbId = newAssignmentsDb.id;
+    }
+    /*##############################################################################################################################*/
+
+
+    /*########## only add courses that aren't in the Courses DB ##########*/
+    const existingCourseNames = new Set<string>(); // save all courses in the Courses DB here
+
+    if (coursesDbId) {
+      const existingPages = await notion.databases.query({
+        database_id: coursesDbId
+      });
+
+      for (const page of existingPages.results) {
+        if (
+          'properties' in page &&
+          'Name' in page.properties &&
+          'title' in page.properties.Name &&
+          Array.isArray(page.properties.Name.title)
+        ) {
+          const titleText = page.properties.Name.title.map(t => t.plain_text).join('').trim();
+          if (titleText) {
+            existingCourseNames.add(titleText);
+          }
+        }
       }
     }
 
-    // Create assignments in their respective databases
+    const coursePageIds = new Map<string, string>();
+    for (const course of courses) {
+      if (existingCourseNames.has(course.name)) {
+        console.log(`Course "${course.name}" already exists. Finding existing page ID.`);
+
+        // Query for the page matching this course name
+        const search = await notion.databases.query({
+          database_id: coursesDbId,
+          filter: {
+            property: "Name",
+            title: {
+              equals: course.name
+            }
+          }
+        });
+
+        if (search.results.length > 0) {
+          const existingPage = search.results[0];
+          coursePageIds.set(course.name, existingPage.id);
+        } else {
+          // console.warn(`Could not find Notion page ID for existing course "${course.name}"`);
+        }
+
+        continue;
+      }
+
+      const coursePage = await notion.pages.create({
+        parent: { database_id: coursesDbId },
+        properties: {
+          Name: { title: [{ text: { content: course.name } }] }
+        }
+      });
+      coursePageIds.set(course.name, coursePage.id);
+    }
+    /*##############################################################################################################################*/
+
+
+    // Create Assignment entries
     const assignmentResults = [];
     for (const assignment of assignments) {
-      const databaseId = courseDatabases.get(assignment.courseId);
-      if (!databaseId) {
+      const courseName = courses.find((c: { id: string; name: string }) => c.id === assignment.courseId)?.name;
+      const coursePageId = coursePageIds.get(courseName);
+
+      if (!coursePageId) {
         assignmentResults.push({
           assignment: assignment.name,
           success: false,
-          error: 'Parent database not found'
+          error: 'Related course not found'
         });
         continue;
       }
 
       try {
-        const dueDate = assignment.due_at ? 
-          { date: { start: new Date(assignment.due_at).toISOString() } } : 
-          { date: null };
+        const dueDate = assignment.due_at
+          ? { date: { start: new Date(assignment.due_at).toISOString() } }
+          : { date: null };
 
         await notion.pages.create({
-          parent: { database_id: databaseId },
+          parent: { database_id: assignmentsDbId },
           properties: {
             Name: { title: [{ text: { content: assignment.name } }] },
             DueDate: dueDate,
             Points: { number: assignment.points_possible || 0 },
             URL: { url: assignment.html_url },
-            Status: { select: { name: "Not Started" } }
+            Status: { select: { name: "Not Started" } },
+            Course: { relation: [{ id: coursePageId }] }
           }
         });
+
         assignmentResults.push({ assignment: assignment.name, success: true });
+
       } catch (error) {
         assignmentResults.push({
           assignment: assignment.name,
           success: false,
+          error: 'Failed to create assignment'
         });
       }
     }
 
     res.json({
       success: true,
-      message: 'Sync completed with partial results',
+      message: 'Sync completed',
       results: {
-        courses: courses.length,
+        coursesCreated: courses.length,
         assignments: assignmentResults
       }
     });
@@ -521,7 +617,6 @@ router.get('/disconnect', async (req: Request, res: Response) => {
 
 router.post('/compare', async (req: Request, res: Response) => {
   try {
-    // Log the entire incoming payload
     console.log('--- /compare endpoint called ---');
     console.log('Received payload:', JSON.stringify(req.body, null, 2));
 
@@ -544,109 +639,148 @@ router.post('/compare', async (req: Request, res: Response) => {
 
     const notion = new Client({ auth: userData.accessToken });
 
-    // Step 3: Get all child blocks under the page
-    const children = await notion.blocks.children.list({ block_id: pageId });
-    console.log('Step 3: Pulled Notion children blocks:', JSON.stringify(children.results, null, 2));
+    // Step 3: Find the Courses and Assignments databases (same as sync endpoint)
+    const childrenResponse = await notion.blocks.children.list({ block_id: pageId });
+    console.log('Step 3: Pulled Notion children blocks');
 
-    // Step 4: Map course.id to Notion database id
-    const courseDatabases = new Map<number, string>();
-    for (const course of courses) {
-      const dbBlock = children.results.find(block =>
-        isChildDatabaseBlock(block) && block.child_database.title === course.name
-      );
-      if (dbBlock) {
-        courseDatabases.set(course.id, dbBlock.id);
-        console.log(`Matched Notion database for course "${course.name}" (id: ${course.id}):`, dbBlock.id);
-      } else {
-        console.log(`No Notion database found for course "${course.name}" (id: ${course.id})`);
+    const existingCoursesDb = childrenResponse.results.find(child =>
+      "type" in child && 
+      child.type === "child_database" &&
+      child.child_database?.title === "Courses"
+    );
+
+    const existingAssignmentsDb = childrenResponse.results.find(child =>
+      "type" in child && 
+      child.type === "child_database" &&
+      child.child_database?.title === "Assignments"
+    );
+
+    // If databases don't exist yet, return all Canvas assignments as needing sync
+    if (!existingCoursesDb || !existingAssignmentsDb) {
+      console.log('Courses or Assignments database not found - returning all Canvas assignments');
+      
+      const comparison: Record<string, { onlyInCanvas: any[]; onlyInNotion: string[] }> = {};
+      
+      for (const course of courses) {
+        const canvasAssignments = assignments.filter((a: any) => a.courseId === course.id);
+        comparison[course.name] = { 
+          onlyInCanvas: canvasAssignments, 
+          onlyInNotion: [] 
+        };
+      }
+      
+      return res.json({
+        success: true,
+        comparison,
+        message: 'No sync data found - all Canvas assignments need to be synced'
+      });
+    }
+
+    const coursesDbId = existingCoursesDb.id;
+    const assignmentsDbId = existingAssignmentsDb.id;
+    console.log('Step 3: Found databases - Courses:', coursesDbId, 'Assignments:', assignmentsDbId);
+
+    // Step 4: Get all courses from Notion to create courseId -> pageId mapping
+    const notionCourses = await notion.databases.query({ database_id: coursesDbId });
+    const courseNameToPageId = new Map<string, string>();
+    
+    for (const page of notionCourses.results) {
+      if (
+        'properties' in page &&
+        'Name' in page.properties &&
+        'title' in page.properties.Name &&
+        Array.isArray(page.properties.Name.title)
+      ) {
+        const courseName = page.properties.Name.title.map(t => t.plain_text).join('').trim();
+        if (courseName) {
+          courseNameToPageId.set(courseName, page.id);
+        }
       }
     }
-    console.log('Step 4: Course to Notion database mapping:', Array.from(courseDatabases.entries()));
+    console.log('Step 4: Course name to page ID mapping:', Object.fromEntries(courseNameToPageId));
 
-    // Step 5: For each course, fetch all assignment names from the corresponding Notion database
-    const notionAssignmentsByCourse: Record<number, string[]> = {};
-    for (const [courseId, dbId] of courseDatabases.entries()) {
-      const pages = await notion.databases.query({ database_id: dbId });
-      console.log(`Step 5: Notion database query result for courseId ${courseId}:`, JSON.stringify(pages.results, null, 2));
-      
-      // Enhanced debugging for property extraction
-      console.log(`Step 5: Processing ${pages.results.length} pages for courseId ${courseId}`);
-      const assignmentNames = pages.results.map((page, index) => {
-        console.log(`Step 5: Processing page ${index + 1} properties:`, JSON.stringify((page as any).properties, null, 2));
-        
-        // Try different common property names
-        const possibleNameProps = ['Name', 'Title', 'Assignment Name', 'Assignment', 'Task'];
-        let extractedName = '';
-        
-        for (const propName of possibleNameProps) {
-          const prop = (page as any).properties?.[propName];
-          if (prop) {
-            console.log(`Step 5: Found property "${propName}":`, JSON.stringify(prop, null, 2));
-            if (prop.title && prop.title.length > 0) {
-              extractedName = prop.title.map((t: any) => t.plain_text).join('');
-              console.log(`Step 5: Extracted name from "${propName}":`, extractedName);
+    // Step 5: Get all assignments from Notion
+    const notionAssignments = await notion.databases.query({ database_id: assignmentsDbId });
+    console.log('Step 5: Found', notionAssignments.results.length, 'assignments in Notion');
+
+    // Step 6: Group Notion assignments by course
+    const notionAssignmentsByCourse: Record<string, string[]> = {};
+    
+    for (const assignment of notionAssignments.results) {
+      if ('properties' in assignment) {
+        // Get assignment name
+        let assignmentName = '';
+        if (
+          'Name' in assignment.properties &&
+          'title' in assignment.properties.Name &&
+          Array.isArray(assignment.properties.Name.title)
+        ) {
+          assignmentName = assignment.properties.Name.title.map(t => t.plain_text).join('').trim();
+        }
+
+        // Get related course
+        let relatedCourseName = '';
+        if (
+          'Course' in assignment.properties &&
+          'relation' in assignment.properties.Course &&
+          Array.isArray(assignment.properties.Course.relation) &&
+          assignment.properties.Course.relation.length > 0
+        ) {
+          const coursePageId = assignment.properties.Course.relation[0].id;
+          
+          // Find course name by page ID
+          for (const [courseName, pageId] of courseNameToPageId.entries()) {
+            if (pageId === coursePageId) {
+              relatedCourseName = courseName;
               break;
             }
           }
         }
-        
-        if (!extractedName) {
-          console.log(`Step 5: No valid name property found for page ${index + 1}`);
-        }
-        
-        return extractedName;
-      }).filter((name: string) => !!name);
-      
-      notionAssignmentsByCourse[courseId] = assignmentNames;
-      console.log(`Step 5: Final assignment names for courseId ${courseId}:`, notionAssignmentsByCourse[courseId]);
-    }
 
-    // Step 6: Compare Canvas assignments to Notion assignments by course
-    const comparison: Record<
-      string,
-      { onlyInCanvas: any[]; onlyInNotion: string[] }
-    > = {};
+        if (assignmentName && relatedCourseName) {
+          if (!notionAssignmentsByCourse[relatedCourseName]) {
+            notionAssignmentsByCourse[relatedCourseName] = [];
+          }
+          notionAssignmentsByCourse[relatedCourseName].push(assignmentName);
+        }
+      }
+    }
+    console.log('Step 6: Notion assignments by course:', notionAssignmentsByCourse);
+
+    // Step 7: Compare Canvas assignments to Notion assignments by course
+    const comparison: Record<string, { onlyInCanvas: any[]; onlyInNotion: string[] }> = {};
 
     for (const course of courses) {
-      console.log(`\n--- Processing course: ${course.name} (ID: ${course.id}) ---`);
+      console.log(`Step 7: Processing course "${course.name}" (ID: ${course.id})`);
       
       // All Canvas assignments for this course
-      const canvasAssignments = assignments
-        .filter((a: any) => a.courseId === course.id);
-      console.log(`Step 6: Canvas assignments for courseId ${course.id}:`, 
-        canvasAssignments.map(a => ({ name: a.name, id: a.id })));
+      const canvasAssignments = assignments.filter((a: any) => a.courseId === course.id);
+      console.log(`Canvas assignments for "${course.name}":`, canvasAssignments.map(a => a.name));
 
       // All Notion assignment names for this course
-      const notionAssignments = notionAssignmentsByCourse[course.id] || [];
-      console.log(`Step 6: Notion assignments for courseId ${course.id}:`, notionAssignments);
+      const notionAssignments = notionAssignmentsByCourse[course.name] || [];
+      console.log(`Notion assignments for "${course.name}":`, notionAssignments);
 
-      // Find Canvas assignments not present in Notion (by name)
+      // Find Canvas assignments not present in Notion (by name, trimmed for comparison)
       const onlyInCanvas = canvasAssignments.filter(
-        (a: any) => !notionAssignments.includes(a.name)
+        (a: any) => !notionAssignments.includes(a.name.trim())
       );
-      console.log(`Step 6: Assignments only in Canvas for courseId ${course.id}:`, 
-        onlyInCanvas.map(a => ({ name: a.name, id: a.id })));
 
       // Find Notion assignment names not present in Canvas
-      const canvasAssignmentNames = canvasAssignments.map((a: any) => a.name);
+      const canvasAssignmentNames = canvasAssignments.map((a: any) => a.name.trim());
       const onlyInNotion = notionAssignments.filter(
-        (name: string) => !canvasAssignmentNames.includes(name)
+        (name: string) => !canvasAssignmentNames.includes(name.trim())
       );
-      console.log(`Step 6: Assignments only in Notion for courseId ${course.id}:`, onlyInNotion);
 
-      // Use course name as key instead of course ID
       comparison[course.name] = { onlyInCanvas, onlyInNotion };
-      console.log(`Step 6: Comparison result for course "${course.name}":`, {
+      
+      console.log(`Comparison result for "${course.name}":`, {
         onlyInCanvas: onlyInCanvas.length,
         onlyInNotion: onlyInNotion.length
       });
     }
 
-    // Step 7: Respond with the comparison result
-    console.log('Step 7: Final comparison result:', JSON.stringify(comparison, null, 2));
-    
-    // Add summary logging
-    console.log('\n--- COMPARISON SUMMARY ---');
+    console.log('Final comparison results:');
     Object.entries(comparison).forEach(([courseName, data]) => {
       console.log(`Course "${courseName}": ${data.onlyInCanvas.length} Canvas-only, ${data.onlyInNotion.length} Notion-only`);
     });
