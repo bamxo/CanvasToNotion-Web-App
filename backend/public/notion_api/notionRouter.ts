@@ -1,21 +1,11 @@
 // src/notion_api/notionRouter.ts
 import express, { Request, Response } from 'express';
-import type { PartialBlockObjectResponse, BlockObjectResponse, DatabaseObjectResponse, PageObjectResponse } from "@notionhq/client/build/src/api-endpoints";
+import type { DatabaseObjectResponse, PageObjectResponse } from "@notionhq/client/build/src/api-endpoints";
 import axios from 'axios';
 import { Client } from '@notionhq/client';
 import { adminDb } from '../db';
 import { database } from 'firebase-admin';
 
-function isChildDatabaseBlock(
-  block: PartialBlockObjectResponse | BlockObjectResponse
-): block is BlockObjectResponse & { type: 'child_database', child_database: { title: string } } {
-  return (
-    'type' in block &&
-    block.type === 'child_database' &&
-    'child_database' in block &&
-    typeof block.child_database?.title === 'string'
-  );
-}
 const router = express.Router();
 
 interface UserData {
