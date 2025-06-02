@@ -101,24 +101,28 @@
 .button-rectangle {
   width: 100%;
   padding: 12px 24px;
-  border: 1px solid #E5E7EB;
-  border-radius: 8px;
-  background-color: white;
-  color: #374151;
-  font-size: 16px;
+  border: none;
+  border-radius: 7px;
+  background-color: #DADADA;
+  color: #212B36;
+  font-size: 14px;
   font-weight: 500;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 12px;
-  transition: all 0.2s ease;
+  gap: 8px;
+  transition: background-color 0.3s ease, transform 0.2s ease;
   margin-bottom: 16px;
 }
 
 .button-rectangle:hover {
-  background-color: #F9FAFB;
-  border-color: #D1D5DB;
+  background-color: #CCCCCC;
+  transform: translateY(-1px);
+}
+
+.button-rectangle:active {
+  transform: translateY(0);
 }
 
 .button-rectangle:disabled {
@@ -127,9 +131,8 @@
 }
 
 .button-icon {
-  width: 24px;
-  height: 24px;
-  object-fit: contain;
+  width: 20px;
+  height: 20px;
 }
 
 .divider {
