@@ -157,7 +157,7 @@ export const handler: Handler = async (event, context) => {
     // Create Courses and Assignments DB if they don't exist
     let coursesDbId = existingCoursesDb?.id;
     if (!coursesDbId) {
-      console.log("Creating courses database");
+      console.log("courses database dne: ", existingCoursesDb);
       const newCoursesDb = await notion.databases.create({
         parent: { type: "page_id", page_id: pageId },
         is_inline: false,
@@ -171,7 +171,7 @@ export const handler: Handler = async (event, context) => {
 
     let assignmentsDbId = existingAssignmentsDb?.id;
     if (!assignmentsDbId) {
-      console.log("Creating assignments database");
+      console.log("assignments database dne: ", existingAssignmentsDb);
       const newAssignmentsDb = await notion.databases.create({
         parent: { type: "page_id", page_id: pageId },
         is_inline: true,
@@ -306,7 +306,7 @@ export const handler: Handler = async (event, context) => {
         assignmentResults.push({
           assignment: assignment.name,
           success: false,
-          error: error instanceof Error ? error.message : 'Unknown error'
+          error: 'Failed to create assignment'
         });
       }
     }
