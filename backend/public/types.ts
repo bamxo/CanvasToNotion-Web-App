@@ -42,6 +42,7 @@ export interface LoginRequest {
 
 export interface GoogleAuthRequest {
   idToken: string;
+  requestExtensionToken?: boolean;
 }
 
 export interface PasswordResetRequest {

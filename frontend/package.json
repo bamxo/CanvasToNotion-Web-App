@@ -13,7 +13,7 @@
     "@types/axios": "^0.9.36",
     "@types/firebase": "^2.4.32",
     "axios": "^1.8.4",
-    "firebase": "^11.6.0",
+    "firebase": "^11.8.1",
     "framer-motion": "^12.12.1",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
