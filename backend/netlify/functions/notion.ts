@@ -5,6 +5,7 @@ import dotenv from 'dotenv';
 import { getFirebaseAdmin } from './firebase-admin';
 import type { PartialBlockObjectResponse, BlockObjectResponse, DatabaseObjectResponse, PageObjectResponse } from "@notionhq/client/build/src/api-endpoints";
 import { Client } from '@notionhq/client';
+import fetch from 'node-fetch';
 
 // Load environment variables
 dotenv.config();
@@ -143,7 +144,190 @@ export const handler: Handler = async (event, context) => {
     // Handle sync endpoint
     else if (endpoint === 'sync' && event.httpMethod === 'POST') {
       const body = JSON.parse(event.body || '{}');
-      return await handleSync(body, headers);
+      
+      try {
+        // Basic validation
+        const { email, pageId, courses, assignments } = body;
+        
+        if (!email || !pageId || !Array.isArray(courses) || !Array.isArray(assignments)) {
+          return {
+            statusCode: 400,
+            headers,
+            body: JSON.stringify({ 
+              success: false, 
+              error: 'Missing required fields' 
+            })
+          };
+        }
+        
+        // Get user data and verify connection
+        const db = admin.database();
+        const usersRef = db.ref('users');
+        const snapshot = await usersRef.orderByChild('email').equalTo(email).once('value');
+        
+        if (!snapshot.exists()) {
+          return {
+            statusCode: 404,
+            headers,
+            body: JSON.stringify({ 
+              success: false, 
+              error: 'User not found' 
+            })
+          };
+        }
+        
+        // Get the user's ID and data
+        const userEntries = Object.entries(snapshot.val());
+        if (userEntries.length === 0) {
+          return {
+            statusCode: 404,
+            headers,
+            body: JSON.stringify({ 
+              success: false, 
+              error: 'User data not found' 
+            })
+          };
+        }
+        
+        const [userId, userData] = userEntries[0] as [string, UserData];
+        
+        if (!userData?.accessToken) {
+          return {
+            statusCode: 403,
+            headers,
+            body: JSON.stringify({ 
+              success: false, 
+              error: 'Notion integration not connected' 
+            })
+          };
+        }
+        
+        // Set the sync status to 'pending' in the user's data
+        const syncStatusRef = db.ref(`users/${userId}/syncStatus`);
+        await syncStatusRef.set({
+          status: 'pending'
+        });
+        
+        // Call the background function
+        const functionUrl = `${process.env.URL || 'https://canvastonotion.netlify.app'}/.netlify/functions/notion-background`;
+        
+        console.log("Triggering background sync function");
+        
+        // Add userId to the body for the background function
+        const backgroundBody = {
+          ...body,
+          userId
+        };
+        
+        // Fire and forget - don't await the response
+        fetch(functionUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(backgroundBody)
+        }).catch(err => console.error('Error triggering background function:', err));
+        
+        // Return immediately with a success message
+        return {
+          statusCode: 202, // Accepted
+          headers,
+          body: JSON.stringify({
+            success: true,
+            message: 'Sync process has started in the background',
+            info: 'This may take several minutes to complete'
+          })
+        };
+      } catch (error) {
+        console.error('Error triggering sync:', error);
+        return {
+          statusCode: 500,
+          headers,
+          body: JSON.stringify({
+            success: false,
+            error: error instanceof Error ? error.message : 'Unknown error'
+          })
+        };
+      }
+    }
+    // Handle sync-status endpoint
+    else if (endpoint === 'sync-status' && event.httpMethod === 'GET') {
+      const email = event.queryStringParameters?.email;
+      
+      if (!email) {
+        return {
+          statusCode: 400,
+          headers,
+          body: JSON.stringify({ success: false, error: 'Email is required' })
+        };
+      }
+      
+      // Verify authorization
+      const authHeader = event.headers.authorization || event.headers.Authorization;
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return {
+          statusCode: 401,
+          headers,
+          body: JSON.stringify({ success: false, error: 'Authentication required' })
+        };
+      }
+      
+      try {
+        // Get user ID from email
+        const db = admin.database();
+        const usersRef = db.ref('users');
+        const snapshot = await usersRef.orderByChild('email').equalTo(email).once('value');
+        
+        if (!snapshot.exists()) {
+          return {
+            statusCode: 404,
+            headers,
+            body: JSON.stringify({ success: false, error: 'User not found' })
+          };
+        }
+        
+        const userEntries = Object.entries(snapshot.val());
+        if (userEntries.length === 0) {
+          return {
+            statusCode: 404,
+            headers,
+            body: JSON.stringify({ success: false, error: 'User data not found' })
+          };
+        }
+        
+        const [userId, userData] = userEntries[0];
+        
+        // Get sync status from user data
+        const syncStatusRef = db.ref(`users/${userId}/syncStatus`);
+        const syncStatusSnapshot = await syncStatusRef.once('value');
+        
+        if (!syncStatusSnapshot.exists()) {
+          return {
+            statusCode: 404,
+            headers,
+            body: JSON.stringify({ success: false, error: 'No sync status found' })
+          };
+        }
+        
+        return {
+          statusCode: 200,
+          headers,
+          body: JSON.stringify({
+            success: true,
+            syncStatus: syncStatusSnapshot.val()
+          })
+        };
+      } catch (error) {
+        console.error('Error fetching sync status:', error);
+        return {
+          statusCode: 500,
+          headers,
+          body: JSON.stringify({
+            success: false,
+            error: error instanceof Error ? error.message : 'Unknown error'
+          })
+        };
+      }
     }
     // Handle compare endpoint
     else if (endpoint === 'compare' && event.httpMethod === 'POST') {
@@ -463,173 +647,6 @@ async function handleDisconnect(email: string, headers: any) {
       statusCode: 500,
       headers,
       body: JSON.stringify({ success: false, error: 'Internal server error' })
-    };
-  }
-}
-
-// Function to handle Notion sync with Canvas data
-async function handleSync(body: any, headers: any) {
-  try {
-    const { email, pageId, courses, assignments } = body;
-    
-    // Validate input
-    if (!email || typeof email !== 'string' || !pageId) {
-      return {
-        statusCode: 400,
-        headers,
-        body: JSON.stringify({ 
-          success: false, 
-          error: 'Valid email and page ID are required' 
-        })
-      };
-    }
-
-    // Get user data
-    const userData = await getUserByEmail(email);
-    if (!userData?.accessToken) {
-      return {
-        statusCode: 403,
-        headers,
-        body: JSON.stringify({ 
-          success: false, 
-          error: 'Notion integration not connected' 
-        })
-      };
-    }
-
-    // Initialize Notion client
-    const notion = new Client({ auth: userData.accessToken });
-    const courseDatabases = new Map<number, string>();
-
-    // Verify parent page access first
-    try {
-      await notion.pages.retrieve({ page_id: pageId });
-    } catch (error) {
-      return {
-        statusCode: 403,
-        headers,
-        body: JSON.stringify({
-          success: false,
-          error: `No access to parent page (${pageId}). Share it with your integration via Notion's page connections.`
-        })
-      };
-    }
-
-    const childrenResponse = await notion.blocks.children.list({
-      block_id: pageId,
-    });
-
-    // Create course databases under the selected parent
-    for (const course of courses) {
-      const courseName = course.name;
-
-      const existingDatabase = childrenResponse.results.find(child => {
-        return isChildDatabaseBlock(child) && child.child_database.title === courseName;
-      });
-
-      if (existingDatabase && isChildDatabaseBlock(existingDatabase)) {
-        console.log(`database for ${courseName} already exists.`);
-        courseDatabases.set(course.id, existingDatabase.id);
-        continue;
-      }
-
-      try {
-        const newDb = await notion.databases.create({
-          parent: { type: "page_id", page_id: pageId },
-          title: [{ type: "text", text: { content: course.name } }],
-          is_inline: true,
-          properties: {
-            Name: { title: {} },
-            DueDate: { date: {} },
-            Points: { number: {} },
-            URL: { url: {} },
-            Status: {
-              select: {
-                options: [
-                  { name: "Not Started", color: "red" },
-                  { name: "In Progress", color: "yellow" },
-                  { name: "Completed", color: "green" }
-                ]
-              }
-            }
-          }
-        });
-        courseDatabases.set(course.id, newDb.id);
-      } catch (error) {
-        console.error(`Failed to create database for ${course.name}:`, error);
-        continue; // Skip this course but continue with others
-      }
-    }
-
-    // Create assignments in their respective databases
-    type AssignmentResult = {
-      assignment: string;
-      success: boolean;
-      error?: string;
-    };
-    
-    const assignmentResults: AssignmentResult[] = [];
-    for (const assignment of assignments) {
-      const databaseId = courseDatabases.get(assignment.courseId);
-      if (!databaseId) {
-        assignmentResults.push({
-          assignment: assignment.name,
-          success: false,
-          error: 'Parent database not found'
-        });
-        continue;
-      }
-
-      try {
-        const dueDate = assignment.due_at ? 
-          { date: { start: new Date(assignment.due_at).toISOString() } } : 
-          { date: null };
-
-        await notion.pages.create({
-          parent: { database_id: databaseId },
-          properties: {
-            Name: { title: [{ text: { content: assignment.name } }] },
-            DueDate: dueDate,
-            Points: { number: assignment.points_possible || 0 },
-            URL: { url: assignment.html_url },
-            Status: { select: { name: "Not Started" } }
-          }
-        });
-        assignmentResults.push({ assignment: assignment.name, success: true });
-      } catch (error) {
-        assignmentResults.push({
-          assignment: assignment.name,
-          success: false,
-          error: error instanceof Error ? error.message : 'Unknown error'
-        });
-      }
-    }
-
-    return {
-      statusCode: 200,
-      headers,
-      body: JSON.stringify({
-        success: true,
-        message: 'Sync completed with partial results',
-        results: {
-          courses: courses.length,
-          assignments: assignmentResults
-        }
-      })
-    };
-  } catch (error) {
-    console.error('Sync error:', error);
-    return {
-      statusCode: 500,
-      headers,
-      body: JSON.stringify({
-        success: false,
-        error: error instanceof Error ? 
-          (error.message === 'object_not_found' 
-            ? 'Verify page sharing with your Notion integration' 
-            : error.message) 
-          : 'Unknown error'
-      })
     };
   }
 }

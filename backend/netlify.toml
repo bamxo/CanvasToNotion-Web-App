@@ -23,4 +23,12 @@
     [headers.values]
     Access-Control-Allow-Origin = "*"
     Access-Control-Allow-Methods = "GET, POST, PUT, DELETE, OPTIONS"
-    Access-Control-Allow-Headers = "Origin, X-Requested-With, Content-Type, Accept, Authorization" 
+    Access-Control-Allow-Headers = "Origin, X-Requested-With, Content-Type, Accept, Authorization"
+
+[functions]
+  node_bundler = "esbuild"
+  external_node_modules = ["@notionhq/client"]
+
+# Set timeout for all functions using the wildcard pattern
+[functions."*"]
+  timeout = 26 
