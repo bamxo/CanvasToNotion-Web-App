@@ -32,6 +32,7 @@ const Settings: React.FC = () => {
     setNotionConnection
   } = useNotionAuth();
   const [isButtonLoading, setIsButtonLoading] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   // Clear button loading state when connection process completes
   useEffect(() => {
@@ -70,9 +71,45 @@ const Settings: React.FC = () => {
     }
   };
 
-  const handleDeleteAccount = () => {
-    // TODO: Implement account deletion
-    console.log('Delete account clicked');
+  const handleDeleteAccount = async () => {
+    if (!window.confirm('Are you sure you want to delete your account? This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      setIsButtonLoading(true);
+      const authToken = localStorage.getItem('authToken');
+      
+      if (!authToken) {
+        throw new Error('No authentication token found');
+      }
+
+      // Call the delete account endpoint
+      await axios.post('http://localhost:3000/api/auth/delete-account', {
+        idToken: authToken  
+      });
+
+      // Clear local storage
+      localStorage.removeItem('authToken');
+
+      // Notify extension about logout
+      try {
+        await window.chrome.runtime.sendMessage(
+          EXTENSION_ID,
+          { type: 'LOGOUT' }
+        );
+      } catch (extError) {
+        console.error('Failed to notify extension about logout:', extError);
+      }
+
+      // Redirect to login page
+      navigate('/login');
+    } catch (error) {
+      console.error('Delete account error:', error);
+      setDeleteError('Failed to delete account. Please try again.');
+    } finally {
+      setIsButtonLoading(false);
+    }
   };
 
   const handleNotionConnection = () => {
@@ -165,6 +202,11 @@ const Settings: React.FC = () => {
                 Delete Account
               </button>
             </div>
+            {deleteError && (
+              <div className={styles.errorContainer}>
+                <p className={styles.errorText}>{deleteError}</p>
+              </div>
+            )}
           </div>
         )}
 

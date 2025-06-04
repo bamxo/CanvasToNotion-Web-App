@@ -9,5 +9,6 @@ router.post('/signup', authController.signup);
 router.post('/login', authController.login);
 router.post('/forgot-password', authController.forgotPassword);
 router.post('/google', authController.googleAuth);
+router.post('/delete-account', authController.deleteAccount);
 
 export default router;

@@ -5,64 +5,113 @@
  * their preferred method of creating an account. It provides options for different
  * authentication methods and a link to the login page for existing users.
  */
-import React from 'react'
+import React, { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import axios from 'axios'
 import GradientBackgroundWrapper from './GradientBackgroundWrapper';
 import styles from './Lookup.module.css'
 import googleIcon from '../assets/google.svg?url';
 import mailIcon from '../assets/Mail.svg?url';
 import arrowIcon from '../assets/arrow.svg?url';
-import authButtons from '../data/authButtons.json'
+import { EXTENSION_ID } from '../utils/constants';
+import { mapFirebaseError } from '../utils/errorMessages';
+
+interface GoogleSignInResponse {
+  credential: string;
+  select_by: string;
+}
 
 const Lookup: React.FC = () => {
-  // Hook for programmatic navigation
   const navigate = useNavigate();
+  const [error, setError] = React.useState<string>('');
+  const [isLoading, setIsLoading] = React.useState(false);
 
-  // Handler for email signup navigation
-  const handleEmailSignup = () => {
-    navigate('/signup');
-  };
+  useEffect(() => {
+    let isMounted = true;
 
-  // Add Google OAuth popup handler for signup
-  const handleGoogleSignup = () => {
-    const width = 490;
-    const height = 600;
-    const left = window.screenX + (window.outerWidth - width) / 2;
-    const top = window.screenY + (window.outerHeight - height) / 2;
-    
-    const popup = window.open(
-      'http://localhost:3000/api/auth/google',
-      'Google Signup',
-      `width=${width},height=${height},left=${left},top=${top},popup=1`
-    );
-
-    // Handle popup window events
-    const checkPopup = setInterval(() => {
-      if (!popup || popup.closed) {
-        clearInterval(checkPopup);
-        // Optionally refresh user data or handle completion
-        window.location.reload();
-      }
-    }, 1000);
-
-    // Handle message from popup
-    const handleMessage = (event: MessageEvent) => {
-      if (event.origin === window.location.origin) {
-        if (event.data.type === 'googleAuthSuccess') {
-          if (event.data.token) {
-            localStorage.setItem('authToken', event.data.token);
+    const initializeGoogleSignIn = () => {
+      if (window.google?.accounts?.id) {
+        try {
+          window.google.accounts.id.initialize({
+            client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID,
+            callback: (response: GoogleSignInResponse) => {
+              if (isMounted) {
+                handleGoogleSignIn(response);
+              }
+            },
+            auto_select: false,
+            cancel_on_tap_outside: true,
+            prompt_parent_id: 'google-signin-container'
+          });
+        } catch (error) {
+          console.error('Error initializing Google Sign-In:', error);
+          if (isMounted) {
+            setError('Failed to initialize Google Sign-In. Please try again.');
           }
-          if (popup) popup.close();
-          navigate('/login-success');
         }
       }
     };
 
-    window.addEventListener('message', handleMessage);
+    initializeGoogleSignIn();
+
     return () => {
-      clearInterval(checkPopup);
-      window.removeEventListener('message', handleMessage);
+      isMounted = false;
     };
+  }, []);
+
+  const handleGoogleSignIn = async (response: GoogleSignInResponse) => {
+    if (!response.credential) {
+      setError('Failed to get Google credentials');
+      return;
+    }
+
+    setIsLoading(true);
+    setError('');
+    
+    try {
+      // Send the ID token to your backend
+      const backendResponse = await axios.post('http://localhost:3000/api/auth/google', {
+        idToken: response.credential,
+        requestExtensionToken: true
+      });
+
+      if (backendResponse.data && backendResponse.data.idToken) {
+        // Store the ID token for authentication
+        localStorage.setItem('authToken', backendResponse.data.idToken);
+
+        // If we got an extension token, send it to the extension
+        if (backendResponse.data.extensionToken) {
+          console.log('Received extension token, attempting to send to extension...');
+          try {
+            await window.chrome.runtime.sendMessage(
+              EXTENSION_ID,
+              {
+                type: 'AUTH_TOKEN',
+                token: backendResponse.data.extensionToken
+              }
+            );
+            console.log('Successfully sent token to extension');
+          } catch (extError) {
+            console.error('Failed to send token to extension:', extError);
+            // Don't block login if extension communication fails
+          }
+        }
+
+        // Redirect to settings page
+        navigate('/settings');
+      }
+    } catch (error) {
+      console.error('Google sign in error:', error);
+      const userFriendlyMessage = mapFirebaseError(error, 'Google sign in failed. Please try again.');
+      setError(userFriendlyMessage);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Handler for email signup navigation
+  const handleEmailSignup = () => {
+    navigate('/signup');
   };
 
   // Handler for login page navigation
@@ -75,33 +124,40 @@ const Lookup: React.FC = () => {
       <GradientBackgroundWrapper />
       <div className={styles.pageWrapper}>
         <div className={styles.container}>
-          {/* Main header section */}
-          <h1 className={styles.header}>
-            Create an Account
-          </h1>
-          <p className={styles.subtext}>
-            Just a few details to get started
-          </p>
+          <h1 className={styles.header}>Create an Account</h1>
+          <p className={styles.subtext}>Just a few details to get started</p>
 
-          {/* Authentication method buttons */}
-          {authButtons.buttons.map((button, index) => (
+          {/* Error Message Display */}
+          {error && <div className={styles.error}>{error}</div>}
+
+          {/* Email Signup Button */}
+          <button 
+            className={styles['button-rectangle']}
+            onClick={handleEmailSignup}
+            disabled={isLoading}
+          >
+            <img src={mailIcon} alt="Email" className={styles['button-icon']} />
+            Sign Up with Email
+          </button>
+
+          {/* Google Sign-In Button */}
+          <div id="google-signin-container">
             <button 
-              key={index} 
               className={styles['button-rectangle']}
-              onClick={
-                button.method === 'Email' ? handleEmailSignup :
-                button.method === 'Google' ? handleGoogleSignup :
-                undefined
-              }
+              onClick={() => {
+                try {
+                  window.google?.accounts?.id?.prompt();
+                } catch (error) {
+                  console.error('Error prompting Google Sign-In:', error);
+                  setError('Failed to start Google Sign-In. Please try again.');
+                }
+              }}
+              disabled={isLoading}
             >
-              <img 
-                src={button.method === 'Email' ? mailIcon : googleIcon} 
-                alt={`${button.method} icon`} 
-                className={styles['button-icon']} 
-              />
-              Sign Up with {button.method}
+              <img src={googleIcon} alt="Google" className={styles['button-icon']} />
+              Sign Up with Google
             </button>
-          ))}
+          </div>
 
           {/* Divider section between auth buttons and login link */}
           <div className={styles.divider}>
@@ -124,4 +180,4 @@ const Lookup: React.FC = () => {
   )
 }
 
-export default Lookup 
+export default Lookup; 

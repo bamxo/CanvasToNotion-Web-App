@@ -30,8 +30,6 @@ export const verifyToken = async (
       res.status(401).json({ error: 'Invalid token' });
     }
   } catch (error) {
-    console.error('Token verification error:', 
-      axios.isAxiosError(error) ? error.response?.data : error);
     res.status(401).json({ error: 'Authentication failed' });
   }
 };
