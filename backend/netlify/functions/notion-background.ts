@@ -258,17 +258,58 @@ export const handler: Handler = async (event, context) => {
       coursePageIds.set(course.name, coursePage.id);
     }
 
-    // Create Assignment entries
+    // Get existing assignment URLs to avoid duplicates
+    let notionAssignmentUrls = new Set<string>();
+    
+    if (assignmentsDbId) {
+      const notionAssignments = await notion.databases.query({ database_id: assignmentsDbId });
+      
+      for (const assignment of notionAssignments.results) {
+        if ('properties' in assignment && 'URL' in assignment.properties) {
+          let url = '';
+          if ('url' in assignment.properties.URL && assignment.properties.URL.url) {
+            url = assignment.properties.URL.url.trim();
+          }
+          
+          if (url) {
+            notionAssignmentUrls.add(url);
+          }
+        }
+      }
+      
+      console.log(`Found ${notionAssignmentUrls.size} existing assignments in Notion database`);
+    }
+
+    // Create Assignment entries only for assignments not already in Notion
     type AssignmentResult = {
       assignment: string;
       success: boolean;
+      status?: string;
+      message?: string;
       error?: string;
     };
     
     const assignmentResults: AssignmentResult[] = [];
+    let newAssignmentsCount = 0;
+    let skippedAssignmentsCount = 0;
+    
     console.log(`Processing ${assignments.length} assignments`);
     
     for (const assignment of assignments) {
+      const canvasUrl = assignment.html_url?.trim();
+      
+      // Skip if this assignment already exists in Notion
+      if (notionAssignmentUrls.has(canvasUrl)) {
+        assignmentResults.push({
+          assignment: assignment.name,
+          success: true,
+          status: 'skipped',
+          message: 'Assignment already exists in Notion'
+        });
+        skippedAssignmentsCount++;
+        continue;
+      }
+      
       const courseName = courses.find((c: { id: string; name: string }) => c.id === assignment.courseId)?.name;
       const coursePageId = coursePageIds.get(courseName);
 
@@ -300,7 +341,12 @@ export const handler: Handler = async (event, context) => {
           }
         });
 
-        assignmentResults.push({ assignment: assignment.name, success: true });
+        assignmentResults.push({ 
+          assignment: assignment.name, 
+          success: true,
+          status: 'created'
+        });
+        newAssignmentsCount++;
       } catch (error) {
         console.error(`Error creating assignment ${assignment.name}:`, error);
         assignmentResults.push({
@@ -316,7 +362,14 @@ export const handler: Handler = async (event, context) => {
       const db = admin.database();
       const syncStatusRef = db.ref(`users/${userId}/syncStatus`);
       await syncStatusRef.set({
-        status: 'complete'
+        status: 'complete',
+        results: {
+          coursesCreated: coursePageIds.size - existingCourseNames.size,
+          totalAssignments: assignments.length,
+          newAssignmentsCreated: newAssignmentsCount,
+          skippedAssignments: skippedAssignmentsCount
+        },
+        completedAt: new Date().toISOString()
       });
     } catch (dbError) {
       console.error("Error saving sync results to database:", dbError);
@@ -337,7 +390,10 @@ export const handler: Handler = async (event, context) => {
         success: true, 
         message: 'Sync completed in background',
         results: {
-          coursesCreated: courses.length,
+          coursesCreated: coursePageIds.size - existingCourseNames.size,
+          totalAssignments: assignments.length,
+          newAssignmentsCreated: newAssignmentsCount,
+          skippedAssignments: skippedAssignmentsCount,
           assignments: assignmentResults
         }
       })
@@ -354,7 +410,9 @@ export const handler: Handler = async (event, context) => {
         const db = admin.database();
         const syncStatusRef = db.ref(`users/${userId}/syncStatus`);
         await syncStatusRef.set({
-          status: 'error'
+          status: 'error',
+          error: error instanceof Error ? error.message : 'Unknown error',
+          errorAt: new Date().toISOString()
         });
       }
     } catch (statusError) {

@@ -205,7 +205,10 @@ export const handler: Handler = async (event, context) => {
         // Set the sync status to 'pending' in the user's data
         const syncStatusRef = db.ref(`users/${userId}/syncStatus`);
         await syncStatusRef.set({
-          status: 'pending'
+          status: 'pending',
+          startedAt: new Date().toISOString(),
+          totalAssignments: assignments.length,
+          totalCourses: courses.length
         });
         
         // Call the background function
@@ -235,7 +238,12 @@ export const handler: Handler = async (event, context) => {
           body: JSON.stringify({
             success: true,
             message: 'Sync process has started in the background',
-            info: 'This may take several minutes to complete'
+            info: {
+              totalAssignments: assignments.length,
+              totalCourses: courses.length,
+              syncStatus: 'pending',
+              startedAt: new Date().toISOString()
+            }
           })
         };
       } catch (error) {
@@ -299,12 +307,18 @@ export const handler: Handler = async (event, context) => {
           };
         }
         
+        const syncStatus = syncStatusSnapshot.val();
+        
         return {
           statusCode: 200,
           headers,
           body: JSON.stringify({
             success: true,
-            syncStatus: syncStatusSnapshot.val()
+            syncStatus: {
+              ...syncStatus,
+              // Add formatted message for client display
+              message: formatSyncStatusMessage(syncStatus)
+            }
           })
         };
       } catch (error) {
@@ -674,15 +688,9 @@ async function handleCompare(body: any, headers: any) {
 
     const notion = new Client({ auth: userData.accessToken });
 
-    // Step 3: Find the Courses and Assignments databases
+    // Step 3: Find the Assignments database
     const childrenResponse = await notion.blocks.children.list({ block_id: pageId });
     console.log('Step 3: Pulled Notion children blocks');
-
-    const existingCoursesDb = childrenResponse.results.find(child =>
-      "type" in child && 
-      child.type === "child_database" &&
-      child.child_database?.title === "Courses"
-    );
 
     const existingAssignmentsDb = childrenResponse.results.find(child =>
       "type" in child && 
@@ -690,17 +698,16 @@ async function handleCompare(body: any, headers: any) {
       child.child_database?.title === "Assignments"
     );
 
-    // If databases don't exist yet, return all Canvas assignments as needing sync
-    if (!existingCoursesDb || !existingAssignmentsDb) {
-      console.log('Courses or Assignments database not found - returning all Canvas assignments');
+    // If assignments database doesn't exist, return all Canvas assignments as needing sync
+    if (!existingAssignmentsDb) {
+      console.log('Assignments database not found - returning all Canvas assignments');
       
-      const comparison: Record<string, { onlyInCanvas: any[]; onlyInNotion: string[] }> = {};
+      const comparison: Record<string, { onlyInCanvas: any[] }> = {};
       
       for (const course of courses) {
         const canvasAssignments = assignments.filter((a: any) => a.courseId === course.id);
         comparison[course.name] = { 
-          onlyInCanvas: canvasAssignments, 
-          onlyInNotion: [] 
+          onlyInCanvas: assignments.filter((a: any) => a.courseId === course.id)
         };
       }
       
@@ -715,113 +722,66 @@ async function handleCompare(body: any, headers: any) {
       };
     }
 
-    const coursesDbId = existingCoursesDb.id;
     const assignmentsDbId = existingAssignmentsDb.id;
-    console.log('Step 3: Found databases - Courses:', coursesDbId, 'Assignments:', assignmentsDbId);
+    console.log('Step 3: Found Assignments database:', assignmentsDbId);
 
-    // Step 4: Get all courses from Notion to create courseId -> pageId mapping
-    const notionCourses = await notion.databases.query({ database_id: coursesDbId });
-    const courseNameToPageId = new Map<string, string>();
-    
-    for (const page of notionCourses.results) {
-      if (
-        'properties' in page &&
-        'Name' in page.properties &&
-        'title' in page.properties.Name &&
-        Array.isArray(page.properties.Name.title)
-      ) {
-        const courseName = page.properties.Name.title.map(t => t.plain_text).join('').trim();
-        if (courseName) {
-          courseNameToPageId.set(courseName, page.id);
-        }
-      }
-    }
-    console.log('Step 4: Course name to page ID mapping:', Object.fromEntries(courseNameToPageId));
-
-    // Step 5: Get all assignments from Notion
+    // Step 4: Get all assignment URLs from Notion
     const notionAssignments = await notion.databases.query({ database_id: assignmentsDbId });
-    console.log('Step 5: Found', notionAssignments.results.length, 'assignments in Notion');
+    console.log('Step 4: Found', notionAssignments.results.length, 'assignments in Notion');
 
-    // Step 6: Group Notion assignments by course
-    const notionAssignmentsByCourse: Record<string, string[]> = {};
+    const notionUrls = new Set<string>();
     
     for (const assignment of notionAssignments.results) {
-      if ('properties' in assignment) {
-        // Get assignment name
-        let assignmentName = '';
-        if (
-          'Name' in assignment.properties &&
-          'title' in assignment.properties.Name &&
-          Array.isArray(assignment.properties.Name.title)
-        ) {
-          assignmentName = assignment.properties.Name.title.map(t => t.plain_text).join('').trim();
+      if ('properties' in assignment && 'URL' in assignment.properties) {
+        let url = '';
+        if ('url' in assignment.properties.URL && assignment.properties.URL.url) {
+          url = assignment.properties.URL.url.trim();
         }
-
-        // Get related course
-        let relatedCourseName = '';
-        if (
-          'Course' in assignment.properties &&
-          'relation' in assignment.properties.Course &&
-          Array.isArray(assignment.properties.Course.relation) &&
-          assignment.properties.Course.relation.length > 0
-        ) {
-          const coursePageId = assignment.properties.Course.relation[0].id;
-          
-          // Find course name by page ID
-          for (const [courseName, pageId] of courseNameToPageId.entries()) {
-            if (pageId === coursePageId) {
-              relatedCourseName = courseName;
-              break;
-            }
-          }
-        }
-
-        if (assignmentName && relatedCourseName) {
-          if (!notionAssignmentsByCourse[relatedCourseName]) {
-            notionAssignmentsByCourse[relatedCourseName] = [];
-          }
-          notionAssignmentsByCourse[relatedCourseName].push(assignmentName);
+        
+        if (url) {
+          notionUrls.add(url);
         }
       }
     }
-    console.log('Step 6: Notion assignments by course:', notionAssignmentsByCourse);
+    
+    console.log('Step 4: Found', notionUrls.size, 'unique URLs in Notion');
+    console.log('Debug - First few Notion URLs:', Array.from(notionUrls).slice(0, 3));
 
-    // Step 7: Compare Canvas assignments to Notion assignments by course
-    const comparison: Record<string, { onlyInCanvas: any[]; onlyInNotion: string[] }> = {};
+    // Step 5: Find Canvas assignments that need to be synced to Notion
+    const comparison: Record<string, { onlyInCanvas: any[] }> = {};
 
     for (const course of courses) {
-      console.log(`Step 7: Processing course "${course.name}" (ID: ${course.id})`);
+      console.log(`Step 5: Processing course "${course.name}" (ID: ${course.id})`);
       
       // All Canvas assignments for this course
       const canvasAssignments = assignments.filter((a: any) => a.courseId === course.id);
-      console.log(`Canvas assignments for "${course.name}":`, canvasAssignments.map(a => a.name));
+      console.log(`Canvas assignments for "${course.name}":`, canvasAssignments.length);
 
-      // All Notion assignment names for this course
-      const notionAssignments = notionAssignmentsByCourse[course.name] || [];
-      console.log(`Notion assignments for "${course.name}":`, notionAssignments);
-
-      // Find Canvas assignments not present in Notion (by name, trimmed for comparison)
+      // Find Canvas assignments not present in Notion (by URL)
       const onlyInCanvas = canvasAssignments.filter(
-        (a: any) => !notionAssignments.includes(a.name.trim())
+        (a: any) => {
+          const canvasUrl = a.html_url?.trim();
+          const isInNotion = notionUrls.has(canvasUrl);
+          
+          // Debug: Log first few comparisons
+          if (canvasAssignments.indexOf(a) < 3) {
+            console.log(`Debug - Assignment "${a.name}": Canvas URL="${canvasUrl}", In Notion: ${isInNotion}`);
+          }
+          
+          return !isInNotion;
+        }
       );
 
-      // Find Notion assignment names not present in Canvas
-      const canvasAssignmentNames = canvasAssignments.map((a: any) => a.name.trim());
-      const onlyInNotion = notionAssignments.filter(
-        (name: string) => !canvasAssignmentNames.includes(name.trim())
-      );
-
-      comparison[course.name] = { onlyInCanvas, onlyInNotion };
+      comparison[course.name] = { onlyInCanvas };
       
       console.log(`Comparison result for "${course.name}":`, {
-        onlyInCanvas: onlyInCanvas.length,
-        onlyInNotion: onlyInNotion.length
+        onlyInCanvas: onlyInCanvas.length
       });
     }
 
     console.log('Final comparison results:');
     Object.entries(comparison).forEach(([courseName, data]) => {
-      console.log(`Course "${courseName}": ${data.onlyInCanvas.length} Canvas-only, ${data.onlyInNotion.length} Notion-only`);
+      console.log(`Course "${courseName}": ${data.onlyInCanvas.length} assignments only in Canvas`);
     });
     
     return {
@@ -839,5 +799,25 @@ async function handleCompare(body: any, headers: any) {
       headers,
       body: JSON.stringify({ success: false, error: error.message }) 
     };
+  }
+}
+
+// Helper function to format sync status message
+function formatSyncStatusMessage(syncStatus: any): string {
+  if (!syncStatus) return 'No sync information available';
+  
+  switch (syncStatus.status) {
+    case 'pending':
+      return 'Sync in progress...';
+    case 'complete':
+      if (syncStatus.results) {
+        const { newAssignmentsCreated, skippedAssignments, totalAssignments } = syncStatus.results;
+        return `Sync completed: ${newAssignmentsCreated} assignments created, ${skippedAssignments} already existed.`;
+      }
+      return 'Sync completed successfully';
+    case 'error':
+      return `Sync failed: ${syncStatus.error || 'Unknown error'}`;
+    default:
+      return `Sync status: ${syncStatus.status}`;
   }
 } 
