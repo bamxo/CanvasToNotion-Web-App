@@ -1,14 +1,14 @@
 import request from 'supertest';
 import axios from 'axios';
 import express from 'express';
-import {app} from '../src/app'
+import { app } from '../src/server';
 import dotenv from 'dotenv';
-import { describe, beforeEach, it, expect, jest, test} from '@jest/globals';
+import { describe, beforeEach, it, expect, vi, test} from 'vitest';
 
-jest.mock('axios');
+vi.mock('axios');
 dotenv.config();
 describe('POST /api/notion/token', () => {
-  const mockedAxios = axios as jest.Mocked<typeof axios>;
+  const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
 
   it('should return access token and workspace ID on success', async () => {
     mockedAxios.post.mockResolvedValue({

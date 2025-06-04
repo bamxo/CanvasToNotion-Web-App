@@ -1,23 +1,23 @@
 import express from 'express';
 import request from 'supertest';
-import { describe, beforeEach, it, expect, jest, test} from '@jest/globals';
+import { describe, beforeEach, it, expect, vi, test} from 'vitest';
 
 // Mock the middleware and controller
-jest.mock('../public/middleware/auth', () => ({
+vi.mock('../public/middleware/auth', () => ({
   verifyToken: (req: any, res: any, next: any) => {
     req.user = { id: 'mock-user' };
     return next();
   }
 }));
 
-jest.mock('../public/controllers/databaseControllers', () => ({
-  updateData: jest.fn((req:any, res:any) => {
+vi.mock('../public/controllers/databaseControllers', () => ({
+  updateData: vi.fn((req:any, res:any) => {
     res.json({ message: `Updated ${req.params.path}`, body: req.body });
   }),
-  readData: jest.fn((req:any, res:any) => {
+  readData: vi.fn((req:any, res:any) => {
     res.json({ message: `Read ${req.params.path}`, data: { value: 42 } });
   }),
-  deleteData: jest.fn((req:any, res:any) => {
+  deleteData: vi.fn((req:any, res:any) => {
     res.json({ message: `Deleted ${req.params.path}` });
   })
 }));

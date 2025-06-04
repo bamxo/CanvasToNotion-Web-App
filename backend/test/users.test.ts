@@ -2,21 +2,21 @@ import request from 'supertest';
 import axios from 'axios';
 import express from 'express';
 import dotenv from 'dotenv';
-import { describe, beforeEach, it, expect, jest, test} from '@jest/globals';
+import { describe, beforeEach, it, expect, vi, test } from 'vitest';
 
 import userRoutes from '../public/routes/users';
 
 
 const myRoute = "../public";
 // Mock middleware and controller
-jest.mock('../public/middleware/auth', () => ({
+vi.mock('../public/middleware/auth', () => ({
   verifyToken: (req: any, res: any, next: any) => {
     req.user = { id: 'mock-user' }; // Mocked decoded token
     return next();
   }
 }));
 
-jest.mock('../public/controllers/userControllers', () => ({
+vi.mock('../public/controllers/userControllers', () => ({
   getProfile: (req: any, res: any) => {
     return res.json({ name: 'Mock User', id: req.user.id });
   },

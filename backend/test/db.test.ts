@@ -2,24 +2,24 @@ import request from 'supertest';
 import axios from 'axios';
 import express from 'express';
 import dotenv from 'dotenv';
-import { describe, beforeEach, it, expect, jest, test} from '@jest/globals';
+import { describe, beforeEach, it, expect, vi, test} from 'vitest';
 import { adminDb } from '../public/db'; // Adjust path if needed
 
-jest.mock('firebase-admin', () => {
-  const valMock = jest.fn(() => 'mocked data');
+vi.mock('firebase-admin', () => {
+  const valMock = vi.fn(() => 'mocked data');
 
-  const refMock = jest.fn(() => ({
-    once: jest.fn().mockResolvedValue({ val: valMock }),
+  const refMock = vi.fn(() => ({
+    once: vi.fn().mockResolvedValue({ val: valMock }),
   }));
 
-  const databaseMock = jest.fn(() => ({
+  const databaseMock = vi.fn(() => ({
     ref: refMock,
   }));
 
   return {
-    initializeApp: jest.fn(),
+    initializeApp: vi.fn(),
     credential: {
-      cert: jest.fn(),
+      cert: vi.fn(),
     },
     apps: [],
     database: databaseMock,

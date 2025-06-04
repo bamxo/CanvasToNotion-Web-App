@@ -2,14 +2,14 @@ import { verifyToken } from '../public/middleware/auth';
 import { Request, Response, NextFunction } from 'express';
 import axios from 'axios';
 import { FirebaseUser } from '../public/types';
-import { describe, beforeEach, it, expect, jest, test} from '@jest/globals';
-jest.mock('axios');
-const mockedAxios = axios as jest.Mocked<typeof axios>;
+import { describe, beforeEach, it, expect, vi, test} from 'vitest';
+vi.mock('axios');
+const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
 
 describe('verifyToken middleware', () => {
   let req: any;
   let res: any;
-  let next: jest.MockedFunction<NextFunction>;
+  let next: NextFunction & { mockImplementation: any; mockClear: any };
 
   beforeEach(() => {
     req = {
@@ -18,11 +18,11 @@ describe('verifyToken middleware', () => {
       },
     };
     res = {
-      status: jest.fn().mockReturnThis(),
-      json: jest.fn(),
+      status: vi.fn().mockReturnThis(),
+      json: vi.fn(),
     }as unknown as Response; 
 
-    next = jest.fn() as unknown as jest.MockedFunction<NextFunction>;;
+    next = vi.fn() as unknown as NextFunction & { mockImplementation: any; mockClear: any };
   });
 
   it('should call next if token is valid', async () => {
