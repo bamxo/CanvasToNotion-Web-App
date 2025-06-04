@@ -19,20 +19,51 @@ import { useNotionAuth } from '../hooks/useNotionAuth';
 import axios from 'axios';
 import { EXTENSION_ID, NOTION_REDIRECT_URI } from '../utils/constants';
 
+interface UserInfo {
+  displayName: string;
+  email: string;
+}
+
 /**
  * Settings component to display user information and manage Notion connection
  */
 const Settings: React.FC = () => {
   const navigate = useNavigate();
   const {
-    userInfo,
+    userInfo: notionUserInfo,
     notionConnection,
     isConnecting,
     error,
     setNotionConnection
   } = useNotionAuth();
+  const [userInfo, setUserInfo] = useState<UserInfo | null>(null);
   const [isButtonLoading, setIsButtonLoading] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchUserInfo = async () => {
+      const token = localStorage.getItem('authToken');
+      if (!token) {
+        navigate('/login');
+        return;
+      }
+
+      try {
+        const response = await axios.get('http://localhost:3000/api/users/info', {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        });
+        setUserInfo(response.data);
+      } catch (error) {
+        console.error('Error fetching user info:', error);
+      } finally {
+        
+      }
+    };
+
+    fetchUserInfo();
+  }, [navigate]);
 
   // Clear button loading state when connection process completes
   useEffect(() => {
@@ -121,7 +152,7 @@ const Settings: React.FC = () => {
   };
 
   const handleRemoveConnection = async () => {
-    if (!userInfo?.email) {
+    if (!notionUserInfo?.email) {
       console.error('No user email found');
       return;
     }
@@ -129,7 +160,7 @@ const Settings: React.FC = () => {
     try {
       setIsButtonLoading(true);
       const response = await axios.get(`http://localhost:3000/api/notion/disconnect`, {
-        params: { email: userInfo.email },
+        params: { email: notionUserInfo.email },
         headers: {
           'Content-Type': 'application/json'
         }
@@ -149,13 +180,6 @@ const Settings: React.FC = () => {
     } finally {
       setIsButtonLoading(false);
     }
-  };
-
-  const getInitials = (email: string, firstName?: string) => {
-    if (firstName) {
-      return firstName[0].toUpperCase();
-    }
-    return email[0].toUpperCase();
   };
 
   const handleLogoClick = (e: React.MouseEvent) => {
@@ -187,10 +211,10 @@ const Settings: React.FC = () => {
           <div className={styles.profileSection}>
             <div className={styles.profileGroup}>
               <div className={styles.profilePic}>
-                {getInitials(userInfo.email, userInfo.firstName)}
+                {userInfo.displayName[0].toUpperCase()}
               </div>
               <div className={styles.profileInfo}>
-                <p className={styles.userName}>{userInfo.firstName || 'User'}</p>
+                <p className={styles.userName}>{userInfo.displayName || 'User'}</p>
                 <p className={styles.userEmail}>{userInfo.email}</p>
               </div>
             </div>
