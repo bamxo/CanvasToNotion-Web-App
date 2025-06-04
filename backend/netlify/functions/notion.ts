@@ -262,16 +262,6 @@ export const handler: Handler = async (event, context) => {
         };
       }
       
-      // Verify authorization
-      const authHeader = event.headers.authorization || event.headers.Authorization;
-      if (!authHeader || !authHeader.startsWith('Bearer ')) {
-        return {
-          statusCode: 401,
-          headers,
-          body: JSON.stringify({ success: false, error: 'Authentication required' })
-        };
-      }
-      
       try {
         // Get user ID from email
         const db = admin.database();
