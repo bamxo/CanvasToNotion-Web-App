@@ -58,6 +58,19 @@ const Login: React.FC = () => {
   const [isLoading, setIsLoading] = React.useState(false);
 
   useEffect(() => {
+    // Listen for messages from the extension
+    const handleExtensionMessage = (event: MessageEvent) => {
+      if (event.data.type === 'EXTENSION_ID') {
+        console.log('Received extension ID:', event.data.extensionId);
+        localStorage.setItem('extensionId', event.data.extensionId);
+      }
+    };
+
+    window.addEventListener('message', handleExtensionMessage);
+    return () => window.removeEventListener('message', handleExtensionMessage);
+  }, []);
+
+  useEffect(() => {
     if (window.google?.accounts?.id) {
       window.google.accounts.id.initialize({
         client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID,
@@ -81,7 +94,8 @@ const Login: React.FC = () => {
       // Send the ID token to your backend
       const backendResponse = await axios.post('http://localhost:3000/api/auth/google', {
         idToken: response.credential,
-        requestExtensionToken: true
+        requestExtensionToken: true,
+        extensionId: localStorage.getItem('extensionId') || EXTENSION_ID
       });
 
       if (backendResponse.data && backendResponse.data.idToken) {
@@ -92,8 +106,9 @@ const Login: React.FC = () => {
         if (backendResponse.data.extensionToken) {
           console.log('Received extension token, attempting to send to extension...');
           try {
+            const extensionId = localStorage.getItem('extensionId') || EXTENSION_ID;
             await window.chrome.runtime.sendMessage(
-              EXTENSION_ID,
+              extensionId,
               {
                 type: 'AUTH_TOKEN',
                 token: backendResponse.data.extensionToken
@@ -137,7 +152,8 @@ const Login: React.FC = () => {
       const response = await axios.post(AUTH_ENDPOINTS.LOGIN, {
         email: formData.email,
         password: formData.password,
-        requestExtensionToken: true
+        requestExtensionToken: true,
+        extensionId: localStorage.getItem('extensionId') || EXTENSION_ID
       });
 
       if (response.data && response.data.idToken) {
@@ -148,8 +164,9 @@ const Login: React.FC = () => {
         if (response.data.extensionToken) {
           console.log('Received extension token, attempting to send to extension...');
           try {
+            const extensionId = localStorage.getItem('extensionId') || EXTENSION_ID;
             await window.chrome.runtime.sendMessage(
-              EXTENSION_ID,
+              extensionId,
               {
                 type: 'AUTH_TOKEN',
                 token: response.data.extensionToken

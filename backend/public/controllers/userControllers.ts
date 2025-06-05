@@ -49,13 +49,19 @@ export const getUserInfo = async (req: AuthenticatedRequest, res: Response): Pro
     // Get user record from Firebase Admin
     const userRecord = await admin.auth().getUser(userId);
     
+    // Get photo URL from Google provider data if available
+    const googleProvider = userRecord.providerData.find(
+      provider => provider.providerId === 'google.com'
+    );
+    
     res.json({
       email: userRecord.email,
       displayName: userRecord.displayName,
-      photoURL: userRecord.photoURL,
+      photoURL: googleProvider?.photoURL || userRecord.photoURL,
       emailVerified: userRecord.emailVerified
     });
   } catch (error) {
+    console.error('Error fetching user info:', error);
     res.status(500).json({ error: 'Failed to fetch user info' });
   }
 };

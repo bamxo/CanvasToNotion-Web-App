@@ -15,6 +15,7 @@ export interface UserData {
   displayName?: string;
   photoURL?: string;
   createdAt: string;
+  extensionId?: string;
   [key: string]: any; // For additional custom fields
 }
 
@@ -38,11 +39,13 @@ export interface LoginRequest {
   email: string;
   password: string;
   requestExtensionToken?: boolean;
+  extensionId?: string;
 }
 
 export interface GoogleAuthRequest {
   idToken: string;
   requestExtensionToken?: boolean;
+  extensionId?: string;
 }
 
 export interface PasswordResetRequest {

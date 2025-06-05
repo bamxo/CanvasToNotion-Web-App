@@ -103,7 +103,7 @@ export const testDatabase = async (req: Request, res: Response): Promise<void> =
 // User login with email/password
 export const login = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { email, password, requestExtensionToken }: LoginRequest = req.body;
+    const { email, password, requestExtensionToken, extensionId }: LoginRequest = req.body;
     
     if (!email || !password) {
       res.status(400).json({ error: 'Email and password are required' });
@@ -121,6 +121,18 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     );
 
     const authData = response.data;
+    
+    // Save extension ID if provided
+    if (extensionId) {
+      try {
+        await admin.database().ref(`/users/${authData.localId}`).update({
+          extensionId
+        });
+      } catch (dbError) {
+        console.error('Failed to save extension ID:', dbError);
+        // Continue even if saving extension ID fails
+      }
+    }
     
     // If client requests a token for extension
     if (requestExtensionToken) {
@@ -172,7 +184,7 @@ export const forgotPassword = async (req: Request, res: Response): Promise<void>
 // Sign in with Google ID token (after frontend Google authentication)
 export const googleAuth = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { idToken, requestExtensionToken }: GoogleAuthRequest = req.body;
+    const { idToken, requestExtensionToken, extensionId }: GoogleAuthRequest = req.body;
     if (!idToken) {
       res.status(400).json({ error: 'Google ID token is required' });
       return;
@@ -217,6 +229,18 @@ export const googleAuth = async (req: Request, res: Response): Promise<void> => 
           }
         });
       }
+
+      // Update extension ID if provided
+      if (extensionId) {
+        try {
+          await admin.database().ref(`/users/${userRecord.uid}`).update({
+            extensionId
+          });
+        } catch (dbError) {
+          console.error('Failed to save extension ID:', dbError);
+          // Continue even if saving extension ID fails
+        }
+      }
     } catch (e) {
       // Create new user with Google provider info
       userRecord = await admin.auth().createUser({
@@ -245,7 +269,8 @@ export const googleAuth = async (req: Request, res: Response): Promise<void> => 
           photoURL: payload.picture,
           provider: 'google.com',
           createdAt: new Date().toISOString(),
-          lastLogin: new Date().toISOString()
+          lastLogin: new Date().toISOString(),
+          extensionId: extensionId || null
         });
       } catch (dbError) {
         // Continue even if database save fails
