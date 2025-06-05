@@ -66,22 +66,53 @@ const Carousel: React.FC = () => {
   const [visibleCards, setVisibleCards] = useState(() => getPositionedCards(currentIndex));
   const [autoScrollPaused, setAutoScrollPaused] = useState(false);
   
-  // Touch handling state
-  const touchStartX = useRef<number | null>(null);
-  const touchEndX = useRef<number | null>(null);
-  const touchDeltaX = useRef<number>(0);
-  const touchStartTime = useRef<number>(0);
-  const isSwiping = useRef<boolean>(false);
+  // Touch and mouse handling state
+  const startX = useRef<number | null>(null);
+  const endX = useRef<number | null>(null);
+  const deltaX = useRef<number>(0);
+  const startTime = useRef<number>(0);
+  const isDragging = useRef<boolean>(false);
   const velocityX = useRef<number>(0);
-  const [isSwipingState, setIsSwipingState] = useState(false);
+  const [isDraggingState, setIsDraggingState] = useState(false);
   const [dragOffset, setDragOffset] = useState(0);
-  const minSwipeDistance = 50;
-  const minSwipeVelocity = 0.2; // pixels per millisecond
+  const minSwipeDistance = 30; // Reduced from 50 for quicker response
+  const minSwipeVelocity = 0.15; // Reduced from 0.2 for easier triggering
+  
+  // Mouse-specific state
+  const [isMouseDown, setIsMouseDown] = useState(false);
+  
+  // Performance optimization refs
+  const rafId = useRef<number | null>(null);
+  const lastDragOffset = useRef<number>(0);
+  const carouselTrackRef = useRef<HTMLDivElement>(null);
+  const lastVelocityUpdate = useRef<number>(0);
+  const velocityUpdateInterval = 16; // Update velocity every ~16ms (60fps)
   
   // Animation management
   const animationRef = useRef<number | null>(null);
   const animationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const transitionEndRef = useRef<(() => void) | null>(null);
+
+  // Throttled drag update using requestAnimationFrame for better performance
+  const updateDragOffset = useCallback((newOffset: number) => {
+    if (rafId.current) {
+      cancelAnimationFrame(rafId.current);
+    }
+    
+    rafId.current = requestAnimationFrame(() => {
+      // Only update if the offset has changed significantly (reduces unnecessary renders)
+      if (Math.abs(newOffset - lastDragOffset.current) > 1) {
+        lastDragOffset.current = newOffset;
+        setDragOffset(newOffset);
+        
+        // Update CSS custom properties directly for better performance
+        if (carouselTrackRef.current) {
+          carouselTrackRef.current.style.setProperty('--drag-offset', `${newOffset}px`);
+        }
+      }
+      rafId.current = null;
+    });
+  }, []);
 
   function getPositionedCards(centerIndex: number) {
     const cards = [];
@@ -100,13 +131,12 @@ const Carousel: React.FC = () => {
     setIsAnimating(true);
     setDirection('right');
     
-    setCurrentIndex((prevIndex) => 
-      prevIndex === teamMembers.length - 1 ? 0 : prevIndex + 1
-    );
+    const newIndex = currentIndex === teamMembers.length - 1 ? 0 : currentIndex + 1;
+    setCurrentIndex(newIndex);
     
-    // Set up the animation end handler
-    setupTransitionEnd();
-  }, [isAnimating]);
+    // Set up the animation end handler with the new index
+    setupTransitionEnd(newIndex);
+  }, [isAnimating, currentIndex]);
 
   const prevSlide = useCallback(() => {
     if (isAnimating) return;
@@ -114,16 +144,15 @@ const Carousel: React.FC = () => {
     setIsAnimating(true);
     setDirection('left');
     
-    setCurrentIndex((prevIndex) => 
-      prevIndex === 0 ? teamMembers.length - 1 : prevIndex - 1
-    );
+    const newIndex = currentIndex === 0 ? teamMembers.length - 1 : currentIndex - 1;
+    setCurrentIndex(newIndex);
     
-    // Set up the animation end handler
-    setupTransitionEnd();
-  }, [isAnimating]);
+    // Set up the animation end handler with the new index
+    setupTransitionEnd(newIndex);
+  }, [isAnimating, currentIndex]);
 
   // Setup the transition end timer and handler
-  const setupTransitionEnd = () => {
+  const setupTransitionEnd = (targetIndex: number) => {
     // Clear any existing animation frame or timeout
     if (animationRef.current) {
       cancelAnimationFrame(animationRef.current);
@@ -137,7 +166,7 @@ const Carousel: React.FC = () => {
     
     // Create a new transition end handler
     const handleTransitionEnd = () => {
-      setVisibleCards(getPositionedCards(currentIndex));
+      setVisibleCards(getPositionedCards(targetIndex));
       setIsAnimating(false);
       setDirection(null);
       
@@ -148,13 +177,13 @@ const Carousel: React.FC = () => {
     
     transitionEndRef.current = handleTransitionEnd;
     
-    // Start the animation timer - slightly shorter than CSS transition time
-    // to ensure we're ready for the next swipe before the visual transition fully completes
+    // Reduced timeout to allow for quicker successive swipes
+    // CSS transition is 400ms, we complete state change much earlier for responsiveness
     animationTimeoutRef.current = setTimeout(() => {
       if (transitionEndRef.current) {
         transitionEndRef.current();
       }
-    }, 500); // CSS transition is 600ms, we complete state change earlier
+    }, 250); // Reduced from 500ms to 250ms for quicker response
   };
 
   // Clean up animation timers on unmount
@@ -166,8 +195,18 @@ const Carousel: React.FC = () => {
       if (animationTimeoutRef.current) {
         clearTimeout(animationTimeoutRef.current);
       }
+      if (rafId.current) {
+        cancelAnimationFrame(rafId.current);
+      }
     };
   }, []);
+
+  // Update visible cards when currentIndex changes and we're not animating
+  useEffect(() => {
+    if (!isAnimating) {
+      setVisibleCards(getPositionedCards(currentIndex));
+    }
+  }, [currentIndex, isAnimating]);
 
   // Handle auto-scrolling
   useEffect(() => {
@@ -191,67 +230,80 @@ const Carousel: React.FC = () => {
 
   // Touch event handlers for swipe functionality
   const handleTouchStart = (e: TouchEvent) => {
-    // Only block if in the middle of an animation transition
-    if (isAnimating && !transitionEndRef.current) return;
-    
-    // If we're at the end of a transition but the animation state hasn't updated yet,
-    // force complete the transition now
-    if (isAnimating && transitionEndRef.current) {
-      transitionEndRef.current();
+    // If we're in the middle of an animation, force complete it immediately
+    if (isAnimating) {
+      // Clear any pending animation timers
+      if (animationTimeoutRef.current) {
+        clearTimeout(animationTimeoutRef.current);
+        animationTimeoutRef.current = null;
+      }
+      
+      // If there's a transition end handler, call it to complete the transition
+      if (transitionEndRef.current) {
+        transitionEndRef.current();
+      } else {
+        // Fallback: manually complete the animation state
+        setVisibleCards(getPositionedCards(currentIndex));
+        setIsAnimating(false);
+        setDirection(null);
+      }
     }
     
-    touchStartX.current = e.touches[0].clientX;
-    touchEndX.current = touchStartX.current;
-    touchDeltaX.current = 0;
-    touchStartTime.current = Date.now();
+    startX.current = e.touches[0].clientX;
+    endX.current = startX.current;
+    deltaX.current = 0;
+    startTime.current = Date.now();
     velocityX.current = 0;
-    isSwiping.current = true;
-    setIsSwipingState(true);
+    isDragging.current = true;
+    setIsDraggingState(true);
     setDragOffset(0);
     setAutoScrollPaused(true);
   };
 
   const handleTouchMove = (e: TouchEvent) => {
-    if (!touchStartX.current || !isSwiping.current) return;
+    if (!startX.current || !isDragging.current) return;
     
-    // Calculate the new position and velocity
     const currentTime = Date.now();
-    const previousX = touchEndX.current || touchStartX.current;
     const currentX = e.touches[0].clientX;
-    const timeDelta = currentTime - touchStartTime.current;
     
-    if (timeDelta > 0) {
-      // Calculate instantaneous velocity (pixels per ms)
-      velocityX.current = (currentX - previousX) / timeDelta;
+    // Update position immediately for smooth visual feedback
+    endX.current = currentX;
+    deltaX.current = endX.current - startX.current;
+    updateDragOffset(deltaX.current);
+    
+    // Throttle velocity calculation for better performance
+    if (currentTime - lastVelocityUpdate.current >= velocityUpdateInterval) {
+      const previousX = endX.current || startX.current;
+      const timeDelta = currentTime - startTime.current;
+      
+      if (timeDelta > 0) {
+        // Calculate instantaneous velocity (pixels per ms)
+        velocityX.current = (currentX - previousX) / timeDelta;
+      }
+      
+      lastVelocityUpdate.current = currentTime;
+      startTime.current = currentTime;
     }
-    
-    // Update the touch position
-    touchEndX.current = currentX;
-    touchDeltaX.current = touchEndX.current - touchStartX.current;
-    setDragOffset(touchDeltaX.current);
-    
-    // Update the touch start time for next velocity calculation
-    touchStartTime.current = currentTime;
   };
 
   const handleTouchEnd = () => {
-    if (!touchStartX.current || !touchEndX.current || !isSwiping.current) {
+    if (!startX.current || !endX.current || !isDragging.current) {
       resetTouchState();
       return;
     }
 
-    const distance = touchStartX.current - touchEndX.current;
+    const distance = startX.current - endX.current;
     const absVelocity = Math.abs(velocityX.current);
     
-    // Apply different thresholds based on velocity and distance
-    const isLeftSwipe = distance > minSwipeDistance || (distance > minSwipeDistance / 2 && velocityX.current < -minSwipeVelocity);
-    const isRightSwipe = distance < -minSwipeDistance || (distance < -minSwipeDistance / 2 && velocityX.current > minSwipeVelocity);
+    // More aggressive swipe detection for quicker response
+    const isLeftSwipe = distance > minSwipeDistance || (distance > minSwipeDistance * 0.4 && velocityX.current < -minSwipeVelocity);
+    const isRightSwipe = distance < -minSwipeDistance || (distance < -minSwipeDistance * 0.4 && velocityX.current > minSwipeVelocity);
     
     // Determine direction based on distance and velocity
     let swipeResult: 'left' | 'right' | null = null;
     
-    // Check high velocity swipes even with small distance
-    if (absVelocity > minSwipeVelocity * 2) {
+    // Check high velocity swipes even with smaller distance
+    if (absVelocity > minSwipeVelocity * 1.5) { // Reduced from 2x for easier triggering
       swipeResult = velocityX.current > 0 ? 'right' : 'left';
     } 
     // Otherwise use the distance-based approach
@@ -266,7 +318,7 @@ const Carousel: React.FC = () => {
       // If we're not changing slides, animate the drag offset back to 0
       // This is handled by CSS transition added to .card:not(.dragging)
       setDragOffset(0);
-      setTimeout(() => resetTouchState(), 300); // Match transition time in CSS
+      setTimeout(() => resetTouchState(), 200); // Reduced from 300ms for quicker response
     } else {
       // Set direction for animated transition
       if (swipeResult === 'left') {
@@ -275,7 +327,7 @@ const Carousel: React.FC = () => {
         prevSlide();
       }
       
-      // Reset touch state
+      // Reset touch state immediately for next swipe
       resetTouchState();
     }
 
@@ -287,12 +339,25 @@ const Carousel: React.FC = () => {
 
   // Helper to reset touch state
   const resetTouchState = () => {
-    touchStartX.current = null;
-    touchEndX.current = null;
-    touchDeltaX.current = 0;
-    isSwiping.current = false;
-    setIsSwipingState(false);
+    startX.current = null;
+    endX.current = null;
+    deltaX.current = 0;
+    isDragging.current = false;
+    setIsDraggingState(false);
     setDragOffset(0);
+    setIsMouseDown(false);
+    lastDragOffset.current = 0;
+    
+    // Cancel any pending animation frames
+    if (rafId.current) {
+      cancelAnimationFrame(rafId.current);
+      rafId.current = null;
+    }
+    
+    // Reset CSS custom property
+    if (carouselTrackRef.current) {
+      carouselTrackRef.current.style.removeProperty('--drag-offset');
+    }
   };
 
   // Cancel swipe on touch cancel
@@ -320,6 +385,51 @@ const Carousel: React.FC = () => {
       setAutoScrollPaused(false);
     }, 8000);
   };
+
+  // Handle global mouse events for better dragging experience
+  useEffect(() => {
+    const handleGlobalMouseMove = (e: MouseEvent) => {
+      if (!startX.current || !isDragging.current || !isMouseDown) return;
+      
+      const currentTime = Date.now();
+      const currentX = e.clientX;
+      
+      // Update position immediately for smooth visual feedback
+      endX.current = currentX;
+      deltaX.current = endX.current - startX.current;
+      updateDragOffset(deltaX.current);
+      
+      // Throttle velocity calculation for better performance
+      if (currentTime - lastVelocityUpdate.current >= velocityUpdateInterval) {
+        const previousX = endX.current || startX.current;
+        const timeDelta = currentTime - startTime.current;
+        
+        if (timeDelta > 0) {
+          // Calculate instantaneous velocity (pixels per ms)
+          velocityX.current = (currentX - previousX) / timeDelta;
+        }
+        
+        lastVelocityUpdate.current = currentTime;
+        startTime.current = currentTime;
+      }
+    };
+
+    const handleGlobalMouseUp = () => {
+      if (isMouseDown && isDragging.current) {
+        handleMouseUp();
+      }
+    };
+
+    if (isMouseDown) {
+      document.addEventListener('mousemove', handleGlobalMouseMove);
+      document.addEventListener('mouseup', handleGlobalMouseUp);
+    }
+
+    return () => {
+      document.removeEventListener('mousemove', handleGlobalMouseMove);
+      document.removeEventListener('mouseup', handleGlobalMouseUp);
+    };
+  }, [isMouseDown, updateDragOffset]);
 
   // Handle keyboard navigation
   useEffect(() => {
@@ -353,59 +463,179 @@ const Carousel: React.FC = () => {
     };
   }, [isAnimating, nextSlide, prevSlide]);
 
-  const getCardStyle = (position: number) => {
-    if (!isSwipingState || dragOffset === 0) {
+  const getCardStyle = useCallback((position: number) => {
+    if (!isDraggingState || dragOffset === 0) {
       return undefined; // Use default styling when not swiping
     }
     
-    // Calculate how much cards should move based on their position and drag amount
-    let dragFactor;
+    // Pre-calculate drag factors for better performance
+    const dragFactors = {
+      0: 0.8,   // Center card
+      1: 0.25,  // Adjacent cards
+      '-1': 0.25,
+      2: 0.1,   // Outer cards
+      '-2': 0.1
+    };
     
-    if (position === 0) {
-      // Center card follows finger more closely
-      dragFactor = 0.8; // 80% of finger movement (feels more responsive)
-    } else if (position === 1 || position === -1) {
-      // Adjacent cards move in the same direction but less
-      dragFactor = 0.25;
-    } else if (position === 2 || position === -2) {
-      // Outer cards move even less
-      dragFactor = 0.1;
-    } else {
-      // Other cards don't move with drag
-      return undefined;
+    const dragFactor = dragFactors[position as keyof typeof dragFactors];
+    if (dragFactor === undefined) {
+      return undefined; // Other cards don't move with drag
     }
     
     // Calculate the drag amount based on position and factor
     const dragAmount = dragOffset * dragFactor;
     
-    // Adjust base scale and rotation based on position
-    const baseScale = position === 0 ? 1 : position === 1 || position === -1 ? 0.8 : 0.6;
-    const baseRotateY = position === 0 ? 0 : position === 1 ? -5 : position === -1 ? 5 : 
-                        position === 2 ? -10 : position === -2 ? 10 : 0;
+    // Pre-calculated base values for better performance
+    const baseValues = {
+      0: { scale: 1, rotateY: 0, translateX: 0 },
+      1: { scale: 0.8, rotateY: -5, translateX: 100 },
+      '-1': { scale: 0.8, rotateY: 5, translateX: -100 },
+      2: { scale: 0.6, rotateY: -10, translateX: 200 },
+      '-2': { scale: 0.6, rotateY: 10, translateX: -200 }
+    };
+    
+    const base = baseValues[position as keyof typeof baseValues];
+    if (!base) return undefined;
     
     // Apply small scale increase when dragging the center card
     const scaleBoost = position === 0 ? 0.02 : 0;
     
-    // For center card, apply slight rotation based on drag direction
-    let rotationAdjustment = 0;
-    if (position === 0 && dragOffset !== 0) {
-      // Apply slight rotation based on drag direction (max ±3 degrees)
-      rotationAdjustment = Math.min(Math.max(dragOffset * 0.01, -3), 3);
+    // For center card, apply slight rotation based on drag direction (clamped for performance)
+    const rotationAdjustment = position === 0 && dragOffset !== 0 
+      ? Math.max(-3, Math.min(3, dragOffset * 0.01))
+      : 0;
+    
+    // Use transform3d for better GPU acceleration
+    const transform = `translate3d(calc(${base.translateX}% + ${dragAmount}px), 0, 0) scale(${base.scale + scaleBoost}) rotateY(${base.rotateY + rotationAdjustment}deg)`;
+    
+    // Simplified box shadow calculation for center card only
+    const style: React.CSSProperties = { transform };
+    
+    if (position === 0) {
+      const shadowIntensity = Math.min(Math.abs(dragOffset) * 0.001, 0.1);
+      style.boxShadow = `0 ${10 + Math.abs(dragOffset) * 0.02}px ${30 + Math.abs(dragOffset) * 0.05}px rgba(0, 0, 0, ${0.3 + shadowIntensity})`;
     }
     
-    // Base translation based on position
-    let baseTranslateX = position * 100;
+    return style;
+  }, [isDraggingState, dragOffset]);
+
+  // Mouse event handlers for desktop dragging
+  const handleMouseDown = (e: React.MouseEvent) => {
+    // Prevent default to avoid text selection and other browser behaviors
+    e.preventDefault();
     
-    // Build the transform string
-    return {
-      transform: `
-        translateX(calc(${baseTranslateX}% + ${dragAmount}px)) 
-        scale(${baseScale + scaleBoost}) 
-        rotateY(${baseRotateY + rotationAdjustment}deg)
-        translateZ(0)
-      `,
-      boxShadow: position === 0 ? `0 ${10 + Math.abs(dragOffset) * 0.05}px ${30 + Math.abs(dragOffset) * 0.1}px rgba(0, 0, 0, ${0.3 + Math.abs(dragOffset) * 0.0005})` : undefined
-    };
+    // If we're in the middle of an animation, force complete it immediately
+    if (isAnimating) {
+      // Clear any pending animation timers
+      if (animationTimeoutRef.current) {
+        clearTimeout(animationTimeoutRef.current);
+        animationTimeoutRef.current = null;
+      }
+      
+      // If there's a transition end handler, call it to complete the transition
+      if (transitionEndRef.current) {
+        transitionEndRef.current();
+      } else {
+        // Fallback: manually complete the animation state
+        setVisibleCards(getPositionedCards(currentIndex));
+        setIsAnimating(false);
+        setDirection(null);
+      }
+    }
+    
+    startX.current = e.clientX;
+    endX.current = startX.current;
+    deltaX.current = 0;
+    startTime.current = Date.now();
+    velocityX.current = 0;
+    isDragging.current = true;
+    setIsDraggingState(true);
+    setIsMouseDown(true);
+    setDragOffset(0);
+    setAutoScrollPaused(true);
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!startX.current || !isDragging.current || !isMouseDown) return;
+    
+    const currentTime = Date.now();
+    const currentX = e.clientX;
+    
+    // Update position immediately for smooth visual feedback
+    endX.current = currentX;
+    deltaX.current = endX.current - startX.current;
+    updateDragOffset(deltaX.current);
+    
+    // Throttle velocity calculation for better performance
+    if (currentTime - lastVelocityUpdate.current >= velocityUpdateInterval) {
+      const previousX = endX.current || startX.current;
+      const timeDelta = currentTime - startTime.current;
+      
+      if (timeDelta > 0) {
+        // Calculate instantaneous velocity (pixels per ms)
+        velocityX.current = (currentX - previousX) / timeDelta;
+      }
+      
+      lastVelocityUpdate.current = currentTime;
+      startTime.current = currentTime;
+    }
+  };
+
+  const handleMouseUp = () => {
+    if (!startX.current || !endX.current || !isDragging.current) {
+      resetTouchState();
+      return;
+    }
+
+    const distance = startX.current - endX.current;
+    const absVelocity = Math.abs(velocityX.current);
+    
+    // More aggressive swipe detection for quicker response
+    const isLeftSwipe = distance > minSwipeDistance || (distance > minSwipeDistance * 0.4 && velocityX.current < -minSwipeVelocity);
+    const isRightSwipe = distance < -minSwipeDistance || (distance < -minSwipeDistance * 0.4 && velocityX.current > minSwipeVelocity);
+    
+    // Determine direction based on distance and velocity
+    let swipeResult: 'left' | 'right' | null = null;
+    
+    // Check high velocity swipes even with smaller distance
+    if (absVelocity > minSwipeVelocity * 1.5) { // Reduced from 2x for easier triggering
+      swipeResult = velocityX.current > 0 ? 'right' : 'left';
+    } 
+    // Otherwise use the distance-based approach
+    else if (isLeftSwipe) {
+      swipeResult = 'left';
+    } else if (isRightSwipe) {
+      swipeResult = 'right';
+    }
+    
+    // Apply bounce-back animation if not enough momentum to trigger a slide
+    if (!swipeResult) {
+      // If we're not changing slides, animate the drag offset back to 0
+      setDragOffset(0);
+      setTimeout(() => resetTouchState(), 200); // Reduced from 300ms for quicker response
+    } else {
+      // Set direction for animated transition
+      if (swipeResult === 'left') {
+        nextSlide();
+      } else {
+        prevSlide();
+      }
+      
+      // Reset state immediately for next swipe
+      resetTouchState();
+    }
+
+    // Resume auto-scrolling after 8 seconds
+    setTimeout(() => {
+      setAutoScrollPaused(false);
+    }, 8000);
+  };
+
+  const handleMouseLeave = () => {
+    // If the mouse leaves the carousel area while dragging, treat it as mouse up
+    if (isMouseDown && isDragging.current) {
+      handleMouseUp();
+    }
   };
 
   return (
@@ -416,16 +646,21 @@ const Carousel: React.FC = () => {
       tabIndex={0}
     >
       <div 
+        ref={carouselTrackRef}
         className={`
           ${styles.carouselTrack}
           ${isAnimating && direction === 'right' ? styles.animateRight : ''}
           ${isAnimating && direction === 'left' ? styles.animateLeft : ''}
-          ${isSwipingState ? styles.swiping : ''}
+          ${isDraggingState ? styles.swiping : ''}
         `}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
         onTouchCancel={handleTouchCancel}
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseLeave}
         aria-live="polite"
       >
         {visibleCards.map(({ member, position }, index) => (
@@ -434,7 +669,7 @@ const Carousel: React.FC = () => {
             className={`
               ${styles.card} 
               ${styles[`position${position}`] || styles.positionOutside}
-              ${position === 0 && isSwipingState ? styles.dragging : ''}
+              ${position === 0 && isDraggingState ? styles.dragging : ''}
             `}
             style={getCardStyle(position)}
             aria-hidden={position !== 0} // Only the center card is not hidden from screen readers

@@ -16,6 +16,10 @@ export default defineConfig({
       exclude: [
         'node_modules/',
         'test/',
+        'netlify/',
+        'netlify/functions/**',
+        '.netlify/',
+        'dist/',
       ],
     },
   },

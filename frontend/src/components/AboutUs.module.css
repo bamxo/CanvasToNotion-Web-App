@@ -744,6 +744,10 @@
   .title {
     font-size: 2.25rem;
   }
+
+  .teamTitle {
+    margin-bottom: 0;
+  }
   
   .description {
     font-size: 0.95rem;

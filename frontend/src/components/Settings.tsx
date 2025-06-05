@@ -11,14 +11,20 @@
  * integration with Notion's OAuth flow for account connection.
  */
 
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import styles from './Settings.module.css';
 import GradientBackgroundWrapper from './GradientBackgroundWrapper';
 import logo from '../assets/c2n-favicon.svg';
 import { useNotionAuth } from '../hooks/useNotionAuth';
-import { EXTENSION_ID } from '../utils/constants';
+import axios from 'axios';
+import { EXTENSION_ID, NOTION_REDIRECT_URI } from '../utils/constants';
+
+interface UserInfo {
+  displayName: string;
+  email: string;
+}
 
 interface UserInfo {
   displayName: string;
@@ -35,8 +41,6 @@ const Settings: React.FC = () => {
     setNotionConnection
   } = useNotionAuth();
   const [userInfo, setUserInfo] = useState<UserInfo | null>(null);
-  const [error, setError] = useState<string>('');
-  const [isLoading, setIsLoading] = useState(true);
   const [isButtonLoading, setIsButtonLoading] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
@@ -57,30 +61,25 @@ const Settings: React.FC = () => {
         setUserInfo(response.data);
       } catch (error) {
         console.error('Error fetching user info:', error);
-        setError('Failed to fetch user information');
       } finally {
-        setIsLoading(false);
+        
       }
     };
 
     fetchUserInfo();
   }, [navigate]);
 
+  // Clear button loading state when connection process completes
   useEffect(() => {
-    // Listen for messages from the extension
-    const handleExtensionMessage = (event: MessageEvent) => {
-      if (event.data.type === 'LOGOUT') {
-        console.log('Received logout message from extension');
-        handleLogout();
-      }
-    };
+    if (!isConnecting) {
+      setIsButtonLoading(false);
+    }
+  }, [isConnecting]);
 
-    window.addEventListener('message', handleExtensionMessage);
-
-    return () => {
-      window.removeEventListener('message', handleExtensionMessage);
-    };
-  }, []);
+  // Clear button loading state when connection status changes
+  useEffect(() => {
+    setIsButtonLoading(false);
+  }, [notionConnection.isConnected]);
 
   const handleLogout = async () => {
     try {
@@ -120,7 +119,7 @@ const Settings: React.FC = () => {
 
       // Call the delete account endpoint
       await axios.post('http://localhost:3000/api/auth/delete-account', {
-        idToken: authToken
+        idToken: authToken  
       });
 
       // Clear local storage
@@ -148,7 +147,10 @@ const Settings: React.FC = () => {
 
   const handleNotionConnection = () => {
     setIsButtonLoading(true);
-    window.location.href = 'https://api.notion.com/v1/oauth/authorize?client_id=1e3d872b-594c-8008-9ec9-003741e22a0f&response_type=code&owner=user&redirect_uri=http%3A%2F%2Flocalhost%3A5173%2Fsettings';
+    // The loading state will be cleared by the useEffect hooks when the OAuth process completes
+    const notionClientId = '1e3d872b-594c-8008-9ec9-003741e22a0f';
+    const encodedRedirectUri = encodeURIComponent(NOTION_REDIRECT_URI);
+    window.location.href = `https://api.notion.com/v1/oauth/authorize?client_id=${notionClientId}&response_type=code&owner=user&redirect_uri=${encodedRedirectUri}`;
   };
 
   const handleRemoveConnection = async () => {
@@ -182,13 +184,105 @@ const Settings: React.FC = () => {
     }
   };
 
-  if (isLoading) {
-    return (
-      <>
-        <GradientBackgroundWrapper />
-        <div className={styles.pageWrapper}>
-          <div className={styles.container}>
-            <div className={styles.loading}>Loading...</div>
+  const handleLogoClick = (e: React.MouseEvent) => {
+    if (e.metaKey || e.ctrlKey) {
+      // Open in new tab
+      window.open('/', '_blank');
+    } else {
+      // Normal navigation
+      navigate('/');
+    }
+  };
+
+  return (
+    <div className={styles.pageWrapper}>
+      <header className={styles.header}>
+        <img 
+          src={logo} 
+          alt="Canvas to Notion" 
+          className={styles.logo} 
+          onClick={handleLogoClick}
+        />
+      </header>
+      
+      <main className={styles.container}>
+        <h1 className={styles.sectionTitle}>Overview</h1>
+        <div className={styles.divider} />
+        
+        {userInfo && (
+          <div className={styles.profileSection}>
+            <div className={styles.profileGroup}>
+              <div className={styles.profilePic}>
+                {userInfo.displayName[0].toUpperCase()}
+              </div>
+              <div className={styles.profileInfo}>
+                <p className={styles.userName}>{userInfo.displayName || 'User'}</p>
+                <p className={styles.userEmail}>{userInfo.email}</p>
+              </div>
+            </div>
+            <div className={styles.actionButtons}>
+              <button className={styles.button} onClick={handleLogout}>
+                Sign out
+              </button>
+              <button className={`${styles.button} ${styles.deleteButton}`} onClick={handleDeleteAccount}>
+                Delete Account
+              </button>
+            </div>
+            {deleteError && (
+              <div className={styles.errorContainer}>
+                <p className={styles.errorText}>{deleteError}</p>
+              </div>
+            )}
+          </div>
+        )}
+
+        <div className={styles['spacer-lg']} />
+
+        <div className={styles.connectionsSection}>
+          <h2 className={styles.sectionTitle}>Manage Connections</h2>
+          <div className={styles.divider} />
+          
+          <div className={styles.connectionStatus}>
+            <div className={`${styles.statusIndicator} ${!notionConnection.isConnected && styles.disconnected}`} />
+            <span className={styles.connectionEmail}>
+              {notionConnection.isConnected 
+                ? `Connected to Notion`
+                : 'Not connected to Notion'
+              }
+            </span>
+          </div>
+          
+          {error && (
+            <div className={styles.errorContainer}>
+              <p className={styles.errorText}>{error}</p>
+            </div>
+          )}
+          
+          <div className={styles.connectionButtons}>
+            <button 
+              className={styles.changeConnectionButton}
+              onClick={handleNotionConnection}
+              disabled={isButtonLoading || isConnecting}
+            >
+              {(isButtonLoading || isConnecting) ? (
+                <div className={styles.spinner} />
+              ) : (
+                notionConnection.isConnected ? 'Change Connection' : 'Add Connection'
+              )}
+            </button>
+            {notionConnection.isConnected && (
+              <button 
+                className={styles.removeConnectionButton}
+                onClick={handleRemoveConnection}
+                disabled={isButtonLoading}
+              >
+                {isButtonLoading ? (
+                  <div className={styles.spinner} />
+                ) : (
+                  'Remove Connection'
+                )}
+              </button>
+            )}
           </div>
         </div>
       </>

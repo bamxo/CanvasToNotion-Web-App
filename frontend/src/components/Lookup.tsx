@@ -124,8 +124,8 @@ const Lookup: React.FC = () => {
       <GradientBackgroundWrapper />
       <div className={styles.pageWrapper}>
         <div className={styles.container}>
-          <h1 className={styles.header}>Welcome to Canvas to Notion</h1>
-          <p className={styles.subtext}>Choose your preferred signup method</p>
+          <h1 className={styles.header}>Create an Account</h1>
+          <p className={styles.subtext}>Just a few details to get started</p>
 
           {/* Error Message Display */}
           {error && <div className={styles.error}>{error}</div>}
@@ -137,7 +137,7 @@ const Lookup: React.FC = () => {
             disabled={isLoading}
           >
             <img src={mailIcon} alt="Email" className={styles['button-icon']} />
-            Sign up with Email
+            Sign Up with Email
           </button>
 
           {/* Google Sign-In Button */}
@@ -155,7 +155,7 @@ const Lookup: React.FC = () => {
               disabled={isLoading}
             >
               <img src={googleIcon} alt="Google" className={styles['button-icon']} />
-              Sign up with Google
+              Sign Up with Google
             </button>
           </div>
 

@@ -17,6 +17,7 @@ import googleIcon from '../assets/google.svg?url';
 import arrowIcon from '../assets/arrow.svg?url';
 import { EXTENSION_ID } from '../utils/constants';
 import { mapFirebaseError } from '../utils/errorMessages';
+import { AUTH_ENDPOINTS } from '../utils/api';
 
 // Add Chrome types
 declare global {
@@ -133,7 +134,7 @@ const Login: React.FC = () => {
     setIsLoading(true);
 
     try {
-      const response = await axios.post('http://localhost:3000/api/auth/login', {
+      const response = await axios.post(AUTH_ENDPOINTS.LOGIN, {
         email: formData.email,
         password: formData.password,
         requestExtensionToken: true
@@ -247,12 +248,12 @@ const Login: React.FC = () => {
 
           {/* Google Sign-In Button */}
           <button 
-            className={styles['button-rectangle']}
+            className={styles['auth-button']}
             onClick={() => window.google?.accounts?.id?.prompt()}
             disabled={isLoading}
           >
             <img src={googleIcon} alt="Google" className={styles['button-icon']} />
-            Sign in with Google
+            Sign In with Google
           </button>
 
           {/* Sign Up Section */}

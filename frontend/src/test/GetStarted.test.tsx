@@ -96,9 +96,18 @@ describe('GetStarted Component', () => {
       setNotionConnection: vi.fn(),
     });
     
-    renderGetStarted();
+    const { container } = renderGetStarted();
     
-    expect(screen.getByText('Loading...')).toBeInTheDocument();
+    // Check for loading container elements
+    const loadingContainer = container.querySelector('[class*="loadingContainer_"]');
+    expect(loadingContainer).not.toBeNull();
+    
+    // Also check for loading animation elements
+    const loadingLogo = container.querySelector('[class*="loadingLogo_"]');
+    expect(loadingLogo).not.toBeNull();
+    
+    const loadingDots = container.querySelector('[class*="loadingDots_"]');
+    expect(loadingDots).not.toBeNull();
   });
 
   it('shows error message when there is an error and no userInfo', () => {
