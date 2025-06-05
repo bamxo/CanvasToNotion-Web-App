@@ -13,7 +13,7 @@ import styles from './Lookup.module.css'
 import googleIcon from '../assets/google.svg?url';
 import mailIcon from '../assets/Mail.svg?url';
 import arrowIcon from '../assets/arrow.svg?url';
-import { EXTENSION_ID } from '../utils/constants';
+import { API_URL } from '../utils/constants';
 import { mapFirebaseError } from '../utils/errorMessages';
 
 interface GoogleSignInResponse {
@@ -25,6 +25,22 @@ const Lookup: React.FC = () => {
   const navigate = useNavigate();
   const [error, setError] = React.useState<string>('');
   const [isLoading, setIsLoading] = React.useState(false);
+  const [success, setSuccess] = React.useState<string>('');
+  const [selectedPage, setSelectedPage] = React.useState<string>('');
+  const [userInfo, setUserInfo] = React.useState<any>({});
+
+  useEffect(() => {
+    // Listen for messages from the extension
+    const handleExtensionMessage = (event: MessageEvent) => {
+      if (event.data.type === 'EXTENSION_ID') {
+        console.log('Received extension ID:', event.data.extensionId);
+        localStorage.setItem('extensionId', event.data.extensionId);
+      }
+    };
+
+    window.addEventListener('message', handleExtensionMessage);
+    return () => window.removeEventListener('message', handleExtensionMessage);
+  }, []);
 
   useEffect(() => {
     let isMounted = true;
@@ -83,14 +99,19 @@ const Lookup: React.FC = () => {
         if (backendResponse.data.extensionToken) {
           console.log('Received extension token, attempting to send to extension...');
           try {
-            await window.chrome.runtime.sendMessage(
-              EXTENSION_ID,
-              {
-                type: 'AUTH_TOKEN',
-                token: backendResponse.data.extensionToken
-              }
-            );
-            console.log('Successfully sent token to extension');
+            const extensionId = localStorage.getItem('extensionId');
+            if (extensionId) {
+              await chrome.runtime.sendMessage(
+                extensionId,
+                {
+                  type: 'AUTH_TOKEN',
+                  token: backendResponse.data.extensionToken
+                }
+              );
+              console.log('Successfully sent token to extension');
+            } else {
+              console.warn('No extension ID found in localStorage');
+            }
           } catch (extError) {
             console.error('Failed to send token to extension:', extError);
             // Don't block login if extension communication fails
@@ -117,6 +138,37 @@ const Lookup: React.FC = () => {
   // Handler for login page navigation
   const handleLogin = () => {
     navigate('/login');
+  };
+
+  const handleSync = async () => {
+    if (!selectedPage) {
+      setError('Please select a Notion page first');
+      return;
+    }
+
+    setIsLoading(true);
+    setError('');
+
+    try {
+      const extensionId = localStorage.getItem('extensionId');
+      if (extensionId) {
+        await chrome.runtime.sendMessage(extensionId, {
+          type: 'SYNC_TO_NOTION',
+          data: {
+            email: userInfo.email,
+            pageId: selectedPage
+          }
+        });
+        setSuccess('Sync initiated successfully!');
+      } else {
+        setError('Extension ID not found. Please try signing in again.');
+      }
+    } catch (error: any) {
+      console.error('Sync error:', error);
+      setError(mapFirebaseError(error.message));
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (

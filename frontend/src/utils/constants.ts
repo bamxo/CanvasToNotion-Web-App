@@ -1,6 +1,7 @@
 // Application-wide constants
 
-export const EXTENSION_ID = 'nomigaendijedpgeohegnfpplcglgdcp';
+// Remove the hardcoded extension ID since we get it dynamically from the extension
+export const API_URL = 'http://localhost:3000';
 
 // Determine if we're in production based on environment
 export const IS_PRODUCTION = import.meta.env.PROD;

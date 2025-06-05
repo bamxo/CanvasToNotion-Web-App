@@ -5,7 +5,7 @@
  * It provides a form for users to enter their email and password,
  * with password visibility toggle functionality and password confirmation.
  */
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom'
 import styles from './SignUp.module.css';
 import GradientBackgroundWrapper from './GradientBackgroundWrapper';
@@ -15,6 +15,18 @@ import arrowIcon from '../assets/arrow.svg?url';
 import axios from 'axios';
 import { mapFirebaseError, validateForm } from '../utils/errorMessages';
 import { AUTH_ENDPOINTS } from '../utils/api';
+
+// Add Chrome types
+declare global {
+  namespace chrome {
+    namespace runtime {
+      function sendMessage(extensionId: string, message: any): Promise<any>;
+    }
+  }
+  interface Window {
+    chrome: typeof chrome;
+  }
+}
 
 const SignUp: React.FC = () => {
   // State for form data management
@@ -30,6 +42,36 @@ const SignUp: React.FC = () => {
 
   // State to toggle password visibility
   const [showPassword, setShowPassword] = useState(false);
+
+  // Hook for programmatic navigation
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    // Listen for messages from the extension
+    const handleExtensionMessage = (event: MessageEvent) => {
+      console.log('Received message event:', event.data);
+      
+      if (event.data.type === 'EXTENSION_ID') {
+        console.log('Received extension ID via postMessage:', event.data.extensionId);
+        localStorage.setItem('extensionId', event.data.extensionId);
+      }
+    };
+
+    // Add message listener
+    window.addEventListener('message', handleExtensionMessage);
+
+    // Request extension ID if not found
+    if (!localStorage.getItem('extensionId')) {
+      console.log('No extension ID found, requesting from extension...');
+      // Broadcast a message to any listening extensions
+      window.postMessage({ type: 'REQUEST_EXTENSION_ID' }, '*');
+    }
+
+    // Cleanup
+    return () => {
+      window.removeEventListener('message', handleExtensionMessage);
+    };
+  }, []);
 
   // Handler for form input changes
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -61,21 +103,48 @@ const SignUp: React.FC = () => {
       const signupResponse = await axios.post(AUTH_ENDPOINTS.SIGNUP, {
         email: formData.email,
         password: formData.password,
-        displayName: formData.email.split('@')[0] // Using email prefix as display name
+        displayName: formData.email.split('@')[0], // Using email prefix as display name
+        extensionId: localStorage.getItem('extensionId')
       });
 
       // If signup successful, automatically log in the user
       if (signupResponse.data) {
         try {
-          // Perform automatic login
+          // Perform automatic login with extension token request
           const loginResponse = await axios.post(AUTH_ENDPOINTS.LOGIN, {
             email: formData.email,
-            password: formData.password
+            password: formData.password,
+            extensionId: localStorage.getItem('extensionId'),
+            requestExtensionToken: true
           });
 
-          // Store the auth token and redirect
+          // Store the auth token and handle extension sync
           if (loginResponse.data) {
             localStorage.setItem('authToken', loginResponse.data.idToken);
+
+            // If we got an extension token, send it to the extension
+            if (loginResponse.data.extensionToken) {
+              console.log('Received extension token, attempting to send to extension...');
+              try {
+                const extensionId = localStorage.getItem('extensionId');
+                if (extensionId) {
+                  await chrome.runtime.sendMessage(
+                    extensionId,
+                    {
+                      type: 'AUTH_TOKEN',
+                      token: loginResponse.data.extensionToken
+                    }
+                  );
+                  console.log('Successfully sent token to extension');
+                } else {
+                  console.warn('No extension ID found in localStorage');
+                }
+              } catch (extError) {
+                console.error('Failed to send token to extension:', extError);
+                // Don't block signup if extension communication fails
+              }
+            }
+
             navigate('/get-started');
           }
         } catch (loginErr) {
@@ -91,9 +160,6 @@ const SignUp: React.FC = () => {
       setIsLoading(false);
     }
   };
-
-  // Hook for programmatic navigation
-  const navigate = useNavigate();
 
   // Handler for login page navigation
   const handleLogin = () => {

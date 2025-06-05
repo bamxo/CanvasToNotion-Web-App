@@ -18,7 +18,7 @@ import styles from './Settings.module.css';
 import GradientBackgroundWrapper from './GradientBackgroundWrapper';
 import logo from '../assets/c2n-favicon.svg';
 import { useNotionAuth } from '../hooks/useNotionAuth';
-import { EXTENSION_ID } from '../utils/constants';
+import { API_URL } from '../utils/constants';
 
 interface UserInfo {
   displayName: string;
@@ -88,20 +88,18 @@ const Settings: React.FC = () => {
   const handleLogout = async () => {
     try {
       // Notify extension about logout
-      try {
-        const extensionId = userInfo?.extensionId || localStorage.getItem('extensionId') || EXTENSION_ID;
-        await window.chrome.runtime.sendMessage(
-          extensionId,
-          { type: 'LOGOUT' }
-        );
-        console.log('Successfully notified extension about logout');
-      } catch (extError) {
-        console.error('Failed to notify extension about logout:', extError);
-        // Don't block logout if extension notification fails
+      const extensionId = localStorage.getItem('extensionId');
+      if (extensionId) {
+        try {
+          await chrome.runtime.sendMessage(extensionId, { type: 'LOGOUT' });
+        } catch (error) {
+          console.error('Failed to notify extension about logout:', error);
+        }
       }
 
       // Clear local storage and navigate
       localStorage.removeItem('authToken');
+      localStorage.removeItem('extensionId'); // Also remove the extension ID
       navigate('/login');
     } catch (error) {
       console.error('Logout error:', error);
@@ -129,16 +127,16 @@ const Settings: React.FC = () => {
 
       // Clear local storage
       localStorage.removeItem('authToken');
+      localStorage.removeItem('extensionId'); // Also remove the extension ID
 
       // Notify extension about logout
-      try {
-        const extensionId = userInfo?.extensionId || localStorage.getItem('extensionId') || EXTENSION_ID;
-        await window.chrome.runtime.sendMessage(
-          extensionId,
-          { type: 'LOGOUT' }
-        );
-      } catch (extError) {
-        console.error('Failed to notify extension about logout:', extError);
+      const extensionId = localStorage.getItem('extensionId');
+      if (extensionId) {
+        try {
+          await chrome.runtime.sendMessage(extensionId, { type: 'LOGOUT' });
+        } catch (error) {
+          console.error('Failed to notify extension about account deletion:', error);
+        }
       }
 
       // Redirect to login page
