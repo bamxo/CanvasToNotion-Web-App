@@ -5,6 +5,8 @@ import axios from 'axios';
 import { Client } from '@notionhq/client';
 import { adminDb } from '../db';
 import { database } from 'firebase-admin';
+import { verifyToken } from '../middleware/auth';
+import { AuthenticatedRequest } from '../types';
 
 const router = express.Router();
 
@@ -13,6 +15,7 @@ interface UserData {
   workspaceId?: string;
   pageIDs?: any[];
   lastUpdated?: string;
+  email?: string;
 }
 
 // Helper function to get user data by email
@@ -46,7 +49,6 @@ const updateUserByEmail = async (
 ): Promise<boolean> => {
   try {
     const usersRef = db.ref('users');
-
     const snapshot = await usersRef.orderByChild('email').equalTo(email).once('value');
 
     if (snapshot.exists()) {
@@ -69,9 +71,20 @@ const updateUserByEmail = async (
   return false;
 };
 
-router.post('/token', async (req: Request, res: Response) => {
+// Apply authentication middleware to all routes
+router.use(verifyToken);
+
+router.post('/token', async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const { code, email } = req.body;
+    const { code } = req.body;
+    const email = req.user!.email; // Get email from authenticated user
+    
+    if (!code) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Authorization code is required' 
+      });
+    }
     
     // Exchange code for access token
     const tokenResponse = await axios.post(
@@ -95,7 +108,7 @@ router.post('/token', async (req: Request, res: Response) => {
     const { access_token, workspace_id } = tokenResponse.data;
     const notion = new Client({ auth: access_token });
     
-     const botUser = await notion.users.me({});
+    const botUser = await notion.users.me({});
     const botId = botUser.id;
 
     // Modified search logic with type-safe filtering
@@ -156,7 +169,7 @@ router.post('/token', async (req: Request, res: Response) => {
           id: item.id,
           type: item.object,
           title,
-          icon // <-- include the icon emoji here
+          icon
         };
       })
 
@@ -187,29 +200,23 @@ router.post('/token', async (req: Request, res: Response) => {
   }
 });
 
-// Modified sync endpoint to use email instead of token in the request
-router.post('/sync', async (req: Request, res: Response) => {
-  
+router.post('/sync', async (req: AuthenticatedRequest, res: Response) => {
   try {
-
-    /*########## extracts canvas request data ##########*/
-    const { email, pageId, courses, assignments } = req.body;
+    const { pageId, courses, assignments } = req.body;
+    const email = req.user!.email; // Get email from authenticated user
+    
     console.log("First assignment object:", assignments[0]);
-    /*########################################################################################################*/
 
-
-    /*########## ensures pageID and email are present and valid ##########*/
-    if (!email || typeof email !== 'string' || !pageId) {
+    // Validate required fields
+    if (!pageId || !Array.isArray(courses) || !Array.isArray(assignments)) {
       return res.status(400).json({ 
         success: false, 
-        error: 'Valid email and page ID are required' 
+        error: 'Valid pageId, courses, and assignments are required' 
       });
     }
-    /*########################################################################################################*/
 
-
-    /*########## gets user data and access token from firebase ##########*/
-    const userData = await getUserByEmail(adminDb, email); //
+    // Get user data and access token from firebase
+    const userData = await getUserByEmail(adminDb, email);
     if (!userData?.accessToken) {
       return res.status(403).json({ 
         success: false, 
@@ -217,12 +224,10 @@ router.post('/sync', async (req: Request, res: Response) => {
       });
     }
 
-    // initialize notion client using token
+    // Initialize notion client using token
     const notion = new Client({ auth: userData.accessToken });
-    /*########################################################################################################*/
 
-
-    /*########## are we able to connect to the specified parent page? ##########*/
+    // Verify access to the specified parent page
     try {
       await notion.pages.retrieve({ page_id: pageId });
     } catch (error) {
@@ -231,15 +236,11 @@ router.post('/sync', async (req: Request, res: Response) => {
         error: `No access to parent page (${pageId}). Share it with your integration via Notion's page connections.`
       });
     }
-    /*##############################################################################################################################*/
 
-
-    /*########## get all child blocks in parent page hierarchy ##########*/
+    // Get all child blocks in parent page hierarchy
     const childrenResponse = await notion.blocks.children.list({ block_id: pageId });
-    /*########################################################################################################*/
 
-
-    /*########## check to see if the Courses and Assignments DBs already exist ##########*/
+    // Check to see if the Courses and Assignments DBs already exist
     const existingCoursesDb = childrenResponse.results.find(child =>
         "type" in child && 
         child.type === "child_database" &&
@@ -250,10 +251,8 @@ router.post('/sync', async (req: Request, res: Response) => {
         child.type === "child_database" &&
         child.child_database?.title == "Assignments"
     );
-    /*########################################################################################################*/
 
-
-    /*########## create Courses and Assignments DB ##########*/
+    // Create Courses and Assignments DB
     let coursesDbId = existingCoursesDb?.id;
     if (!coursesDbId) {
       console.log("courses database dne: ", existingCoursesDb);
@@ -300,11 +299,9 @@ router.post('/sync', async (req: Request, res: Response) => {
       });
       assignmentsDbId = newAssignmentsDb.id;
     }
-    /*##############################################################################################################################*/
 
-
-    /*########## only add courses that aren't in the Courses DB ##########*/
-    const existingCourseNames = new Set<string>(); // save all courses in the Courses DB here
+    // Only add courses that aren't in the Courses DB
+    const existingCourseNames = new Set<string>();
 
     if (coursesDbId) {
       const existingPages = await notion.databases.query({
@@ -345,10 +342,7 @@ router.post('/sync', async (req: Request, res: Response) => {
         if (search.results.length > 0) {
           const existingPage = search.results[0];
           coursePageIds.set(course.name, existingPage.id);
-        } else {
-          // console.warn(`Could not find Notion page ID for existing course "${course.name}"`);
         }
-
         continue;
       }
 
@@ -360,8 +354,6 @@ router.post('/sync', async (req: Request, res: Response) => {
       });
       coursePageIds.set(course.name, coursePage.id);
     }
-    /*##############################################################################################################################*/
-
 
     // Create Assignment entries
     const assignmentResults = [];
@@ -426,17 +418,11 @@ router.post('/sync', async (req: Request, res: Response) => {
   }
 });
 
-
-// src/notion_api/notionRouter.ts
-router.get('/pages', async (req: Request, res: Response) => {
+router.get('/pages', async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const { email } = req.query;
+    const email = req.user!.email; // Get email from authenticated user
 
-    if (!email || typeof email !== 'string') {
-      return res.status(400).json({ success: false, error: 'Email is required' });
-    }
-
-    // 1. Get user's accessToken from your database
+    // Get user's accessToken from database
     const usersRef = adminDb.ref('users');
     const snapshot = await usersRef.orderByChild('email').equalTo(email).once('value');
 
@@ -452,17 +438,17 @@ router.get('/pages', async (req: Request, res: Response) => {
       return res.status(401).json({ success: false, error: 'User not connected to Notion' });
     }
 
-    // 2. Use accessToken to instantiate Notion client
+    // Use accessToken to instantiate Notion client
     const notion = new Client({ auth: accessToken });
 
-    // 3. Get bot user ID
+    // Get bot user ID
     const botUser = await notion.users.me({});
     const botId = botUser.id;
 
-    // 4. Perform the Notion search
+    // Perform the Notion search
     const searchResponse = await notion.search({});
 
-    // 5. Filter and map results (same as in your /token endpoint)
+    // Filter and map results
     const accessibleResources = searchResponse.results
       .filter(item => {
         if (item.object === 'database') {
@@ -522,11 +508,11 @@ router.get('/pages', async (req: Request, res: Response) => {
         };
       });
 
-    // 6. Update the user's pages in the database
+    // Update the user's pages in the database
     await adminDb.ref(`users/${userKey}/pageIDs`).set(accessibleResources);
     await adminDb.ref(`users/${userKey}/lastUpdated`).set(new Date().toISOString());
 
-    // 7. Return the fresh data
+    // Return the fresh data
     res.json({ pages: accessibleResources });
   } catch (error) {
     console.error('Error fetching pages:', error);
@@ -534,15 +520,9 @@ router.get('/pages', async (req: Request, res: Response) => {
   }
 });
 
-
-
-router.get('/connected', async (req: Request, res: Response) => {
+router.get('/connected', async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const { email } = req.query;
-
-    if (!email || typeof email !== 'string') {
-      return res.status(400).json({ success: false, error: 'Email is required' });
-    }
+    const email = req.user!.email; // Get email from authenticated user
 
     // Use the existing helper to get user data
     const userData = await getUserByEmail(adminDb, email);
@@ -561,13 +541,9 @@ router.get('/connected', async (req: Request, res: Response) => {
   }
 });
 
-router.get('/disconnect', async (req: Request, res: Response) => {
+router.get('/disconnect', async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const { email } = req.query;
-
-    if (!email || typeof email !== 'string') {
-      return res.status(400).json({ success: false, error: 'Email is required' });
-    }
+    const email = req.user!.email; // Get email from authenticated user
 
     // Get users reference
     const usersRef = adminDb.ref('users');
@@ -605,15 +581,16 @@ router.get('/disconnect', async (req: Request, res: Response) => {
   }
 });
 
-router.post('/compare', async (req: Request, res: Response) => {
+router.post('/compare', async (req: AuthenticatedRequest, res: Response) => {
   try {
     console.log('--- /compare endpoint called ---');
     console.log('Received payload:', JSON.stringify(req.body, null, 2));
 
-    const { email, pageId, courses, assignments } = req.body;
+    const { pageId, courses, assignments } = req.body;
+    const email = req.user!.email; // Get email from authenticated user
 
     // Step 1: Validate input
-    if (!email || !pageId || !Array.isArray(courses) || !Array.isArray(assignments)) {
+    if (!pageId || !Array.isArray(courses) || !Array.isArray(assignments)) {
       console.log('Missing required fields');
       return res.status(400).json({ success: false, error: 'Missing required fields' });
     }
@@ -730,4 +707,5 @@ router.post('/compare', async (req: Request, res: Response) => {
     res.status(500).json({ success: false, error: error.message });
   }
 });
+
 export default router;
