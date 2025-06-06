@@ -355,9 +355,48 @@ router.post('/sync', async (req: AuthenticatedRequest, res: Response) => {
       coursePageIds.set(course.name, coursePage.id);
     }
 
-    // Create Assignment entries
+    // Get existing assignment URLs to avoid duplicates
+    let notionAssignmentUrls = new Set<string>();
+    
+    if (assignmentsDbId) {
+      const notionAssignments = await notion.databases.query({ database_id: assignmentsDbId });
+      
+      for (const assignment of notionAssignments.results) {
+        if ('properties' in assignment && 'URL' in assignment.properties) {
+          let url = '';
+          if ('url' in assignment.properties.URL && assignment.properties.URL.url) {
+            url = assignment.properties.URL.url.trim();
+          }
+          
+          if (url) {
+            notionAssignmentUrls.add(url);
+          }
+        }
+      }
+      
+      console.log(`Found ${notionAssignmentUrls.size} existing assignments in Notion database`);
+    }
+
+    // Create Assignment entries only for assignments not already in Notion
     const assignmentResults = [];
+    let newAssignmentsCount = 0;
+    let skippedAssignmentsCount = 0;
+    
     for (const assignment of assignments) {
+      const canvasUrl = assignment.html_url?.trim();
+      
+      // Skip if this assignment already exists in Notion
+      if (notionAssignmentUrls.has(canvasUrl)) {
+        assignmentResults.push({
+          assignment: assignment.name,
+          success: true,
+          status: 'skipped',
+          message: 'Assignment already exists in Notion'
+        });
+        skippedAssignmentsCount++;
+        continue;
+      }
+      
       const courseName = courses.find((c: { id: string; name: string }) => c.id === assignment.courseId)?.name;
       const coursePageId = coursePageIds.get(courseName);
 
@@ -387,7 +426,12 @@ router.post('/sync', async (req: AuthenticatedRequest, res: Response) => {
           }
         });
 
-        assignmentResults.push({ assignment: assignment.name, success: true });
+        assignmentResults.push({ 
+          assignment: assignment.name, 
+          success: true,
+          status: 'created' 
+        });
+        newAssignmentsCount++;
 
       } catch (error) {
         assignmentResults.push({
@@ -402,7 +446,10 @@ router.post('/sync', async (req: AuthenticatedRequest, res: Response) => {
       success: true,
       message: 'Sync completed',
       results: {
-        coursesCreated: courses.length,
+        coursesCreated: coursePageIds.size - existingCourseNames.size,
+        totalAssignments: assignments.length,
+        newAssignmentsCreated: newAssignmentsCount,
+        skippedAssignments: skippedAssignmentsCount,
         assignments: assignmentResults
       }
     });

@@ -30,7 +30,6 @@ interface UserInfo {
 const Settings: React.FC = () => {
   const navigate = useNavigate();
   const {
-    userInfo: notionUserInfo,
     notionConnection,
     isConnecting,
     error,
@@ -39,6 +38,7 @@ const Settings: React.FC = () => {
   const [userInfo, setUserInfo] = useState<UserInfo | null>(null);
   const [isButtonLoading, setIsButtonLoading] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const fetchUserInfo = async () => {
@@ -49,6 +49,7 @@ const Settings: React.FC = () => {
       }
 
       try {
+        setIsLoading(true);
         const response = await axios.get('http://localhost:3000/api/users/info', {
           headers: {
             Authorization: `Bearer ${token}`
@@ -57,8 +58,15 @@ const Settings: React.FC = () => {
         setUserInfo(response.data);
       } catch (error) {
         console.error('Error fetching user info:', error);
+        // Check if error is due to unauthorized access (expired token)
+        if (axios.isAxiosError(error) && (error.response?.status === 401 || error.response?.status === 403)) {
+          console.log('Auth token expired or invalid, logging out user');
+          localStorage.removeItem('authToken');
+          navigate('/login');
+          return;
+        }
       } finally {
-        
+        setIsLoading(false);
       }
     };
 
@@ -152,17 +160,18 @@ const Settings: React.FC = () => {
   };
 
   const handleRemoveConnection = async () => {
-    if (!notionUserInfo?.email) {
-      console.error('No user email found');
-      return;
-    }
-    
     try {
       setIsButtonLoading(true);
+      const authToken = localStorage.getItem('authToken');
+      
+      if (!authToken) {
+        throw new Error('No authentication token found');
+      }
+      
       const response = await axios.get(`http://localhost:3000/api/notion/disconnect`, {
-        params: { email: notionUserInfo.email },
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`
         }
       });
       
@@ -207,32 +216,40 @@ const Settings: React.FC = () => {
         <h1 className={styles.sectionTitle}>Overview</h1>
         <div className={styles.divider} />
         
-        {userInfo && (
-          <div className={styles.profileSection}>
+        <div className={styles.profileSection}>
+          {isLoading ? (
+            <div className={styles.profileGroup}>
+              <div className={styles.profilePic}></div>
+              <div className={styles.profileInfo}>
+                <p className={styles.userName}>User</p>
+                <p className={styles.userEmail}>user@email.com</p>
+              </div>
+            </div>
+          ) : (
             <div className={styles.profileGroup}>
               <div className={styles.profilePic}>
-                {userInfo.displayName[0].toUpperCase()}
+                {userInfo?.displayName?.[0].toUpperCase() || '?'}
               </div>
               <div className={styles.profileInfo}>
-                <p className={styles.userName}>{userInfo.displayName || 'User'}</p>
-                <p className={styles.userEmail}>{userInfo.email}</p>
+                <p className={styles.userName}>{userInfo?.displayName || 'User'}</p>
+                <p className={styles.userEmail}>{userInfo?.email || ''}</p>
               </div>
             </div>
-            <div className={styles.actionButtons}>
-              <button className={styles.button} onClick={handleLogout}>
-                Sign out
-              </button>
-              <button className={`${styles.button} ${styles.deleteButton}`} onClick={handleDeleteAccount}>
-                Delete Account
-              </button>
-            </div>
-            {deleteError && (
-              <div className={styles.errorContainer}>
-                <p className={styles.errorText}>{deleteError}</p>
-              </div>
-            )}
+          )}
+          <div className={styles.actionButtons}>
+            <button className={styles.button} onClick={handleLogout}>
+              Sign out
+            </button>
+            <button className={`${styles.button} ${styles.deleteButton}`} onClick={handleDeleteAccount}>
+              Delete Account
+            </button>
           </div>
-        )}
+          {deleteError && (
+            <div className={styles.errorContainer}>
+              <p className={styles.errorText}>{deleteError}</p>
+            </div>
+          )}
+        </div>
 
         <div className={styles['spacer-lg']} />
 

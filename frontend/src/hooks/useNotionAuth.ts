@@ -70,7 +70,7 @@ export const useNotionAuth = (): UseNotionAuthReturn => {
       window.history.replaceState({}, document.title, window.location.pathname);
     }
 
-    const handleNotionCode = async (email: string, code: string) => {
+    const handleNotionCode = async (code: string) => {
       if (!code || codeProcessedRef.current || !mountedRef.current) return;
       
       codeProcessedRef.current = true;
@@ -79,10 +79,12 @@ export const useNotionAuth = (): UseNotionAuthReturn => {
       
       try {
         const response = await axios.post(NOTION_ENDPOINTS.TOKEN, {
-          code,
-          email
+          code
         }, {
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${authToken}`
+          },
           withCredentials: USE_CREDENTIALS
         });
 
@@ -90,7 +92,7 @@ export const useNotionAuth = (): UseNotionAuthReturn => {
 
         if (response.data.success) {
           setNotionConnection({
-            email: response.data.workspaceId || email,
+            email: response.data.workspaceId || userInfo?.email || '',
             isConnected: true
           });
         } else {
@@ -122,12 +124,15 @@ export const useNotionAuth = (): UseNotionAuthReturn => {
       }
     };
 
-    const checkNotionConnection = async (email: string) => {
+    const checkNotionConnection = async () => {
       if (!mountedRef.current) return;
       
       try {
-        const response = await axios.get(`${NOTION_ENDPOINTS.CONNECTED}?email=${encodeURIComponent(email)}`, {
-          headers: { 'Content-Type': 'application/json' },
+        const response = await axios.get(NOTION_ENDPOINTS.CONNECTED, {
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${authToken}`
+          },
           withCredentials: USE_CREDENTIALS
         });
 
@@ -135,7 +140,7 @@ export const useNotionAuth = (): UseNotionAuthReturn => {
 
         if (response.data.success && response.data.connected) {
           setNotionConnection({
-            email,
+            email: userInfo?.email || '',
             isConnected: true
           });
         } else {
@@ -163,11 +168,11 @@ export const useNotionAuth = (): UseNotionAuthReturn => {
         setUserInfo({ email });
         // Check connection status first if no code to process
         if (!notionCode) {
-          await checkNotionConnection(email);
+          await checkNotionConnection();
         }
         // Process Notion code if present
         if (notionCode && !codeProcessedRef.current) {
-          await handleNotionCode(email, notionCode);
+          await handleNotionCode(notionCode);
         }
       }
 
@@ -189,9 +194,9 @@ export const useNotionAuth = (): UseNotionAuthReturn => {
           // If we didn't get email from token, handle code processing and connection check
           if (!email) {
             if (notionCode && !codeProcessedRef.current) {
-              await handleNotionCode(response.data.email, notionCode);
+              await handleNotionCode(notionCode);
             } else {
-              await checkNotionConnection(response.data.email);
+              await checkNotionConnection();
             }
           }
         }
