@@ -11,34 +11,34 @@
  * integration with Notion's OAuth flow for account connection.
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
 import styles from './Settings.module.css';
 import logo from '../assets/c2n-favicon.svg';
 import { useNotionAuth } from '../hooks/useNotionAuth';
-import axios from 'axios';
-import { EXTENSION_ID, NOTION_REDIRECT_URI } from '../utils/constants';
+import { API_URL } from '../utils/constants';
 
 interface UserInfo {
   displayName: string;
   email: string;
+  photoURL?: string;
+  photoUrl?: string;
+  extensionId?: string;
 }
 
-/**
- * Settings component to display user information and manage Notion connection
- */
 const Settings: React.FC = () => {
   const navigate = useNavigate();
   const {
     notionConnection,
     isConnecting,
-    error,
     setNotionConnection
   } = useNotionAuth();
   const [userInfo, setUserInfo] = useState<UserInfo | null>(null);
+  const [error, setError] = useState<string>('');
+  const [isLoading, setIsLoading] = useState(true);
   const [isButtonLoading, setIsButtonLoading] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const fetchUserInfo = async () => {
@@ -73,40 +73,41 @@ const Settings: React.FC = () => {
     fetchUserInfo();
   }, [navigate]);
 
-  // Clear button loading state when connection process completes
   useEffect(() => {
-    if (!isConnecting) {
-      setIsButtonLoading(false);
-    }
-  }, [isConnecting]);
+    // Listen for messages from the extension
+    const handleExtensionMessage = (event: MessageEvent) => {
+      if (event.data.type === 'LOGOUT') {
+        console.log('Received logout message from extension');
+        handleLogout();
+      }
+    };
 
-  // Clear button loading state when connection status changes
-  useEffect(() => {
-    setIsButtonLoading(false);
-  }, [notionConnection.isConnected]);
+    window.addEventListener('message', handleExtensionMessage);
+
+    return () => {
+      window.removeEventListener('message', handleExtensionMessage);
+    };
+  }, []);
 
   const handleLogout = async () => {
     try {
       // Notify extension about logout
-      try {
-        await window.chrome.runtime.sendMessage(
-          EXTENSION_ID,
-          { type: 'LOGOUT' }
-        );
-        console.log('Notified extension about logout');
-      } catch (extError) {
-        console.error('Failed to notify extension about logout:', extError);
-        // Continue with logout even if extension notification fails
+      const extensionId = localStorage.getItem('extensionId');
+      if (extensionId) {
+        try {
+          await chrome.runtime.sendMessage(extensionId, { type: 'LOGOUT' });
+        } catch (error) {
+          console.error('Failed to notify extension about logout:', error);
+        }
       }
 
-      // Clear local storage and redirect
+      // Clear local storage and navigate
       localStorage.removeItem('authToken');
+      localStorage.removeItem('extensionId'); // Also remove the extension ID
       navigate('/login');
     } catch (error) {
       console.error('Logout error:', error);
-      // Still try to clear storage and redirect even if there's an error
-      localStorage.removeItem('authToken');
-      navigate('/login');
+      setError('Failed to log out. Please try again.');
     }
   };
 
@@ -125,20 +126,21 @@ const Settings: React.FC = () => {
 
       // Call the delete account endpoint
       await axios.post('http://localhost:3000/api/auth/delete-account', {
-        idToken: authToken  
+        idToken: authToken
       });
 
       // Clear local storage
       localStorage.removeItem('authToken');
+      localStorage.removeItem('extensionId'); // Also remove the extension ID
 
       // Notify extension about logout
-      try {
-        await window.chrome.runtime.sendMessage(
-          EXTENSION_ID,
-          { type: 'LOGOUT' }
-        );
-      } catch (extError) {
-        console.error('Failed to notify extension about logout:', extError);
+      const extensionId = localStorage.getItem('extensionId');
+      if (extensionId) {
+        try {
+          await chrome.runtime.sendMessage(extensionId, { type: 'LOGOUT' });
+        } catch (error) {
+          console.error('Failed to notify extension about account deletion:', error);
+        }
       }
 
       // Redirect to login page
@@ -153,10 +155,7 @@ const Settings: React.FC = () => {
 
   const handleNotionConnection = () => {
     setIsButtonLoading(true);
-    // The loading state will be cleared by the useEffect hooks when the OAuth process completes
-    const notionClientId = '1e3d872b-594c-8008-9ec9-003741e22a0f';
-    const encodedRedirectUri = encodeURIComponent(NOTION_REDIRECT_URI);
-    window.location.href = `https://api.notion.com/v1/oauth/authorize?client_id=${notionClientId}&response_type=code&owner=user&redirect_uri=${encodedRedirectUri}`;
+    window.location.href = 'https://api.notion.com/v1/oauth/authorize?client_id=1e3d872b-594c-8008-9ec9-003741e22a0f&response_type=code&owner=user&redirect_uri=http%3A%2F%2Flocalhost%3A5173%2Fsettings';
   };
 
   const handleRemoveConnection = async () => {
@@ -228,7 +227,20 @@ const Settings: React.FC = () => {
           ) : (
             <div className={styles.profileGroup}>
               <div className={styles.profilePic}>
-                {userInfo?.displayName?.[0].toUpperCase() || '?'}
+                {userInfo?.photoURL ? (
+                  <img 
+                    src={userInfo.photoURL} 
+                    alt={userInfo?.displayName} 
+                    className={styles.profileImage} 
+                    onError={(e) => {
+                      e.currentTarget.style.display = 'none';
+                      e.currentTarget.parentElement!.textContent = userInfo?.displayName?.[0].toUpperCase() || '?';
+                    }}
+                    referrerPolicy="no-referrer"
+                  />
+                ) : (
+                  userInfo?.displayName?.[0].toUpperCase() || '?'
+                )}
               </div>
               <div className={styles.profileInfo}>
                 <p className={styles.userName}>{userInfo?.displayName || 'User'}</p>
@@ -303,6 +315,6 @@ const Settings: React.FC = () => {
       </main>
     </div>
   );
-};
+}
 
 export default Settings; 
