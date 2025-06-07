@@ -78,12 +78,30 @@ const Login: React.FC = () => {
     setError('');
     
     try {
+      // For debugging - log the endpoint we're calling
+      console.log('Calling Google auth endpoint:', AUTH_ENDPOINTS.GOOGLE);
+      console.log('Is production environment:', import.meta.env.PROD);
+      console.log('Google credential token first 10 chars:', response.credential.substring(0, 10) + '...');
+      console.log('VITE_GOOGLE_CLIENT_ID exists:', !!import.meta.env.VITE_GOOGLE_CLIENT_ID);
+      
       // Send the ID token to your backend
-      const backendResponse = await axios.post('http://localhost:3000/api/auth/google', {
+      const backendResponse = await axios.post(AUTH_ENDPOINTS.GOOGLE, {
         idToken: response.credential,
         requestExtensionToken: true
+      }, {
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        validateStatus: (_) => true // Don't throw error for any status code
       });
 
+      console.log('Google auth response status:', backendResponse.status);
+      console.log('Google auth response data:', backendResponse.data);
+      
+      if (backendResponse.status !== 200) {
+        throw new Error(`Server returned status ${backendResponse.status}: ${JSON.stringify(backendResponse.data)}`);
+      }
+      
       if (backendResponse.data && backendResponse.data.idToken) {
         // Store the ID token for authentication
         localStorage.setItem('authToken', backendResponse.data.idToken);
@@ -108,11 +126,24 @@ const Login: React.FC = () => {
 
         // Redirect to settings page
         navigate('/settings');
+      } else {
+        throw new Error('Missing idToken in response: ' + JSON.stringify(backendResponse.data));
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Google sign in error:', error);
+      // Log more details about the error
+      if (axios.isAxiosError(error)) {
+        console.error('Axios error details:', {
+          status: error.response?.status,
+          statusText: error.response?.statusText,
+          data: error.response?.data,
+          url: error.config?.url,
+          method: error.config?.method,
+          headers: error.config?.headers
+        });
+      }
       const userFriendlyMessage = mapFirebaseError(error, 'Google sign in failed. Please try again.');
-      setError(userFriendlyMessage);
+      setError(userFriendlyMessage + (error.message ? `: ${error.message}` : ''));
     } finally {
       setIsLoading(false);
     }

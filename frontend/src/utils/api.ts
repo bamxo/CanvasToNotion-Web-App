@@ -26,11 +26,13 @@ export const AUTH_ENDPOINTS = {
   FORGOT_PASSWORD: `${API_BASE}/auth/forgot-password`,
   GOOGLE: `${API_BASE}/auth/google`,
   USER: isProduction ? PRODUCTION_AUTH_USER_ENDPOINT : LOCAL_AUTH_USER_ENDPOINT,
+  DELETE_ACCOUNT: `${API_BASE}/auth/delete-account`,
 };
 
 // User endpoints
 export const USER_ENDPOINTS = {
   PROFILE: `${API_BASE}/user/profile`,
+  INFO: `${API_BASE}/users/info`,
 };
 
 // Database endpoints

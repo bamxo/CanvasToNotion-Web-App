@@ -3,6 +3,7 @@ import * as admin from 'firebase-admin';
 import dotenv from 'dotenv';
 import { getFirebaseAdmin } from './firebase-admin';
 import axios from 'axios';
+import { OAuth2Client } from 'google-auth-library';
 
 // Load environment variables
 dotenv.config();
@@ -11,6 +12,15 @@ dotenv.config();
 if (!admin.apps.length) {
   getFirebaseAdmin();
 }
+
+// Get Google client ID from environment variables
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || process.env.VITE_GOOGLE_CLIENT_ID || '';
+console.log('Google Client ID environment variable:', {
+  exists: !!GOOGLE_CLIENT_ID,
+  length: GOOGLE_CLIENT_ID?.length || 0,
+  prefix: GOOGLE_CLIENT_ID ? GOOGLE_CLIENT_ID.substring(0, 8) + '...' : 'undefined'
+});
+const googleClient = new OAuth2Client(GOOGLE_CLIENT_ID);
 
 // Configure allowed origins
 const ALLOWED_ORIGINS = [
@@ -97,6 +107,10 @@ export const handler: Handler = async (event, context) => {
         return handleLogin(body, headers);
       case 'forgot-password':
         return handleForgotPassword(body, headers);
+      case 'google':
+        return handleGoogleAuth(body, headers);
+      case 'delete-account':
+        return handleDeleteAccount(body, headers);
       default:
         return {
           statusCode: 404,
@@ -408,4 +422,260 @@ async function handleGetUser(event: any, headers: any) {
       body: JSON.stringify({ error: errorMessage })
     };
   }
-} 
+}
+
+// Function to handle Google authentication
+async function handleGoogleAuth(body: any, headers: any) {
+  try {
+    const { idToken, requestExtensionToken } = body;
+    console.log('Google auth request received with token length:', idToken?.length || 0);
+    console.log('Google Client ID environment variable exists:', !!GOOGLE_CLIENT_ID);
+    console.log('Google Client ID length:', GOOGLE_CLIENT_ID.length);
+
+    if (!idToken) {
+      console.log('Missing Google ID token in request');
+      return {
+        statusCode: 400,
+        headers,
+        body: JSON.stringify({ error: 'Google ID token is required' }),
+      };
+    }
+
+    // 1. Verify Google ID token
+    let payload;
+    let verificationError = null;
+    
+    try {
+      console.log('Attempting to verify Google token...');
+      const ticket = await googleClient.verifyIdToken({
+        idToken,
+        audience: GOOGLE_CLIENT_ID,
+      });
+      payload = ticket.getPayload();
+      console.log('Google token verified successfully for email:', payload?.email);
+    } catch (err) {
+      verificationError = err;
+      console.error('Google token verification error details:', {
+        message: err.message,
+        stack: err.stack,
+        clientId: GOOGLE_CLIENT_ID.substring(0, 10) + '...' // Only log part of the client ID for security
+      });
+      
+      // Try an alternative verification approach
+      try {
+        console.log('Attempting alternate token validation...');
+        // Make a request to Google's token info endpoint
+        const tokenInfoResponse = await axios.get(
+          `https://oauth2.googleapis.com/tokeninfo?id_token=${idToken}`
+        );
+        
+        if (tokenInfoResponse.status === 200 && tokenInfoResponse.data.email) {
+          console.log('Alternative token validation succeeded for email:', tokenInfoResponse.data.email);
+          payload = tokenInfoResponse.data;
+        } else {
+          console.log('Alternative token validation failed:', tokenInfoResponse.status);
+          return {
+            statusCode: 401,
+            headers,
+            body: JSON.stringify({ 
+              error: 'Invalid Google ID token', 
+              details: err.message,
+              alternativeValidation: 'failed'
+            }),
+          };
+        }
+      } catch (altErr) {
+        console.error('Alternative token validation error:', altErr.message);
+        return {
+          statusCode: 401,
+          headers,
+          body: JSON.stringify({ 
+            error: 'Invalid Google ID token', 
+            details: err.message,
+            alternativeError: altErr.message
+          }),
+        };
+      }
+    }
+    
+    if (!payload || !payload.email) {
+      console.log('Invalid payload received from Google token verification');
+      return {
+        statusCode: 400,
+        headers,
+        body: JSON.stringify({ error: 'Invalid Google token payload' }),
+      };
+    }
+
+    // 2. Get or create Firebase user
+    let userRecord;
+    try {
+      userRecord = await admin.auth().getUserByEmail(payload.email);
+      
+      // If user exists but doesn't have Google provider, link it
+      const userProviders = await admin.auth().getUserByEmail(payload.email);
+      const hasGoogleProvider = userProviders.providerData.some(
+        provider => provider.providerId === 'google.com'
+      );
+
+      if (!hasGoogleProvider) {
+        await admin.auth().updateUser(userRecord.uid, {
+          providerToLink: {
+            providerId: 'google.com',
+            uid: payload.sub,
+            email: payload.email,
+            displayName: payload.name,
+            photoURL: payload.picture,
+          }
+        });
+      }
+    } catch (e) {
+      // Create new user with Google provider info
+      userRecord = await admin.auth().createUser({
+        email: payload.email,
+        displayName: payload.name,
+        photoURL: payload.picture,
+        emailVerified: payload.email_verified,
+      });
+
+      // Link Google provider
+      await admin.auth().updateUser(userRecord.uid, {
+        providerToLink: {
+          providerId: 'google.com',
+          uid: payload.sub,
+          email: payload.email,
+          displayName: payload.name,
+          photoURL: payload.picture,
+        }
+      });
+
+      // Create user profile in database using admin SDK
+      try {
+        await admin.database().ref(`/users/${userRecord.uid}`).set({
+          email: payload.email,
+          displayName: payload.name || payload.email.split('@')[0],
+          photoURL: payload.picture,
+          provider: 'google.com',
+          createdAt: new Date().toISOString(),
+          lastLogin: new Date().toISOString()
+        });
+      } catch (dbError) {
+        console.error('Error creating user profile:', dbError);
+        // Continue even if database save fails
+      }
+    }
+
+    // 3. Create Firebase custom token for extension
+    const customToken = await admin.auth().createCustomToken(userRecord.uid);
+
+    // 4. Exchange Google ID token for Firebase ID token
+    const firebaseApiKey = process.env.FIREBASE_API_KEY || '';
+    const response = await axios.post(
+      `https://identitytoolkit.googleapis.com/v1/accounts:signInWithIdp?key=${firebaseApiKey}`,
+      {
+        postBody: `id_token=${idToken}&providerId=google.com`,
+        requestUri: 'http://localhost',
+        returnSecureToken: true
+      }
+    );
+
+    return {
+      statusCode: 200,
+      headers,
+      body: JSON.stringify({
+        idToken: response.data.idToken,
+        customToken,
+        ...(requestExtensionToken ? { extensionToken: customToken } : {}),
+        email: payload.email,
+        photoURL: payload.picture,
+      }),
+    };
+  } catch (error) {
+    console.error('Google authentication error:', error);
+    
+    return {
+      statusCode: 500,
+      headers,
+      body: JSON.stringify({ error: 'Google authentication failed' }),
+    };
+  }
+}
+
+// Function to handle account deletion
+async function handleDeleteAccount(body: any, headers: any) {
+  try {
+    const { idToken } = body;
+    
+    if (!idToken) {
+      return {
+        statusCode: 400,
+        headers,
+        body: JSON.stringify({ error: 'ID token is required' }),
+      };
+    }
+
+    // Verify the token and get user info
+    const decodedToken = await admin.auth().verifyIdToken(idToken);
+    const uid = decodedToken.uid;
+
+    // Delete user data from database
+    try {
+      await admin.database().ref(`/users/${uid}`).remove();
+    } catch (dbError) {
+      console.error('Error deleting user data from database:', dbError);
+      // Continue with auth deletion even if database deletion fails
+    }
+
+    // Delete user from Firebase Auth
+    await admin.auth().deleteUser(uid);
+    
+    return {
+      statusCode: 200,
+      headers,
+      body: JSON.stringify({ message: 'Account deleted successfully' }),
+    };
+  } catch (error) {
+    console.error('Account deletion error:', error);
+    
+    return {
+      statusCode: 500,
+      headers,
+      body: JSON.stringify({ error: 'Failed to delete account' }),
+    };
+  }
+}
+
+// Interface for authenticated request
+export interface AuthenticatedRequest {
+  user?: {
+    email: string;
+    uid: string;
+  };
+  headers: {
+    authorization?: string;
+  };
+}
+
+// Verify Firebase ID token
+export const verifyToken = async (authHeader: string | undefined): Promise<{ email: string; uid: string } | null> => {
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return null;
+  }
+
+  const idToken = authHeader.split('Bearer ')[1];
+  
+  try {
+    const decodedToken = await admin.auth().verifyIdToken(idToken);
+    if (!decodedToken.email) {
+      return null;
+    }
+    
+    return {
+      email: decodedToken.email,
+      uid: decodedToken.uid
+    };
+  } catch (error) {
+    console.error('Error verifying auth token:', error);
+    return null;
+  }
+}; 

@@ -17,7 +17,8 @@ import axios from 'axios';
 import styles from './Settings.module.css';
 import logo from '../assets/c2n-favicon.svg';
 import { useNotionAuth } from '../hooks/useNotionAuth';
-import { API_URL } from '../utils/constants';
+import { AUTH_ENDPOINTS, USER_ENDPOINTS, NOTION_ENDPOINTS } from '../utils/api';
+import { NOTION_REDIRECT_URI } from '../utils/constants';
 
 interface UserInfo {
   displayName: string;
@@ -50,7 +51,7 @@ const Settings: React.FC = () => {
 
       try {
         setIsLoading(true);
-        const response = await axios.get('http://localhost:3000/api/users/info', {
+        const response = await axios.get(USER_ENDPOINTS.INFO, {
           headers: {
             Authorization: `Bearer ${token}`
           }
@@ -125,7 +126,7 @@ const Settings: React.FC = () => {
       }
 
       // Call the delete account endpoint
-      await axios.post('http://localhost:3000/api/auth/delete-account', {
+      await axios.post(AUTH_ENDPOINTS.DELETE_ACCOUNT, {
         idToken: authToken
       });
 
@@ -155,7 +156,7 @@ const Settings: React.FC = () => {
 
   const handleNotionConnection = () => {
     setIsButtonLoading(true);
-    window.location.href = 'https://api.notion.com/v1/oauth/authorize?client_id=1e3d872b-594c-8008-9ec9-003741e22a0f&response_type=code&owner=user&redirect_uri=http%3A%2F%2Flocalhost%3A5173%2Fsettings';
+    window.location.href = `https://api.notion.com/v1/oauth/authorize?client_id=1e3d872b-594c-8008-9ec9-003741e22a0f&response_type=code&owner=user&redirect_uri=${encodeURIComponent(NOTION_REDIRECT_URI)}`;
   };
 
   const handleRemoveConnection = async () => {
@@ -167,7 +168,7 @@ const Settings: React.FC = () => {
         throw new Error('No authentication token found');
       }
       
-      const response = await axios.get(`http://localhost:3000/api/notion/disconnect`, {
+      const response = await axios.get(NOTION_ENDPOINTS.DISCONNECT, {
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${authToken}`

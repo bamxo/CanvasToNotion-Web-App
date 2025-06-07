@@ -6,6 +6,7 @@ import { getFirebaseAdmin } from './firebase-admin';
 import type { PartialBlockObjectResponse, BlockObjectResponse, DatabaseObjectResponse, PageObjectResponse } from "@notionhq/client/build/src/api-endpoints";
 import { Client } from '@notionhq/client';
 import fetch from 'node-fetch';
+import { verifyToken, AuthenticatedRequest } from './auth';
 
 // Load environment variables
 dotenv.config();
@@ -19,12 +20,15 @@ if (!admin.apps.length) {
 interface UserData {
   accessToken?: string;
   workspaceId?: string;
+  pageIDs?: any[];
   lastUpdated?: string;
   email?: string;
 }
 
 // Helper function to get user data by email
-const getUserByEmail = async (email: string): Promise<UserData | null> => {
+const getUserByEmail = async (
+  email: string
+): Promise<UserData | null> => {
   try {
     const db = admin.database();
     const usersRef = db.ref('users');
@@ -37,11 +41,42 @@ const getUserByEmail = async (email: string): Promise<UserData | null> => {
         return userData as UserData;
       }
     }
+    console.log(`No user found with email: ${email}`);
     return null;
   } catch (error) {
     console.error("Error fetching user by email:", error);
     throw error;
   }
+};
+
+// Helper function to update user by email
+const updateUserByEmail = async (
+  email: string,
+  userData: Partial<UserData>
+): Promise<boolean> => {
+  try {
+    const db = admin.database();
+    const usersRef = db.ref('users');
+    const snapshot = await usersRef.orderByChild('email').equalTo(email).once('value');
+
+    if (snapshot.exists()) {
+      const userEntries = Object.entries(snapshot.val());
+      if (userEntries.length > 0) {
+        const [userId] = userEntries[0];
+        const userRef = db.ref(`users/${userId}`);
+        await userRef.update(userData);
+        console.log(`Updated user with email: ${email}`);
+        return true;
+      }
+    } else {
+      console.log(`No user found with email: ${email}`);
+      return false;
+    }
+  } catch (error) {
+    console.error("Error updating user by email:", error);
+    throw error;
+  }
+  return false;
 };
 
 // Helper function to check if a block is a child database
@@ -57,7 +92,7 @@ function isChildDatabaseBlock(
 }
 
 export const handler: Handler = async (event, context) => {
-  // Set CORS headers - note the specific origin instead of wildcard
+  // Set CORS headers
   const allowedOrigins = [
     'https://canvastonotion.io',
     'https://canvastonotion.netlify.app',
@@ -86,6 +121,17 @@ export const handler: Handler = async (event, context) => {
   }
   
   try {
+    // Authenticate the user using the token in the Authorization header
+    const user = await verifyToken(event.headers.authorization);
+    
+    if (!user) {
+      return {
+        statusCode: 401,
+        headers,
+        body: JSON.stringify({ success: false, error: 'Unauthorized' })
+      };
+    }
+    
     // Parse the path to determine the endpoint
     const pathParts = event.path.split('/');
     const endpoint = pathParts[pathParts.length - 1];
@@ -93,264 +139,33 @@ export const handler: Handler = async (event, context) => {
     // Handle token exchange endpoint
     if (endpoint === 'token' && event.httpMethod === 'POST') {
       const body = JSON.parse(event.body || '{}');
-      return await handleTokenExchange(body, headers);
+      return await handleTokenExchange(body, headers, user.email);
     } 
     // Handle connected endpoint
     else if (endpoint === 'connected' && event.httpMethod === 'GET') {
-      const email = event.queryStringParameters?.email;
-      
-      if (!email) {
-        return {
-          statusCode: 400,
-          headers,
-          body: JSON.stringify({ success: false, error: 'Email is required' })
-        };
-      }
-      
-      // Get user data
-      const userData = await getUserByEmail(email);
-      
-      if (!userData) {
-        return {
-          statusCode: 404,
-          headers,
-          body: JSON.stringify({ success: false, connected: false, error: 'User not found' })
-        };
-      }
-      
-      // Check if accessToken exists
-      const connected = !!userData.accessToken;
-      
-      return {
-        statusCode: 200,
-        headers,
-        body: JSON.stringify({ success: true, connected })
-      };
+      return await handleConnectedStatus(headers, user.email);
     }
     // Handle pages endpoint
     else if (endpoint === 'pages' && event.httpMethod === 'GET') {
-      const email = event.queryStringParameters?.email;
-      
-      if (!email) {
-        return {
-          statusCode: 400,
-          headers,
-          body: JSON.stringify({ success: false, error: 'Email is required' })
-        };
-      }
-      
-      return await handleGetPages(email, headers);
+      return await handleGetPages(headers, user.email);
     }
     // Handle sync endpoint
     else if (endpoint === 'sync' && event.httpMethod === 'POST') {
       const body = JSON.parse(event.body || '{}');
-      
-      try {
-        // Basic validation
-        const { email, pageId, courses, assignments } = body;
-        
-        if (!email || !pageId || !Array.isArray(courses) || !Array.isArray(assignments)) {
-          return {
-            statusCode: 400,
-            headers,
-            body: JSON.stringify({ 
-              success: false, 
-              error: 'Missing required fields' 
-            })
-          };
-        }
-        
-        // Get user data and verify connection
-        const db = admin.database();
-        const usersRef = db.ref('users');
-        const snapshot = await usersRef.orderByChild('email').equalTo(email).once('value');
-        
-        if (!snapshot.exists()) {
-          return {
-            statusCode: 404,
-            headers,
-            body: JSON.stringify({ 
-              success: false, 
-              error: 'User not found' 
-            })
-          };
-        }
-        
-        // Get the user's ID and data
-        const userEntries = Object.entries(snapshot.val());
-        if (userEntries.length === 0) {
-          return {
-            statusCode: 404,
-            headers,
-            body: JSON.stringify({ 
-              success: false, 
-              error: 'User data not found' 
-            })
-          };
-        }
-        
-        const [userId, userData] = userEntries[0] as [string, UserData];
-        
-        if (!userData?.accessToken) {
-          return {
-            statusCode: 403,
-            headers,
-            body: JSON.stringify({ 
-              success: false, 
-              error: 'Notion integration not connected' 
-            })
-          };
-        }
-        
-        // Set the sync status to 'pending' in the user's data
-        const syncStatusRef = db.ref(`users/${userId}/syncStatus`);
-        await syncStatusRef.set({
-          status: 'pending',
-          startedAt: new Date().toISOString(),
-          totalAssignments: assignments.length,
-          totalCourses: courses.length
-        });
-        
-        // Call the background function
-        const functionUrl = `${process.env.URL || 'https://canvastonotion.netlify.app'}/.netlify/functions/notion-background`;
-        
-        console.log("Triggering background sync function");
-        
-        // Add userId to the body for the background function
-        const backgroundBody = {
-          ...body,
-          userId
-        };
-        
-        // Fire and forget - don't await the response
-        fetch(functionUrl, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify(backgroundBody)
-        }).catch(err => console.error('Error triggering background function:', err));
-        
-        // Return immediately with a success message
-        return {
-          statusCode: 202, // Accepted
-          headers,
-          body: JSON.stringify({
-            success: true,
-            message: 'Sync process has started in the background',
-            info: {
-              totalAssignments: assignments.length,
-              totalCourses: courses.length,
-              syncStatus: 'pending',
-              startedAt: new Date().toISOString()
-            }
-          })
-        };
-      } catch (error) {
-        console.error('Error triggering sync:', error);
-        return {
-          statusCode: 500,
-          headers,
-          body: JSON.stringify({
-            success: false,
-            error: error instanceof Error ? error.message : 'Unknown error'
-          })
-        };
-      }
+      return await handleSync(body, headers, user);
     }
     // Handle sync-status endpoint
     else if (endpoint === 'sync-status' && event.httpMethod === 'GET') {
-      const email = event.queryStringParameters?.email;
-      
-      if (!email) {
-        return {
-          statusCode: 400,
-          headers,
-          body: JSON.stringify({ success: false, error: 'Email is required' })
-        };
-      }
-      
-      try {
-        // Get user ID from email
-        const db = admin.database();
-        const usersRef = db.ref('users');
-        const snapshot = await usersRef.orderByChild('email').equalTo(email).once('value');
-        
-        if (!snapshot.exists()) {
-          return {
-            statusCode: 404,
-            headers,
-            body: JSON.stringify({ success: false, error: 'User not found' })
-          };
-        }
-        
-        const userEntries = Object.entries(snapshot.val());
-        if (userEntries.length === 0) {
-          return {
-            statusCode: 404,
-            headers,
-            body: JSON.stringify({ success: false, error: 'User data not found' })
-          };
-        }
-        
-        const [userId, userData] = userEntries[0];
-        
-        // Get sync status from user data
-        const syncStatusRef = db.ref(`users/${userId}/syncStatus`);
-        const syncStatusSnapshot = await syncStatusRef.once('value');
-        
-        if (!syncStatusSnapshot.exists()) {
-          return {
-            statusCode: 404,
-            headers,
-            body: JSON.stringify({ success: false, error: 'No sync status found' })
-          };
-        }
-        
-        const syncStatus = syncStatusSnapshot.val();
-        
-        return {
-          statusCode: 200,
-          headers,
-          body: JSON.stringify({
-            success: true,
-            syncStatus: {
-              ...syncStatus,
-              // Add formatted message for client display
-              message: formatSyncStatusMessage(syncStatus)
-            }
-          })
-        };
-      } catch (error) {
-        console.error('Error fetching sync status:', error);
-        return {
-          statusCode: 500,
-          headers,
-          body: JSON.stringify({
-            success: false,
-            error: error instanceof Error ? error.message : 'Unknown error'
-          })
-        };
-      }
+      return await handleSyncStatus(headers, user.email);
     }
     // Handle compare endpoint
     else if (endpoint === 'compare' && event.httpMethod === 'POST') {
       const body = JSON.parse(event.body || '{}');
-      return await handleCompare(body, headers);
+      return await handleCompare(body, headers, user.email);
     }
     // Handle disconnect endpoint
     else if (endpoint === 'disconnect' && event.httpMethod === 'GET') {
-      const email = event.queryStringParameters?.email;
-      
-      if (!email) {
-        return {
-          statusCode: 400,
-          headers,
-          body: JSON.stringify({ success: false, error: 'Email is required' })
-        };
-      }
-      
-      return await handleDisconnect(email, headers);
+      return await handleDisconnect(headers, user.email);
     }
     else {
       return {
@@ -370,15 +185,15 @@ export const handler: Handler = async (event, context) => {
 };
 
 // Function to handle Notion token exchange
-async function handleTokenExchange(body: any, headers: any) {
+async function handleTokenExchange(body: any, headers: any, email: string) {
   try {
-    const { code, email } = body;
+    const { code } = body;
     
-    if (!code || !email) {
+    if (!code) {
       return {
         statusCode: 400,
         headers,
-        body: JSON.stringify({ error: 'Code and email are required' })
+        body: JSON.stringify({ error: 'Authorization code is required' })
       };
     }
     
@@ -404,38 +219,20 @@ async function handleTokenExchange(body: any, headers: any) {
     const { access_token, workspace_id } = tokenResponse.data;
     
     // Update the user's data in Firebase
-    const db = admin.database();
-    const usersRef = db.ref('users');
-    const snapshot = await usersRef.orderByChild('email').equalTo(email).once('value');
-    
-    if (snapshot.exists()) {
-      const userEntries = Object.entries(snapshot.val());
-      if (userEntries.length > 0) {
-        const [userId] = userEntries[0];
-        const userRef = db.ref(`users/${userId}`);
-        
-        // Update user data with Notion token
-        await userRef.update({
-          accessToken: access_token,
-          workspaceId: workspace_id,
-          lastUpdated: new Date().toISOString()
-        });
-        
-        return {
-          statusCode: 200,
-          headers,
-          body: JSON.stringify({
-            success: true,
-            message: 'Notion token stored successfully'
-          })
-        };
-      }
-    }
+    const updated = await updateUserByEmail(email, {
+      accessToken: access_token,
+      workspaceId: workspace_id,
+      lastUpdated: new Date().toISOString()
+    });
     
     return {
-      statusCode: 404,
+      statusCode: 200,
       headers,
-      body: JSON.stringify({ error: 'User not found' })
+      body: JSON.stringify({
+        success: true,
+        updated,
+        message: 'Notion token stored successfully'
+      })
     };
   } catch (error) {
     console.error('Error exchanging Notion token:', error);
@@ -450,17 +247,41 @@ async function handleTokenExchange(body: any, headers: any) {
   }
 }
 
-// Function to handle getting Notion pages
-async function handleGetPages(email: string, headers: any) {
+// Function to handle checking if user is connected to Notion
+async function handleConnectedStatus(headers: any, email: string) {
   try {
-    if (!email || typeof email !== 'string') {
+    // Use the existing helper to get user data
+    const userData = await getUserByEmail(email);
+
+    if (!userData) {
       return {
-        statusCode: 400,
+        statusCode: 404,
         headers,
-        body: JSON.stringify({ success: false, error: 'Email is required' })
+        body: JSON.stringify({ success: false, connected: false, error: 'User not found' })
       };
     }
 
+    // Check if accessToken exists and is non-empty
+    const connected = !!userData.accessToken;
+
+    return {
+      statusCode: 200,
+      headers,
+      body: JSON.stringify({ success: true, connected })
+    };
+  } catch (error) {
+    console.error('Error checking connection:', error);
+    return {
+      statusCode: 500,
+      headers,
+      body: JSON.stringify({ success: false, connected: false, error: 'Internal server error' })
+    };
+  }
+}
+
+// Function to handle getting Notion pages
+async function handleGetPages(headers: any, email: string) {
+  try {
     // Get user's accessToken from database
     const userData = await getUserByEmail(email);
     
@@ -556,23 +377,10 @@ async function handleGetPages(email: string, headers: any) {
       });
 
     // Update the user's pages in the database
-    const db = admin.database();
-    const usersRef = db.ref('users');
-    const snapshot = await usersRef.orderByChild('email').equalTo(email).once('value');
-    
-    if (snapshot.exists()) {
-      const userEntries = Object.entries(snapshot.val());
-      if (userEntries.length > 0) {
-        const [userId] = userEntries[0];
-        const userRef = db.ref(`users/${userId}`);
-        
-        // Update user data with pages
-        await userRef.update({
-          pageIDs: accessibleResources,
-          lastUpdated: new Date().toISOString()
-        });
-      }
-    }
+    await updateUserByEmail(email, {
+      pageIDs: accessibleResources,
+      lastUpdated: new Date().toISOString()
+    });
 
     return {
       statusCode: 200,
@@ -589,17 +397,167 @@ async function handleGetPages(email: string, headers: any) {
   }
 }
 
-// Function to handle disconnecting Notion integration
-async function handleDisconnect(email: string, headers: any) {
+// Function to handle sync initialization
+async function handleSync(body: any, headers: any, user: { email: string, uid: string }) {
   try {
-    if (!email || typeof email !== 'string') {
+    // Basic validation
+    const { pageId, courses, assignments } = body;
+    
+    if (!pageId || !Array.isArray(courses) || !Array.isArray(assignments)) {
       return {
         statusCode: 400,
         headers,
-        body: JSON.stringify({ success: false, error: 'Email is required' })
+        body: JSON.stringify({ 
+          success: false, 
+          error: 'Missing required fields' 
+        })
       };
     }
+    
+    // Get user data and verify connection
+    const userData = await getUserByEmail(user.email);
+    
+    if (!userData?.accessToken) {
+      return {
+        statusCode: 403,
+        headers,
+        body: JSON.stringify({ 
+          success: false, 
+          error: 'Notion integration not connected' 
+        })
+      };
+    }
+    
+    // Set the sync status to 'pending' in the user's data
+    const db = admin.database();
+    const syncStatusRef = db.ref(`users/${user.uid}/syncStatus`);
+    await syncStatusRef.set({
+      status: 'pending',
+      startedAt: new Date().toISOString(),
+      totalAssignments: assignments.length,
+      totalCourses: courses.length
+    });
+    
+    // Call the background function
+    const functionUrl = `${process.env.URL || 'https://canvastonotion.netlify.app'}/.netlify/functions/notion-background`;
+    
+    console.log("Triggering background sync function");
+    
+    // Add userId to the body for the background function
+    const backgroundBody = {
+      email: user.email,
+      userId: user.uid,
+      pageId,
+      courses,
+      assignments
+    };
+    
+    // Fire and forget - don't await the response
+    fetch(functionUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(backgroundBody)
+    }).catch(err => console.error('Error triggering background function:', err));
+    
+    // Return immediately with a success message
+    return {
+      statusCode: 202, // Accepted
+      headers,
+      body: JSON.stringify({
+        success: true,
+        message: 'Sync process has started in the background',
+        info: {
+          totalAssignments: assignments.length,
+          totalCourses: courses.length,
+          syncStatus: 'pending',
+          startedAt: new Date().toISOString()
+        }
+      })
+    };
+  } catch (error) {
+    console.error('Error triggering sync:', error);
+    return {
+      statusCode: 500,
+      headers,
+      body: JSON.stringify({
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      })
+    };
+  }
+}
 
+// Function to handle sync status check
+async function handleSyncStatus(headers: any, email: string) {
+  try {
+    // Get user ID from email
+    const db = admin.database();
+    const usersRef = db.ref('users');
+    const snapshot = await usersRef.orderByChild('email').equalTo(email).once('value');
+    
+    if (!snapshot.exists()) {
+      return {
+        statusCode: 404,
+        headers,
+        body: JSON.stringify({ success: false, error: 'User not found' })
+      };
+    }
+    
+    const userEntries = Object.entries(snapshot.val());
+    if (userEntries.length === 0) {
+      return {
+        statusCode: 404,
+        headers,
+        body: JSON.stringify({ success: false, error: 'User data not found' })
+      };
+    }
+    
+    const [userId, userData] = userEntries[0];
+    
+    // Get sync status from user data
+    const syncStatusRef = db.ref(`users/${userId}/syncStatus`);
+    const syncStatusSnapshot = await syncStatusRef.once('value');
+    
+    if (!syncStatusSnapshot.exists()) {
+      return {
+        statusCode: 404,
+        headers,
+        body: JSON.stringify({ success: false, error: 'No sync status found' })
+      };
+    }
+    
+    const syncStatus = syncStatusSnapshot.val();
+    
+    return {
+      statusCode: 200,
+      headers,
+      body: JSON.stringify({
+        success: true,
+        syncStatus: {
+          ...syncStatus,
+          // Add formatted message for client display
+          message: formatSyncStatusMessage(syncStatus)
+        }
+      })
+    };
+  } catch (error) {
+    console.error('Error fetching sync status:', error);
+    return {
+      statusCode: 500,
+      headers,
+      body: JSON.stringify({
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      })
+    };
+  }
+}
+
+// Function to handle disconnecting Notion integration
+async function handleDisconnect(headers: any, email: string) {
+  try {
     // Get user data
     const db = admin.database();
     const usersRef = db.ref('users');
@@ -656,15 +614,15 @@ async function handleDisconnect(email: string, headers: any) {
 }
 
 // Function to handle Notion pages comparison
-async function handleCompare(body: any, headers: any) {
+async function handleCompare(body: any, headers: any, email: string) {
   try {
     console.log('--- /compare endpoint called ---');
     console.log('Received payload:', JSON.stringify(body, null, 2));
 
-    const { email, pageId, courses, assignments } = body;
+    const { pageId, courses, assignments } = body;
 
     // Step 1: Validate input
-    if (!email || !pageId || !Array.isArray(courses) || !Array.isArray(assignments)) {
+    if (!pageId || !Array.isArray(courses) || !Array.isArray(assignments)) {
       console.log('Missing required fields');
       return {
         statusCode: 400,

@@ -17,6 +17,7 @@ if (!admin.apps.length) {
 interface UserData {
   accessToken?: string;
   workspaceId?: string;
+  pageIDs?: any[];
   lastUpdated?: string;
   email?: string;
 }
@@ -35,11 +36,42 @@ const getUserByEmail = async (email: string): Promise<UserData | null> => {
         return userData as UserData;
       }
     }
+    console.log(`No user found with email: ${email}`);
     return null;
   } catch (error) {
     console.error("Error fetching user by email:", error);
     throw error;
   }
+};
+
+// Helper function to update user by email
+const updateUserByEmail = async (
+  email: string,
+  userData: Partial<UserData>
+): Promise<boolean> => {
+  try {
+    const db = admin.database();
+    const usersRef = db.ref('users');
+    const snapshot = await usersRef.orderByChild('email').equalTo(email).once('value');
+
+    if (snapshot.exists()) {
+      const userEntries = Object.entries(snapshot.val());
+      if (userEntries.length > 0) {
+        const [userId] = userEntries[0];
+        const userRef = db.ref(`users/${userId}`);
+        await userRef.update(userData);
+        console.log(`Updated user with email: ${email}`);
+        return true;
+      }
+    } else {
+      console.log(`No user found with email: ${email}`);
+      return false;
+    }
+  } catch (error) {
+    console.error("Error updating user by email:", error);
+    throw error;
+  }
+  return false;
 };
 
 // Helper function to check if a block is a child database

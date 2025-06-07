@@ -62,7 +62,7 @@ app.use(bodyParser.json());
 // Mount routes
 app.use('/api/auth', authRoutes);
 app.use('/api/db', databaseRoutes);
-app.use('/api/user', userRoutes);
+app.use('/api/users', userRoutes);
 app.use('/api/notion', notionRouter);
 
 // Add a simple health check endpoint
@@ -97,11 +97,28 @@ export const handler: Handler = async (event, context) => {
     // For API routes
     if (event.path.startsWith('/.netlify/functions/api/api/')) {
       // Call the appropriate handler based on the path
-      // This is a simplified example - you would need to build a more robust router
       
-      // Example routing logic:
-      if (event.path.includes('/api/auth/')) {
-        // Handle auth routes
+      // Special handling for google auth and delete-account
+      if (event.path.includes('/api/auth/google')) {
+        return {
+          statusCode: 200,
+          body: JSON.stringify({ 
+            redirect: true, 
+            url: '/.netlify/functions/google',
+            method: 'POST' 
+          }),
+        };
+      } else if (event.path.includes('/api/auth/delete-account')) {
+        return {
+          statusCode: 200,
+          body: JSON.stringify({ 
+            redirect: true, 
+            url: '/.netlify/functions/delete-account',
+            method: 'POST' 
+          }),
+        };
+      } else if (event.path.includes('/api/auth/')) {
+        // Handle other auth routes
         return {
           statusCode: 200,
           body: JSON.stringify({ route: 'auth', path: event.path }),
@@ -112,7 +129,7 @@ export const handler: Handler = async (event, context) => {
           statusCode: 200,
           body: JSON.stringify({ route: 'database', path: event.path }),
         };
-      } else if (event.path.includes('/api/user/')) {
+      } else if (event.path.includes('/api/users/')) {
         // Handle user routes
         return {
           statusCode: 200,
