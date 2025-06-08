@@ -15,6 +15,19 @@ import arrowIcon from '../assets/arrow.svg?url';
 import axios from 'axios';
 import { mapFirebaseError, validateForm } from '../utils/errorMessages';
 import { AUTH_ENDPOINTS } from '../utils/api';
+import { EXTENSION_ID } from '../utils/constants';
+
+// Add Chrome types
+declare global {
+  namespace chrome {
+    namespace runtime {
+      function sendMessage(extensionId: string, message: any): Promise<any>;
+    }
+  }
+  interface Window {
+    chrome: typeof chrome;
+  }
+}
 
 const SignUp: React.FC = () => {
   // State for form data management
@@ -67,15 +80,37 @@ const SignUp: React.FC = () => {
       // If signup successful, automatically log in the user
       if (signupResponse.data) {
         try {
-          // Perform automatic login
+          // Perform automatic login with extension token request
           const loginResponse = await axios.post(AUTH_ENDPOINTS.LOGIN, {
             email: formData.email,
-            password: formData.password
+            password: formData.password,
+            requestExtensionToken: true // Request extension token
           });
 
-          // Store the auth token and redirect
+          // Store the auth token
           if (loginResponse.data) {
             localStorage.setItem('authToken', loginResponse.data.idToken);
+            
+            // If we got an extension token, send it to the extension
+            if (loginResponse.data.extensionToken) {
+              console.log('Received extension token during signup, sending to extension...');
+              try {
+                await window.chrome.runtime.sendMessage(
+                  EXTENSION_ID,
+                  {
+                    type: 'AUTH_TOKEN',
+                    token: loginResponse.data.extensionToken
+                  }
+                );
+                // Store the extension ID for future token refreshes
+                localStorage.setItem('extensionId', EXTENSION_ID);
+                console.log('Successfully sent token to extension');
+              } catch (extError) {
+                console.error('Failed to send token to extension:', extError);
+                // Don't block signup if extension communication fails
+              }
+            }
+            
             navigate('/get-started');
           }
         } catch (loginErr) {
