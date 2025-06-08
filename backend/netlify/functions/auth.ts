@@ -86,6 +86,11 @@ export const handler: Handler = async (event, context) => {
     return handleGetUser(event, headers);
   }
   
+  // Handle refresh-extension-token endpoint
+  if (event.httpMethod === 'POST' && event.path.endsWith('/refresh-extension-token')) {
+    return handleRefreshExtensionToken(event, headers);
+  }
+  
   // Only allow POST requests for auth endpoints
   if (event.httpMethod !== 'POST') {
     return {
@@ -641,6 +646,46 @@ async function handleDeleteAccount(body: any, headers: any) {
       statusCode: 500,
       headers,
       body: JSON.stringify({ error: 'Failed to delete account' }),
+    };
+  }
+}
+
+// Add the refresh extension token handler function
+async function handleRefreshExtensionToken(event: any, headers: any) {
+  try {
+    // Extract authorization header
+    const authHeader = event.headers.authorization || event.headers.Authorization;
+    
+    // Verify the token and get user info
+    const user = await verifyToken(authHeader);
+    
+    if (!user) {
+      return {
+        statusCode: 401,
+        headers,
+        body: JSON.stringify({ error: 'User not authenticated' })
+      };
+    }
+    
+    // Generate a new custom token for the extension
+    const extensionToken = await admin.auth().createCustomToken(user.uid);
+    
+    // Return the new token
+    return {
+      statusCode: 200,
+      headers,
+      body: JSON.stringify({
+        success: true,
+        extensionToken
+      })
+    };
+    
+  } catch (error) {
+    console.error('Failed to refresh extension token:', error);
+    return {
+      statusCode: 500,
+      headers,
+      body: JSON.stringify({ error: 'Failed to refresh extension token' })
     };
   }
 }

@@ -15,6 +15,7 @@ import mailIcon from '../assets/Mail.svg?url';
 import arrowIcon from '../assets/arrow.svg?url';
 import { EXTENSION_ID } from '../utils/constants';
 import { mapFirebaseError } from '../utils/errorMessages';
+import { AUTH_ENDPOINTS } from '../utils/api';
 
 interface GoogleSignInResponse {
   credential: string;
@@ -70,7 +71,7 @@ const Lookup: React.FC = () => {
     
     try {
       // Send the ID token to your backend
-      const backendResponse = await axios.post('http://localhost:3000/api/auth/google', {
+      const backendResponse = await axios.post(AUTH_ENDPOINTS.GOOGLE, {
         idToken: response.credential,
         requestExtensionToken: true
       });
