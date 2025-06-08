@@ -10,11 +10,18 @@ export const verifyToken = async (
   next: NextFunction
 ): Promise<void> => {
   try {
+    // First check for a session cookie
+    const sessionCookie = req.cookies?.sessionid;
+    
+    // Then check for Authorization header as fallback
     const authHeader = req.headers.authorization;
-    const idToken = authHeader?.split('Bearer ')[1];
+    const headerToken = authHeader?.split('Bearer ')[1];
+    
+    // Use cookie token if available, otherwise use header token
+    const idToken = sessionCookie || headerToken;
     
     if (!idToken) {
-      res.status(401).json({ error: 'No token provided' });
+      res.status(401).json({ error: 'No authentication token provided' });
       return;
     }
     

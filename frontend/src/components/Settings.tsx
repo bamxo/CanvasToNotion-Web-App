@@ -127,16 +127,9 @@ const Settings: React.FC = () => {
 
   const handleLogout = async () => {
     try {
-      // Notify extension about logout
-      const extensionId = localStorage.getItem('extensionId');
-      if (extensionId) {
-        try {
-          await chrome.runtime.sendMessage(extensionId, { type: 'LOGOUT' });
-        } catch (error) {
-          console.error('Failed to notify extension about logout:', error);
-        }
-      }
-
+      // Call the backend logout endpoint to clear the session cookie
+      await axios.post(AUTH_ENDPOINTS.LOGOUT, {}, { withCredentials: true });
+      
       // Clear local storage and navigate
       localStorage.removeItem('authToken');
       localStorage.removeItem('extensionId'); // Also remove the extension ID
@@ -168,16 +161,6 @@ const Settings: React.FC = () => {
       // Clear local storage
       localStorage.removeItem('authToken');
       localStorage.removeItem('extensionId'); // Also remove the extension ID
-
-      // Notify extension about logout
-      const extensionId = localStorage.getItem('extensionId');
-      if (extensionId) {
-        try {
-          await chrome.runtime.sendMessage(extensionId, { type: 'LOGOUT' });
-        } catch (error) {
-          console.error('Failed to notify extension about account deletion:', error);
-        }
-      }
 
       // Redirect to login page
       navigate('/login');

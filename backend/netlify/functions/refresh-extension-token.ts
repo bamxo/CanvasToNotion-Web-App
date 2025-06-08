@@ -11,6 +11,7 @@ if (!admin.apps.length) {
 const ALLOWED_ORIGINS = [
   'https://canvastonotion.io',
   'https://canvastonotion.netlify.app',
+  'https://api.canvastonotion.io',
   'http://localhost:5173',
   'http://localhost:3000'
 ];

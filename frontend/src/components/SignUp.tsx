@@ -75,6 +75,8 @@ const SignUp: React.FC = () => {
         email: formData.email,
         password: formData.password,
         displayName: formData.email.split('@')[0] // Using email prefix as display name
+      }, {
+        withCredentials: true // Enable sending and receiving cookies
       });
 
       // If signup successful, automatically log in the user
@@ -85,6 +87,8 @@ const SignUp: React.FC = () => {
             email: formData.email,
             password: formData.password,
             requestExtensionToken: true // Request extension token
+          }, {
+            withCredentials: true // Enable sending and receiving cookies
           });
 
           // Store the auth token

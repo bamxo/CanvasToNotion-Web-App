@@ -10,7 +10,7 @@ const isProduction = import.meta.env.PROD;
 
 // Base URLs
 const LOCAL_API_BASE = 'http://localhost:3000/api';
-const PRODUCTION_API_BASE = 'https://canvastonotion.netlify.app/.netlify/functions';
+const PRODUCTION_API_BASE = 'https://api.canvastonotion.io/.netlify/functions';
 
 // Special frontend auth user endpoint (development only)
 const LOCAL_AUTH_USER_ENDPOINT = 'http://localhost:5173/api/auth/user';
@@ -28,6 +28,7 @@ export const AUTH_ENDPOINTS = {
   USER: isProduction ? PRODUCTION_AUTH_USER_ENDPOINT : LOCAL_AUTH_USER_ENDPOINT,
   DELETE_ACCOUNT: `${API_BASE}/auth/delete-account`,
   REFRESH_EXTENSION_TOKEN: `${API_BASE}/auth/refresh-extension-token`,
+  LOGOUT: `${API_BASE}/auth/logout`,
 };
 
 // User endpoints
@@ -56,4 +57,4 @@ export const HEALTH_ENDPOINT = isProduction
   : `${LOCAL_API_BASE.replace('/api', '')}/health`; 
 
 // Credential settings for cross-origin requests
-export const USE_CREDENTIALS = isProduction; 
+export const USE_CREDENTIALS = true; // Always send credentials 

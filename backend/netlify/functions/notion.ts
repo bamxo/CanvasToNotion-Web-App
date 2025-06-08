@@ -96,6 +96,7 @@ export const handler: Handler = async (event, context) => {
   const allowedOrigins = [
     'https://canvastonotion.io',
     'https://canvastonotion.netlify.app',
+    'https://api.canvastonotion.io',
     'http://localhost:3000',
     'http://localhost:5173'
   ];

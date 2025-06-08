@@ -13,10 +13,22 @@ if (!admin.apps.length) {
 
 export const handler: Handler = async (event, context) => {
   // Set CORS headers
+  const allowedOrigins = [
+    'https://canvastonotion.io',
+    'https://canvastonotion.netlify.app',
+    'https://api.canvastonotion.io',
+    'http://localhost:3000',
+    'http://localhost:5173'
+  ];
+  
+  const origin = event.headers.origin || '';
+  const isAllowedOrigin = allowedOrigins.includes(origin);
+  
   const headers = {
-    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Origin': isAllowedOrigin ? origin : allowedOrigins[0],
     'Access-Control-Allow-Headers': 'Content-Type, Authorization',
     'Access-Control-Allow-Methods': 'GET, PUT, DELETE, OPTIONS',
+    'Access-Control-Allow-Credentials': 'true',
     'Content-Type': 'application/json'
   };
   

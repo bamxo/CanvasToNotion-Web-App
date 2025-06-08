@@ -2,6 +2,7 @@
 import express, { Express } from 'express';
 import cors from 'cors';
 import bodyParser from 'body-parser';
+import cookieParser from 'cookie-parser';
 import dotenv from 'dotenv';
 
 // Load environment variables
@@ -19,11 +20,13 @@ const PORT: number = parseInt(process.env.PORT || '3000', 10);
 // CORS configuration
 app.use(cors({
   origin: ['http://localhost:5173', 'http://localhost:3000'],
-  credentials: true
+  credentials: true,
+  exposedHeaders: ['set-cookie']
 }));
 
 // Middleware
 app.use(bodyParser.json());
+app.use(cookieParser());
 
 // Debug middleware
 app.use((req, res, next) => {

@@ -26,9 +26,32 @@ const googleClient = new OAuth2Client(GOOGLE_CLIENT_ID);
 const ALLOWED_ORIGINS = [
   'https://canvastonotion.io',
   'https://canvastonotion.netlify.app',
+  'https://api.canvastonotion.io',
   'http://localhost:5173',
   'http://localhost:3000'
 ];
+
+// Helper function to set a secure session cookie
+const setSessionCookie = (headers: any, userId: string, idToken: string) => {
+  // Use the Firebase ID token as the session ID
+  const sessionId = idToken;
+  
+  // Create the Set-Cookie header for cross-domain cookies
+  const cookieAttributes = [
+    `authToken=${sessionId}`,
+    'Path=/',
+    'HttpOnly',
+    'Secure',
+    'SameSite=None',
+    'Domain=.canvastonotion.io' // Always set domain for production
+  ];
+  
+  // Add the Set-Cookie header to existing headers
+  return {
+    ...headers,
+    'Set-Cookie': cookieAttributes.join('; ')
+  };
+};
 
 // Function to set CORS headers based on the origin
 const getCorsHeaders = (origin?: string) => {
@@ -116,6 +139,8 @@ export const handler: Handler = async (event, context) => {
         return handleGoogleAuth(body, headers);
       case 'delete-account':
         return handleDeleteAccount(body, headers);
+      case 'logout':
+        return handleLogout(headers);
       default:
         return {
           statusCode: 404,
@@ -191,10 +216,13 @@ async function handleSignup(body: any, headers: any) {
       
       console.log('User data saved to database for user:', userRecord.uid);
       
+      // Set session cookie
+      const headersWithCookie = setSessionCookie(headers, userRecord.uid, authResponse.data.idToken);
+      
       // Return full success response with auth data
       return {
         statusCode: 201,
-        headers,
+        headers: headersWithCookie,
         body: JSON.stringify({
           idToken: authResponse.data.idToken,
           email: authResponse.data.email,
@@ -207,10 +235,13 @@ async function handleSignup(body: any, headers: any) {
     } catch (dbError) {
       console.error('Database save error:', dbError);
       
+      // Set session cookie even if database write fails
+      const headersWithCookie = setSessionCookie(headers, userRecord.uid, authResponse.data.idToken);
+      
       // Return partial success - auth worked but database failed
       return {
         statusCode: 201,
-        headers,
+        headers: headersWithCookie,
         body: JSON.stringify({
           idToken: authResponse.data.idToken,
           email: authResponse.data.email,
@@ -281,6 +312,9 @@ async function handleLogin(body: any, headers: any) {
     
     const authData = response.data;
     
+    // Set session cookie
+    const headersWithCookie = setSessionCookie(headers, authData.localId, authData.idToken);
+    
     // If client requests a token for extension
     if (requestExtensionToken) {
       console.log('Generating custom token for extension...');
@@ -290,7 +324,7 @@ async function handleLogin(body: any, headers: any) {
       
       return {
         statusCode: 200,
-        headers,
+        headers: headersWithCookie,
         body: JSON.stringify({
           idToken: authData.idToken,
           refreshToken: authData.refreshToken,
@@ -303,7 +337,7 @@ async function handleLogin(body: any, headers: any) {
     } else {
       return {
         statusCode: 200,
-        headers,
+        headers: headersWithCookie,
         body: JSON.stringify(authData)
       };
     }
@@ -584,9 +618,12 @@ async function handleGoogleAuth(body: any, headers: any) {
       }
     );
 
+    // Set session cookie
+    const headersWithCookie = setSessionCookie(headers, userRecord.uid, response.data.idToken);
+
     return {
       statusCode: 200,
-      headers,
+      headers: headersWithCookie,
       body: JSON.stringify({
         idToken: response.data.idToken,
         customToken,
@@ -602,6 +639,41 @@ async function handleGoogleAuth(body: any, headers: any) {
       statusCode: 500,
       headers,
       body: JSON.stringify({ error: 'Google authentication failed' }),
+    };
+  }
+}
+
+// Function to handle user logout
+async function handleLogout(headers: any) {
+  try {
+    // Create clear cookie header
+    const clearCookieHeader = [
+      'authToken=',
+      'Path=/',
+      'HttpOnly',
+      'Secure',
+      'SameSite=None',
+      'Domain=.canvastonotion.io', // Always set domain for production
+      'Expires=Thu, 01 Jan 1970 00:00:00 GMT'
+    ];
+    
+    // Add the Set-Cookie header to existing headers to clear the cookie
+    const headersWithClearedCookie = {
+      ...headers,
+      'Set-Cookie': clearCookieHeader.join('; ')
+    };
+    
+    return {
+      statusCode: 200,
+      headers: headersWithClearedCookie,
+      body: JSON.stringify({ success: true, message: 'Logged out successfully' })
+    };
+  } catch (error) {
+    console.error('Logout error:', error);
+    return {
+      statusCode: 500,
+      headers,
+      body: JSON.stringify({ error: 'Failed to logout' })
     };
   }
 }

@@ -17,6 +17,25 @@ import { OAuth2Client } from 'google-auth-library';
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '<your-client-id>.apps.googleusercontent.com';
 const googleClient = new OAuth2Client(GOOGLE_CLIENT_ID);
 
+// Helper function to set session cookie
+const setSessionCookie = (res: Response, userId: string, idToken: string) => {
+  // Use the Firebase ID token as the session ID instead of generating a UUID
+  const sessionId = idToken;
+  
+  // Set cookie with proper attributes
+  res.cookie('sessionid', sessionId, {
+    // Don't set domain for localhost - browsers handle this differently
+    path: '/',
+    secure: false,
+    httpOnly: true,
+    sameSite: 'none' // Allow cross-site cookies between localhost:3000 and localhost:5173
+  });
+  
+  // In a real implementation, you would store the session ID with the user ID
+  // in a database or other persistent storage
+  return sessionId;
+};
+
 export const signup = async (req: Request, res: Response): Promise<void> => {
   try {
     const { email, password, displayName }: SignupRequest = req.body;
@@ -47,8 +66,14 @@ export const signup = async (req: Request, res: Response): Promise<void> => {
         );
       }
       
+      // Set session cookie
+      const sessionId = setSessionCookie(res, authResponse.data.localId, authResponse.data.idToken);
+      
       res.status(201).json(authResponse.data);
     } catch (dbError) {
+      // Set session cookie even if database write fails
+      const sessionId = setSessionCookie(res, authResponse.data.localId, authResponse.data.idToken);
+      
       res.status(201).json({
         ...authResponse.data,
         warning: 'User created but profile data not saved'
@@ -122,6 +147,9 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     );
 
     const authData = response.data;
+    
+    // Set session cookie
+    const sessionId = setSessionCookie(res, authData.localId, authData.idToken);
     
     // If client requests a token for extension
     if (requestExtensionToken) {
@@ -266,6 +294,9 @@ export const googleAuth = async (req: Request, res: Response): Promise<void> => 
       }
     );
 
+    // Set session cookie
+    const sessionId = setSessionCookie(res, userRecord.uid, response.data.idToken);
+
     res.json({
       idToken: response.data.idToken,
       customToken,
@@ -330,5 +361,22 @@ export const refreshExtensionToken = async (req: AuthenticatedRequest, res: Resp
   } catch (error) {
     console.error('Failed to refresh extension token:', error);
     res.status(500).json({ error: 'Failed to refresh extension token' });
+  }
+};
+
+// Logout user
+export const logout = async (req: Request, res: Response): Promise<void> => {
+  try {
+    // Clear the session cookie
+    res.clearCookie('sessionid', {
+      path: '/',
+      httpOnly: true,
+      sameSite: 'none',
+      secure: false
+    });
+    
+    res.json({ success: true, message: 'Logged out successfully' });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to logout' });
   }
 };

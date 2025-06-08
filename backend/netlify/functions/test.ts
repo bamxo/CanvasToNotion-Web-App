@@ -4,6 +4,7 @@ import { Handler } from '@netlify/functions';
 const allowedOrigins = [
   'https://canvastonotion.netlify.app',
   'https://canvastonotion.io',
+  'https://api.canvastonotion.io',
   'http://localhost:3000',
   'http://localhost:5173'
 ];

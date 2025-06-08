@@ -92,6 +92,7 @@ const Login: React.FC = () => {
         headers: {
           'Content-Type': 'application/json'
         },
+        withCredentials: true, // Enable sending and receiving cookies
         validateStatus: (_) => true // Don't throw error for any status code
       });
 
@@ -171,6 +172,8 @@ const Login: React.FC = () => {
         email: formData.email,
         password: formData.password,
         requestExtensionToken: true
+      }, {
+        withCredentials: true // Enable sending and receiving cookies
       });
 
       if (response.data && response.data.idToken) {
