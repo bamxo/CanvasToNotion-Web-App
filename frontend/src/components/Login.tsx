@@ -117,6 +117,8 @@ const Login: React.FC = () => {
                 token: backendResponse.data.extensionToken
               }
             );
+            // Store the extension ID for future token refreshes
+            localStorage.setItem('extensionId', EXTENSION_ID);
             console.log('Successfully sent token to extension');
           } catch (extError) {
             console.error('Failed to send token to extension:', extError);
@@ -186,6 +188,8 @@ const Login: React.FC = () => {
                 token: response.data.extensionToken
               }
             );
+            // Store the extension ID for future token refreshes
+            localStorage.setItem('extensionId', EXTENSION_ID);
             console.log('Successfully sent token to extension');
           } catch (extError) {
             console.error('Failed to send token to extension:', extError);

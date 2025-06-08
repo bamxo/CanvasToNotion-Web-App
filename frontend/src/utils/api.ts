@@ -27,6 +27,7 @@ export const AUTH_ENDPOINTS = {
   GOOGLE: `${API_BASE}/auth/google`,
   USER: isProduction ? PRODUCTION_AUTH_USER_ENDPOINT : LOCAL_AUTH_USER_ENDPOINT,
   DELETE_ACCOUNT: `${API_BASE}/auth/delete-account`,
+  REFRESH_EXTENSION_TOKEN: `${API_BASE}/auth/refresh-extension-token`,
 };
 
 // User endpoints

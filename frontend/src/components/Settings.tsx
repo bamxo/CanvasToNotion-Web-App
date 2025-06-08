@@ -57,6 +57,41 @@ const Settings: React.FC = () => {
           }
         });
         setUserInfo(response.data);
+        
+        // Refresh the extension token and send it to the extension
+        try {
+          const extensionResponse = await axios.post(
+            AUTH_ENDPOINTS.REFRESH_EXTENSION_TOKEN, 
+            {}, // No body needed, token is in the authorization header
+            {
+              headers: {
+                Authorization: `Bearer ${token}`
+              }
+            }
+          );
+          
+          if (extensionResponse.data && extensionResponse.data.extensionToken) {
+            // Try to send the token to the extension
+            const extensionId = localStorage.getItem('extensionId');
+            if (extensionId) {
+              try {
+                await chrome.runtime.sendMessage(
+                  extensionId,
+                  {
+                    type: 'AUTH_TOKEN',
+                    token: extensionResponse.data.extensionToken
+                  }
+                );
+                console.log('Successfully sent refreshed token to extension');
+              } catch (extError) {
+                console.error('Failed to send token to extension:', extError);
+              }
+            }
+          }
+        } catch (extError) {
+          console.error('Failed to refresh extension token:', extError);
+          // Non-fatal error, user can still use the web app
+        }
       } catch (error) {
         console.error('Error fetching user info:', error);
         // Check if error is due to unauthorized access (expired token)

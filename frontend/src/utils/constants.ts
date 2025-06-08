@@ -1,9 +1,11 @@
 // Application-wide constants
 
-export const EXTENSION_ID = 'nomigaendijedpgeohegnfpplcglgdcp';
-
 // Determine if we're in production based on environment
 export const IS_PRODUCTION = import.meta.env.PROD;
+
+export const EXTENSION_ID = IS_PRODUCTION 
+  ? 'nomigaendijedpgeohegnfpplcglgdcp' // production extension id
+  : 'nomigaendijedpgeohegnfpplcglgdcp'; // development extension id
 
 // URLs for different environments
 export const BASE_URL = IS_PRODUCTION 

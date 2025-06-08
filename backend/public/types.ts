@@ -49,6 +49,10 @@ export interface PasswordResetRequest {
   email: string;
 }
 
+export interface RefreshExtensionTokenRequest {
+  idToken: string;
+}
+
 export interface AuthResponse {
   idToken: string;
   email: string;

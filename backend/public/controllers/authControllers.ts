@@ -9,7 +9,8 @@ import {
   PasswordResetRequest, 
   GoogleAuthRequest,
   AuthResponse,
-  UserData
+  UserData,
+  AuthenticatedRequest
 } from '../types';
 import { OAuth2Client } from 'google-auth-library';
 
@@ -304,5 +305,30 @@ export const deleteAccount = async (req: Request, res: Response): Promise<void> 
     res.json({ message: 'Account deleted successfully' });
   } catch (error) {
     res.status(500).json({ error: 'Failed to delete account' });
+  }
+};
+
+// Refresh extension token
+export const refreshExtensionToken = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    // User should already be authenticated by middleware
+    const userId = req.user?.localId;
+    
+    if (!userId) {
+      res.status(401).json({ error: 'User not authenticated' });
+      return;
+    }
+    
+    // Generate a new custom token for the extension
+    const extensionToken = await admin.auth().createCustomToken(userId);
+    
+    // Return the new token
+    res.json({
+      success: true,
+      extensionToken
+    });
+  } catch (error) {
+    console.error('Failed to refresh extension token:', error);
+    res.status(500).json({ error: 'Failed to refresh extension token' });
   }
 };
