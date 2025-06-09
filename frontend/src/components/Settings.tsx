@@ -19,6 +19,7 @@ import logo from '../assets/c2n-favicon.svg';
 import { useNotionAuth } from '../hooks/useNotionAuth';
 import { AUTH_ENDPOINTS, USER_ENDPOINTS, NOTION_ENDPOINTS } from '../utils/api';
 import { NOTION_REDIRECT_URI } from '../utils/constants';
+import { secureGetToken, secureRemoveToken } from '../utils/encryption';
 
 interface UserInfo {
   displayName: string;
@@ -43,7 +44,7 @@ const Settings: React.FC = () => {
 
   useEffect(() => {
     const fetchUserInfo = async () => {
-      const token = localStorage.getItem('authToken');
+      const token = secureGetToken('authToken');
       if (!token) {
         navigate('/login');
         return;
@@ -97,7 +98,7 @@ const Settings: React.FC = () => {
         // Check if error is due to unauthorized access (expired token)
         if (axios.isAxiosError(error) && (error.response?.status === 401 || error.response?.status === 403)) {
           console.log('Auth token expired or invalid, logging out user');
-          localStorage.removeItem('authToken');
+          secureRemoveToken('authToken');
           navigate('/login');
           return;
         }
@@ -131,7 +132,7 @@ const Settings: React.FC = () => {
       await axios.post(AUTH_ENDPOINTS.LOGOUT, {}, { withCredentials: true });
       
       // Clear local storage and navigate
-      localStorage.removeItem('authToken');
+      secureRemoveToken('authToken');
       localStorage.removeItem('extensionId'); // Also remove the extension ID
       navigate('/login');
     } catch (error) {
@@ -147,7 +148,7 @@ const Settings: React.FC = () => {
 
     try {
       setIsButtonLoading(true);
-      const authToken = localStorage.getItem('authToken');
+      const authToken = secureGetToken('authToken');
       
       if (!authToken) {
         throw new Error('No authentication token found');
@@ -159,7 +160,7 @@ const Settings: React.FC = () => {
       });
 
       // Clear local storage
-      localStorage.removeItem('authToken');
+      secureRemoveToken('authToken');
       localStorage.removeItem('extensionId'); // Also remove the extension ID
 
       // Redirect to login page
@@ -180,7 +181,7 @@ const Settings: React.FC = () => {
   const handleRemoveConnection = async () => {
     try {
       setIsButtonLoading(true);
-      const authToken = localStorage.getItem('authToken');
+      const authToken = secureGetToken('authToken');
       
       if (!authToken) {
         throw new Error('No authentication token found');

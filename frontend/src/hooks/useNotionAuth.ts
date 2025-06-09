@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { AUTH_ENDPOINTS, NOTION_ENDPOINTS, USE_CREDENTIALS } from '../utils/api';
+import { secureGetToken } from '../utils/encryption';
 
 interface UserInfo {
   email: string;
@@ -56,7 +57,7 @@ export const useNotionAuth = (): UseNotionAuthReturn => {
 
   useEffect(() => {
     mountedRef.current = true;
-    const authToken = localStorage.getItem('authToken');
+    const authToken = secureGetToken('authToken');
     
     if (!authToken) {
       navigate('/login');

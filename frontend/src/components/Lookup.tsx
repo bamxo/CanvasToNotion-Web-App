@@ -16,6 +16,7 @@ import arrowIcon from '../assets/arrow.svg?url';
 import { EXTENSION_ID } from '../utils/constants';
 import { mapFirebaseError } from '../utils/errorMessages';
 import { AUTH_ENDPOINTS } from '../utils/api';
+import { secureStoreToken } from '../utils/encryption';
 
 interface GoogleSignInResponse {
   credential: string;
@@ -78,7 +79,7 @@ const Lookup: React.FC = () => {
 
       if (backendResponse.data && backendResponse.data.idToken) {
         // Store the ID token for authentication
-        localStorage.setItem('authToken', backendResponse.data.idToken);
+        secureStoreToken('authToken', backendResponse.data.idToken);
 
         // If we got an extension token, send it to the extension
         if (backendResponse.data.extensionToken) {

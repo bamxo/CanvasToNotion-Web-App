@@ -16,6 +16,7 @@ import axios from 'axios';
 import { mapFirebaseError, validateForm } from '../utils/errorMessages';
 import { AUTH_ENDPOINTS } from '../utils/api';
 import { EXTENSION_ID } from '../utils/constants';
+import { secureStoreToken } from '../utils/encryption';
 
 // Add Chrome types
 declare global {
@@ -93,7 +94,7 @@ const SignUp: React.FC = () => {
 
           // Store the auth token
           if (loginResponse.data) {
-            localStorage.setItem('authToken', loginResponse.data.idToken);
+            secureStoreToken('authToken', loginResponse.data.idToken);
             
             // If we got an extension token, send it to the extension
             if (loginResponse.data.extensionToken) {

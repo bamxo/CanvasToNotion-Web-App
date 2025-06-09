@@ -18,6 +18,7 @@ import arrowIcon from '../assets/arrow.svg?url';
 import { EXTENSION_ID } from '../utils/constants';
 import { mapFirebaseError } from '../utils/errorMessages';
 import { AUTH_ENDPOINTS } from '../utils/api';
+import { secureStoreToken } from '../utils/encryption';
 
 // Add Chrome types
 declare global {
@@ -105,7 +106,7 @@ const Login: React.FC = () => {
       
       if (backendResponse.data && backendResponse.data.idToken) {
         // Store the ID token for authentication
-        localStorage.setItem('authToken', backendResponse.data.idToken);
+        secureStoreToken('authToken', backendResponse.data.idToken);
 
         // If we got an extension token, send it to the extension
         if (backendResponse.data.extensionToken) {
@@ -177,8 +178,8 @@ const Login: React.FC = () => {
       });
 
       if (response.data && response.data.idToken) {
-        // Store the auth token in localStorage
-        localStorage.setItem('authToken', response.data.idToken);
+        // Store the auth token securely
+        secureStoreToken('authToken', response.data.idToken);
         
         // If we got an extension token, send it to the extension
         if (response.data.extensionToken) {
