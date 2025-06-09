@@ -14,7 +14,7 @@ import eyeSlashIcon from '../assets/eye-slash.svg?url';
 import arrowIcon from '../assets/arrow.svg?url';
 import axios from 'axios';
 import { mapFirebaseError, validateForm } from '../utils/errorMessages';
-import { AUTH_ENDPOINTS } from '../utils/api';
+import { AUTH_ENDPOINTS, COOKIE_STATE_ENDPOINTS } from '../utils/api';
 import { EXTENSION_ID } from '../utils/constants';
 import { secureStoreToken } from '../utils/encryption';
 
@@ -95,6 +95,18 @@ const SignUp: React.FC = () => {
           // Store the auth token
           if (loginResponse.data) {
             secureStoreToken('authToken', loginResponse.data.idToken);
+            
+            // Set the isAuthenticated cookie
+            await axios.post(
+              COOKIE_STATE_ENDPOINTS.SET_AUTHENTICATED,
+              {},
+              {
+                headers: {
+                  Authorization: `Bearer ${loginResponse.data.idToken}`
+                },
+                withCredentials: true
+              }
+            );
             
             // If we got an extension token, send it to the extension
             if (loginResponse.data.extensionToken) {

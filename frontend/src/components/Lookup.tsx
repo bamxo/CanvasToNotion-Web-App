@@ -15,7 +15,7 @@ import mailIcon from '../assets/Mail.svg?url';
 import arrowIcon from '../assets/arrow.svg?url';
 import { EXTENSION_ID } from '../utils/constants';
 import { mapFirebaseError } from '../utils/errorMessages';
-import { AUTH_ENDPOINTS } from '../utils/api';
+import { AUTH_ENDPOINTS, COOKIE_STATE_ENDPOINTS } from '../utils/api';
 import { secureStoreToken } from '../utils/encryption';
 
 interface GoogleSignInResponse {
@@ -81,6 +81,18 @@ const Lookup: React.FC = () => {
         // Store the ID token for authentication
         secureStoreToken('authToken', backendResponse.data.idToken);
 
+        // Set the isAuthenticated cookie
+        await axios.post(
+          COOKIE_STATE_ENDPOINTS.SET_AUTHENTICATED,
+          {},
+          {
+            headers: {
+              Authorization: `Bearer ${backendResponse.data.idToken}`
+            },
+            withCredentials: true
+          }
+        );
+        
         // If we got an extension token, send it to the extension
         if (backendResponse.data.extensionToken) {
           console.log('Received extension token, attempting to send to extension...');

@@ -31,6 +31,12 @@ export const AUTH_ENDPOINTS = {
   LOGOUT: `${API_BASE}/auth/logout`,
 };
 
+// Cookie state endpoints
+export const COOKIE_STATE_ENDPOINTS = {
+  SET_AUTHENTICATED: `${API_BASE}/cookie-state/set-authenticated`,
+  CLEAR_AUTHENTICATED: `${API_BASE}/cookie-state/clear-authenticated`,
+};
+
 // User endpoints
 export const USER_ENDPOINTS = {
   PROFILE: `${API_BASE}/user/profile`,

@@ -17,9 +17,10 @@ import axios from 'axios';
 import styles from './Settings.module.css';
 import logo from '../assets/c2n-favicon.svg';
 import { useNotionAuth } from '../hooks/useNotionAuth';
-import { AUTH_ENDPOINTS, USER_ENDPOINTS, NOTION_ENDPOINTS } from '../utils/api';
+import { AUTH_ENDPOINTS, USER_ENDPOINTS, NOTION_ENDPOINTS, COOKIE_STATE_ENDPOINTS } from '../utils/api';
 import { NOTION_REDIRECT_URI } from '../utils/constants';
 import { secureGetToken, secureRemoveToken } from '../utils/encryption';
+import Cookies from 'js-cookie';
 
 interface UserInfo {
   displayName: string;
@@ -45,7 +46,11 @@ const Settings: React.FC = () => {
   useEffect(() => {
     const fetchUserInfo = async () => {
       const token = secureGetToken('authToken');
-      if (!token) {
+      const isAuthenticatedCookie = Cookies.get('isAuthenticated');
+      
+      if (!token || !isAuthenticatedCookie) {
+        console.log('No auth token or isAuthenticated cookie found, redirecting to login');
+        secureRemoveToken('authToken');
         navigate('/login');
         return;
       }
@@ -131,6 +136,9 @@ const Settings: React.FC = () => {
       // Call the backend logout endpoint to clear the session cookie
       await axios.post(AUTH_ENDPOINTS.LOGOUT, {}, { withCredentials: true });
       
+      // Also clear the isAuthenticated cookie
+      await axios.post(COOKIE_STATE_ENDPOINTS.CLEAR_AUTHENTICATED, {}, { withCredentials: true });
+      
       // Clear local storage and navigate
       secureRemoveToken('authToken');
       localStorage.removeItem('extensionId'); // Also remove the extension ID
@@ -158,6 +166,12 @@ const Settings: React.FC = () => {
       await axios.post(AUTH_ENDPOINTS.DELETE_ACCOUNT, {
         idToken: authToken
       });
+
+      // Call the logout endpoint to clear the session cookie
+      await axios.post(AUTH_ENDPOINTS.LOGOUT, {}, { withCredentials: true });
+      
+      // Also clear the isAuthenticated cookie
+      await axios.post(COOKIE_STATE_ENDPOINTS.CLEAR_AUTHENTICATED, {}, { withCredentials: true });
 
       // Clear local storage
       secureRemoveToken('authToken');
