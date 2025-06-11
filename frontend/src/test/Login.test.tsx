@@ -9,6 +9,14 @@ import { EXTENSION_ID } from '../utils/constants';
 vi.mock('axios');
 const mockedAxios = axios as jest.Mocked<typeof axios>;
 
+// Mock encryption module
+vi.mock('../utils/encryption', () => ({
+  secureStoreToken: (key: string, value: string) => {
+    localStorage.setItem(key, value);
+  },
+  secureGetToken: vi.fn()
+}));
+
 // Mock useNavigate
 const mockNavigate = vi.fn();
 vi.mock('react-router-dom', async () => {
@@ -195,38 +203,53 @@ describe('Login Component', () => {
 
   it('submits successfully with correct credentials and navigates', async () => {
     // Mock successful login response
-    mockedAxios.post.mockResolvedValueOnce({
-      data: { idToken: 'fake-token-123' }
+    mockedAxios.post.mockImplementation((url) => {
+      if (url.includes('/login')) {
+        return Promise.resolve({ 
+          data: { 
+            idToken: 'fake-token-123',
+            extensionToken: 'ext-token-456'
+          } 
+        });
+      } else if (url.includes('/set-authenticated')) {
+        return Promise.resolve({ data: { success: true } });
+      }
+      return Promise.reject(new Error('Unknown URL'));
     });
     
     const { container } = setup();
     
-    // Get form fields
+    // Get the form fields
     const emailInput = container.querySelector('input[type="email"]') as HTMLInputElement;
-    const passwordInput = container.querySelector('input[name="password"]') as HTMLInputElement;
+    const passwordInput = container.querySelector('input[type="password"]') as HTMLInputElement;
     const submitButton = container.querySelector('button[type="submit"]') as HTMLButtonElement;
     
-    // Fill out form correctly
+    // Fill out the form
     fireEvent.change(emailInput, { target: { value: 'test@example.com' } });
     fireEvent.change(passwordInput, { target: { value: 'correctpassword' } });
     
     // Submit the form
     fireEvent.click(submitButton);
     
-    // Use real timers to let the axios mock resolve
-    vi.useRealTimers();
-    
-    // Wait for the promise to resolve
+    // Wait for form submission and navigation
     await vi.waitFor(() => {
       // Check that axios.post was called with correct data
-      expect(mockedAxios.post).toHaveBeenCalledWith('http://localhost:3000/api/auth/login', {
-        email: 'test@example.com',
-        password: 'correctpassword',
-        requestExtensionToken: true
-      });
+      expect(mockedAxios.post).toHaveBeenCalledWith(
+        'http://localhost:3000/api/auth/login', 
+        {
+          email: 'test@example.com',
+          password: 'correctpassword',
+          requestExtensionToken: true
+        },
+        {
+          withCredentials: true
+        }
+      );
       
-      // Check localStorage and navigation
+      // Check localStorage
       expect(localStorage.getItem('authToken')).toBe('fake-token-123');
+      
+      // Check navigation
       expect(mockNavigate).toHaveBeenCalledWith('/settings');
     });
   });
@@ -487,6 +510,20 @@ describe('Login Component', () => {
   });
 
   it('opens Google OAuth popup when Google login button is clicked', () => {
+    // Mock Google accounts.id.prompt
+    const mockPrompt = vi.fn();
+    Object.defineProperty(window, 'google', {
+      value: {
+        accounts: {
+          id: {
+            prompt: mockPrompt,
+            initialize: vi.fn()
+          }
+        }
+      },
+      writable: true
+    });
+
     const { container } = setup();
     
     // Find and click Google login button
@@ -495,67 +532,98 @@ describe('Login Component', () => {
     
     fireEvent.click(googleButton);
     
-    // Check if window.open was called with correct parameters
-    expect(mockOpen).toHaveBeenCalledWith(
-      'http://localhost:3000/api/auth/google',
-      'Google Login',
-      expect.stringContaining('width=490,height=600')
-    );
+    // Check if google.accounts.id.prompt was called
+    expect(mockPrompt).toHaveBeenCalled();
   });
 
-  it('handles message events from Google OAuth popup', async () => {
-    // Mock the event listener and cleanup
-    const mockAddEventListener = vi.spyOn(window, 'addEventListener');
+  it('handles Google authentication through callback', async () => {
+    // Mock Google accounts.id with initialize and prompt methods
+    const mockInitialize = vi.fn();
+    const mockPrompt = vi.fn();
+    
+    let savedCallback: any;
+    mockInitialize.mockImplementation(({ callback }) => {
+      savedCallback = callback;
+    });
+    
+    Object.defineProperty(window, 'google', {
+      value: {
+        accounts: {
+          id: {
+            prompt: mockPrompt,
+            initialize: mockInitialize
+          }
+        }
+      },
+      writable: true
+    });
+    
+    // Ensure proper Chrome runtime mock
+    const originalChrome = window.chrome;
+    const mockSendMessageFn = vi.fn().mockResolvedValue({ success: true });
+    Object.defineProperty(window, 'chrome', {
+      value: {
+        runtime: {
+          sendMessage: mockSendMessageFn
+        }
+      },
+      writable: true
+    });
     
     // Setup component
-    const { container } = setup();
+    setup();
     
-    // Click Google login button to initialize the event listener
-    const googleButton = container.querySelector('button[class*="auth-button"]') as HTMLElement;
-    fireEvent.click(googleButton);
+    // Check if initialize was called
+    expect(mockInitialize).toHaveBeenCalledWith(expect.objectContaining({
+      callback: expect.any(Function)
+    }));
     
-    // Verify event listener was added
-    expect(mockAddEventListener).toHaveBeenCalledWith('message', expect.any(Function));
-    
-    // Get the message handler function
-    const messageHandler = mockAddEventListener.mock.calls.find(
-      call => call[0] === 'message'
-    )?.[1] as EventListener;
-    
-    // Create a message event
-    const token = 'google-auth-token-789';
-    const mockEvent = {
-      origin: window.location.origin,
-      data: {
-        type: 'googleAuthSuccess',
-        token
-      }
-    } as MessageEvent;
-    
-    // Mock response for the extension token request
+    // Mock response for the auth endpoint
     mockedAxios.post.mockResolvedValueOnce({
-      data: { extensionToken: 'extension-token-xyz' }
+      status: 200,
+      data: { 
+        idToken: 'new-auth-token-123',
+        extensionToken: 'extension-token-xyz'
+      }
     });
     
-    // Call the handler directly
+    // Mock the cookie state endpoint
+    mockedAxios.post.mockResolvedValueOnce({});
+    
+    // Simulate the Google callback
     await act(async () => {
-      await messageHandler(mockEvent);
+      await savedCallback({
+        credential: 'google-credential-token-456',
+        select_by: 'user'
+      });
     });
     
-    // Verify token was stored
-    expect(localStorage.getItem('authToken')).toBe(token);
-    
-    // Verify extension token was requested
+    // Verify correct endpoint was called with token
     expect(mockedAxios.post).toHaveBeenCalledWith(
-      'http://localhost:3000/api/auth/login',
+      expect.stringContaining('/api/auth/google'), 
       {
-        idToken: token,
+        idToken: 'google-credential-token-456',
         requestExtensionToken: true
+      },
+      expect.objectContaining({
+        withCredentials: true
+      })
+    );
+    
+    // Verify extension token was sent to extension
+    expect(mockSendMessageFn).toHaveBeenCalledWith(
+      EXTENSION_ID,
+      {
+        type: 'AUTH_TOKEN',
+        token: 'extension-token-xyz'
       }
     );
     
     // Verify navigation occurred
-    expect(mockNavigate).toHaveBeenCalledWith('/login-success');
+    expect(mockNavigate).toHaveBeenCalledWith('/settings');
+    
+    // Restore original chrome object
+    Object.defineProperty(window, 'chrome', { value: originalChrome, writable: true });
   });
 
   it('ignores message events from different origins', () => {
@@ -579,43 +647,5 @@ describe('Login Component', () => {
     // Check that the token was NOT stored
     expect(localStorage.getItem('authToken')).toBeNull();
     expect(mockNavigate).not.toHaveBeenCalled();
-  });
-
-  it('handles Google authentication with extension token request', async () => {
-    // Set up the component
-    setup();
-    
-    // Mock successful API response for extension token request
-    mockedAxios.post.mockResolvedValueOnce({
-      data: { extensionToken: 'extension-token-from-google-auth' }
-    });
-    
-    // Mock a window message event with a token
-    const mockEvent = new MessageEvent('message', {
-      data: {
-        type: 'googleAuthSuccess',
-        token: 'google-auth-token-456'
-      },
-      origin: window.location.origin
-    });
-    
-    // Simulate the message event
-    await act(async () => {
-      window.dispatchEvent(mockEvent);
-    });
-    
-    // Verify extension token was requested and sent
-    expect(mockedAxios.post).toHaveBeenCalledWith('http://localhost:3000/api/auth/login', {
-      idToken: 'google-auth-token-456',
-      requestExtensionToken: true
-    });
-    
-    expect(mockSendMessage).toHaveBeenCalledWith(
-      EXTENSION_ID,
-      {
-        type: 'AUTH_TOKEN',
-        token: 'extension-token-from-google-auth'
-      }
-    );
   });
 }); 

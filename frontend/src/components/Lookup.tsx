@@ -81,17 +81,19 @@ const Lookup: React.FC = () => {
         // Store the ID token for authentication
         secureStoreToken('authToken', backendResponse.data.idToken);
 
-        // Set the isAuthenticated cookie
-        await axios.post(
-          COOKIE_STATE_ENDPOINTS.SET_AUTHENTICATED,
-          {},
-          {
-            headers: {
-              Authorization: `Bearer ${backendResponse.data.idToken}`
-            },
-            withCredentials: true
-          }
-        );
+        // Set the isAuthenticated cookie only in production
+        if (import.meta.env.PROD) {
+          await axios.post(
+            COOKIE_STATE_ENDPOINTS.SET_AUTHENTICATED,
+            {},
+            {
+              headers: {
+                Authorization: `Bearer ${backendResponse.data.idToken}`
+              },
+              withCredentials: true
+            }
+          );
+        }
         
         // If we got an extension token, send it to the extension
         if (backendResponse.data.extensionToken) {

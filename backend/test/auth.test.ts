@@ -58,7 +58,7 @@ describe('verifyToken middleware', () => {
     await verifyToken(req as any, res as any, next);
 
     expect(res.status).toHaveBeenCalledWith(401);
-    expect(res.json).toHaveBeenCalledWith({ error: 'No token provided' });
+    expect(res.json).toHaveBeenCalledWith({ error: 'No authentication token provided' });
     expect(next).not.toHaveBeenCalled();
   });
 

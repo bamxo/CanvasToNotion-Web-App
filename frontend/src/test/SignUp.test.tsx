@@ -211,14 +211,14 @@ describe('SignUp Component', () => {
   });
 
   it('submits successfully and navigates to connection-setup on success', async () => {
-    // Mock successful responses
+    // Mock successful API responses
     mockedAxios.post.mockImplementation((url) => {
       if (url.includes('/signup')) {
         return Promise.resolve({ data: { success: true } });
       } else if (url.includes('/login')) {
-        return Promise.resolve({ 
-          data: { idToken: 'fake-token-123' } 
-        });
+        return Promise.resolve({ data: { idToken: 'fake-token-123', extensionToken: 'ext-token-123' } });
+      } else if (url.includes('/set-authenticated')) {
+        return Promise.resolve({ data: { success: true } });
       }
       return Promise.reject(new Error('Unknown URL'));
     });
@@ -241,18 +241,31 @@ describe('SignUp Component', () => {
     
     // Wait for form submission and navigation
     await waitFor(() => {
-      // Check that axios.post was called with correct data
-      expect(mockedAxios.post).toHaveBeenCalledWith('http://localhost:3000/api/auth/signup', {
-        email: 'test@example.com',
-        password: 'validpassword',
-        displayName: 'test'
-      });
+      // Check that axios.post was called with correct data for signup
+      expect(mockedAxios.post).toHaveBeenCalledWith(
+        'http://localhost:3000/api/auth/signup',
+        {
+          email: 'test@example.com',
+          password: 'validpassword',
+          displayName: 'test'
+        },
+        {
+          withCredentials: true
+        }
+      );
       
-      // Check that login was also called
-      expect(mockedAxios.post).toHaveBeenCalledWith('http://localhost:3000/api/auth/login', {
-        email: 'test@example.com',
-        password: 'validpassword'
-      });
+      // Check that login was also called with correct data
+      expect(mockedAxios.post).toHaveBeenCalledWith(
+        'http://localhost:3000/api/auth/login',
+        {
+          email: 'test@example.com',
+          password: 'validpassword',
+          requestExtensionToken: true
+        },
+        {
+          withCredentials: true
+        }
+      );
       
       // Check localStorage
       expect(localStorage.getItem('authToken')).toBe('fake-token-123');
@@ -292,17 +305,30 @@ describe('SignUp Component', () => {
     // Wait for form submission and error
     await waitFor(() => {
       // Check that axios.post was called for signup
-      expect(mockedAxios.post).toHaveBeenCalledWith('http://localhost:3000/api/auth/signup', {
-        email: 'test@example.com',
-        password: 'validpassword',
-        displayName: 'test'
-      });
+      expect(mockedAxios.post).toHaveBeenCalledWith(
+        'http://localhost:3000/api/auth/signup', 
+        {
+          email: 'test@example.com',
+          password: 'validpassword',
+          displayName: 'test'
+        },
+        {
+          withCredentials: true
+        }
+      );
       
       // Check that login was also called
-      expect(mockedAxios.post).toHaveBeenCalledWith('http://localhost:3000/api/auth/login', {
-        email: 'test@example.com',
-        password: 'validpassword'
-      });
+      expect(mockedAxios.post).toHaveBeenCalledWith(
+        'http://localhost:3000/api/auth/login', 
+        {
+          email: 'test@example.com',
+          password: 'validpassword',
+          requestExtensionToken: true
+        },
+        {
+          withCredentials: true
+        }
+      );
       
       // Check navigation to login page
       expect(mockNavigate).toHaveBeenCalledWith('/login');
@@ -341,11 +367,17 @@ describe('SignUp Component', () => {
     // Wait for form submission and error
     await waitFor(() => {
       // Check that axios.post was called
-      expect(mockedAxios.post).toHaveBeenCalledWith('http://localhost:3000/api/auth/signup', {
-        email: 'test@example.com',
-        password: 'validpassword',
-        displayName: 'test'
-      });
+      expect(mockedAxios.post).toHaveBeenCalledWith(
+        'http://localhost:3000/api/auth/signup', 
+        {
+          email: 'test@example.com',
+          password: 'validpassword',
+          displayName: 'test'
+        },
+        {
+          withCredentials: true
+        }
+      );
       
       // Error message should be displayed
       const errorDiv = container.querySelector('div[class*="error"]');

@@ -22,6 +22,14 @@ vi.mock('../public/controllers/userControllers', () => ({
   },
   updateProfile: (req: any, res: any) => {
     return res.json({ message: 'Profile updated', data: req.body });
+  },
+  getUserInfo: (req: any, res: any) => {
+    return res.json({ 
+      email: 'mock@example.com', 
+      displayName: 'Mock User', 
+      photoURL: 'mock-photo-url',
+      emailVerified: true 
+    });
   }
 }));
 
@@ -34,6 +42,17 @@ describe('User Routes', () => {
     const res = await request(app).get('/api/profile');
     expect(res.status).toBe(200);
     expect(res.body).toEqual({ name: 'Mock User', id: 'mock-user' });
+  });
+
+  it('GET /api/info - should return mocked user info', async () => {
+    const res = await request(app).get('/api/info');
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ 
+      email: 'mock@example.com', 
+      displayName: 'Mock User', 
+      photoURL: 'mock-photo-url',
+      emailVerified: true 
+    });
   });
 
   it('PUT /api/profile - should update and return profile data', async () => {

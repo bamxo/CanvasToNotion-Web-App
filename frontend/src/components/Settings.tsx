@@ -136,8 +136,10 @@ const Settings: React.FC = () => {
       // Call the backend logout endpoint to clear the session cookie
       await axios.post(AUTH_ENDPOINTS.LOGOUT, {}, { withCredentials: true });
       
-      // Also clear the isAuthenticated cookie
-      await axios.post(COOKIE_STATE_ENDPOINTS.CLEAR_AUTHENTICATED, {}, { withCredentials: true });
+      // Also clear the isAuthenticated cookie only in production
+      if (import.meta.env.PROD) {
+        await axios.post(COOKIE_STATE_ENDPOINTS.CLEAR_AUTHENTICATED, {}, { withCredentials: true });
+      }
       
       // Clear local storage and navigate
       secureRemoveToken('authToken');
@@ -170,8 +172,10 @@ const Settings: React.FC = () => {
       // Call the logout endpoint to clear the session cookie
       await axios.post(AUTH_ENDPOINTS.LOGOUT, {}, { withCredentials: true });
       
-      // Also clear the isAuthenticated cookie
-      await axios.post(COOKIE_STATE_ENDPOINTS.CLEAR_AUTHENTICATED, {}, { withCredentials: true });
+      // Also clear the isAuthenticated cookie only in production
+      if (import.meta.env.PROD) {
+        await axios.post(COOKIE_STATE_ENDPOINTS.CLEAR_AUTHENTICATED, {}, { withCredentials: true });
+      }
 
       // Clear local storage
       secureRemoveToken('authToken');

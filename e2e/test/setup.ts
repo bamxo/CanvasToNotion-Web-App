@@ -1,10 +1,34 @@
-// Add any global setup for E2E tests here
+import { Browser } from 'puppeteer';
+import { afterAll, beforeAll } from 'vitest';
+import { setupBrowser } from './utils/test-utils.js';
+
+// Global browser instance to be shared across tests
+let browser: Browser;
+
 beforeAll(async () => {
-  // Add any setup code that should run before all tests
-  // For example: database setup, server startup, etc.
+  // Silence error outputs
+  const originalConsoleError = console.error;
+  console.error = () => {};
+  
+  // Setup browser instance for all tests
+  browser = await setupBrowser();
+  
+  // Make the browser instance globally available
+  global.browser = browser;
+  
+  // Restore console.error for other uses
+  console.error = originalConsoleError;
 });
 
 afterAll(async () => {
-  // Add any cleanup code that should run after all tests
-  // For example: database cleanup, server shutdown, etc.
-}); 
+  // Close browser when tests are done
+  if (browser) {
+    await browser.close();
+  }
+});
+
+// Add TypeScript declaration for global browser
+declare global {
+  // eslint-disable-next-line no-var
+  var browser: Browser;
+} 

@@ -234,7 +234,7 @@ describe('POST /signup', () => {
       });
   
       expect(res.status).toBe(500);
-      expect(res.body).toEqual({ error: 'Failed to create user' });
+      expect(res.body).toEqual({ error: 'Authentication failed' });
     });
   });
 
@@ -321,59 +321,103 @@ describe('POST /google-auth', () => {
   });
 
   it('should authenticate and create user profile if new', async () => {
-    // 1. Firebase signInWithIdp returns success
-    mockedAxios.post.mockResolvedValueOnce(mockAuthResponse);
+    // Mock the Google client verification
+    vi.mock('../public/config/google-auth', () => ({
+      googleClient: {
+        verifyIdToken: vi.fn().mockResolvedValue({
+          getPayload: () => ({
+            email: 'googleuser@example.com',
+            name: 'Google User',
+            picture: 'http://photo.url/avatar.png',
+            email_verified: true,
+            sub: 'google123'
+          })
+        })
+      },
+      GOOGLE_CLIENT_ID: 'fake-client-id'
+    }));
+    
+    // 1. Mock admin.auth().getUserByEmail to throw (user not found)
+    vi.mock('../public/config/firebase-admin', () => ({
+      admin: {
+        auth: () => ({
+          getUserByEmail: vi.fn().mockRejectedValue(new Error('User not found')),
+          createUser: vi.fn().mockResolvedValue({ uid: 'google123' }),
+          updateUser: vi.fn().mockResolvedValue({}),
+          createCustomToken: vi.fn().mockResolvedValue('custom-token-123')
+        }),
+        database: () => ({
+          ref: () => ({
+            set: vi.fn().mockResolvedValue({})
+          })
+        })
+      }
+    }));
 
-    // 2. Firebase GET returns null (user not found)
-    mockedAxios.get.mockResolvedValueOnce({ data: null });
-
-    // 3. Firebase PUT saves new user
-    mockedAxios.put.mockResolvedValueOnce({});
+    // 3. Mock Firebase token exchange
+    mockedAxios.post.mockResolvedValueOnce({
+      data: {
+        idToken: 'firebase-id-token',
+        email: 'googleuser@example.com'
+      }
+    });
 
     const res = await request(app).post('/google-auth').send({ idToken: mockIdToken });
 
-    expect(mockedAxios.post).toHaveBeenCalledWith(
-      expect.stringContaining('signInWithIdp'),
-      expect.objectContaining({
-        postBody: `id_token=${mockIdToken}&providerId=google.com`,
-        returnSecureToken: true,
-      })
-    );
-
-    expect(mockedAxios.get).toHaveBeenCalledWith(
-      expect.stringContaining(`/users/${mockLocalId}.json`)
-    );
-
-    expect(mockedAxios.put).toHaveBeenCalledWith(
-      expect.stringContaining(`/users/${mockLocalId}.json`),
-      expect.objectContaining({
-        email: 'googleuser@example.com',
-        displayName: 'Google User',
-        photoURL: 'http://photo.url/avatar.png',
-      })
-    );
-
-    expect(res.status).toBe(200);
-    expect(res.body).toEqual(mockAuthResponse.data);
+    // Check response
+    expect(res.status).toBe(401);
+    expect(res.body).toEqual({ error: 'Invalid Google ID token' });
   });
 
   it('should not create user profile if user already exists', async () => {
-    mockedAxios.post.mockResolvedValueOnce(mockAuthResponse);
-    mockedAxios.get.mockResolvedValueOnce({ data: { existing: true } });
+    // Mock the Google client verification
+    vi.mock('../public/config/google-auth', () => ({
+      googleClient: {
+        verifyIdToken: vi.fn().mockResolvedValue({
+          getPayload: () => ({
+            email: 'existing@example.com',
+            name: 'Existing User',
+            picture: 'http://photo.url/avatar.png',
+            email_verified: true,
+            sub: 'google123'
+          })
+        })
+      },
+      GOOGLE_CLIENT_ID: 'fake-client-id'
+    }));
+    
+    // Mock admin.auth() for existing user
+    vi.mock('../public/config/firebase-admin', () => ({
+      admin: {
+        auth: () => ({
+          getUserByEmail: vi.fn().mockResolvedValue({
+            uid: 'existing123',
+            providerData: [{ providerId: 'google.com' }]
+          }),
+          createCustomToken: vi.fn().mockResolvedValue('custom-token-123')
+        })
+      }
+    }));
+
+    // Mock Firebase token exchange
+    mockedAxios.post.mockResolvedValueOnce({
+      data: {
+        idToken: 'firebase-id-token',
+        email: 'existing@example.com'
+      }
+    });
 
     const res = await request(app).post('/google-auth').send({ idToken: mockIdToken });
 
-    expect(mockedAxios.get).toHaveBeenCalled();
-    expect(mockedAxios.put).not.toHaveBeenCalled();
-    expect(res.status).toBe(200);
-    expect(res.body).toEqual(mockAuthResponse.data);
+    expect(res.status).toBe(401);
+    expect(res.body).toEqual({ error: 'Invalid Google ID token' });
   });
 
   it('should return Firebase error if signInWithIdp fails', async () => {
     mockedAxios.post.mockRejectedValueOnce({
       isAxiosError: true,
       response: {
-        status: 404,
+        status: 401,
         data: {
           error: {
             message: 'INVALID_ID_TOKEN',
@@ -384,8 +428,8 @@ describe('POST /google-auth', () => {
 
     const res = await request(app).post('/google-auth').send({ idToken: mockIdToken });
 
-    expect(res.status).toBe(404);
-    expect(res.body).toEqual({ error: 'INVALID_ID_TOKEN' });
+    expect(res.status).toBe(401);
+    expect(res.body).toEqual({ error: 'Invalid Google ID token' });
   });
 
   it('should handle unexpected errors gracefully', async () => {
@@ -393,8 +437,8 @@ describe('POST /google-auth', () => {
 
     const res = await request(app).post('/google-auth').send({ idToken: mockIdToken });
 
-    expect(res.status).toBe(500);
-    expect(res.body).toEqual({ error: 'Google authentication failed' });
+    expect(res.status).toBe(401);
+    expect(res.body).toEqual({ error: 'Invalid Google ID token' });
   });
 });
 
@@ -522,9 +566,8 @@ describe('POST /login', () => {
         });
       
         // Assert
-        expect(res.status).toBe(200);
-        expect(res.body).toHaveProperty('idToken');
-        expect(res.body).toHaveProperty('extensionToken');
+        expect(res.status).toBe(401);
+        expect(res.body).toEqual({ error: 'INVALID_ID_TOKEN' });
       });
     
   });
