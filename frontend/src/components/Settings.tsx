@@ -48,8 +48,16 @@ const Settings: React.FC = () => {
       const token = secureGetToken('authToken');
       const isAuthenticatedCookie = Cookies.get('isAuthenticated');
       
-      if (!token || !isAuthenticatedCookie) {
-        console.log('No auth token or isAuthenticated cookie found, redirecting to login');
+      // In development mode, only check for token. In production, check for both token and cookie
+      const isAuthenticated = import.meta.env.PROD 
+        ? (token && isAuthenticatedCookie) 
+        : token;
+      
+      if (!isAuthenticated) {
+        console.log('Authentication check failed, redirecting to login');
+        console.log('Token exists:', !!token);
+        console.log('Cookie exists:', !!isAuthenticatedCookie);
+        console.log('Is production:', import.meta.env.PROD);
         secureRemoveToken('authToken');
         navigate('/login');
         return;
