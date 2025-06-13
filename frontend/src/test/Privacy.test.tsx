@@ -53,8 +53,8 @@ describe('Privacy Component', () => {
     // Check for main heading
     expect(screen.getByRole('heading', { level: 1, name: /privacy policy/i })).toBeInTheDocument();
     
-    // Verify key elements are rendered
-    expect(screen.getByText(/last updated: april 23, 2025/i)).toBeInTheDocument();
+    // Verify key elements are rendered - fix the date to match actual content
+    expect(screen.getByText(/last updated: january 15, 2025/i)).toBeInTheDocument();
     
     // Get introduction paragraph
     const introSection = container.querySelector('.' + Object.values(container.querySelector('div[class^="_introduction_"]')?.classList || [])[0]);
@@ -71,19 +71,21 @@ describe('Privacy Component', () => {
       </MemoryRouter>
     );
 
-    // Check that all major section headings are rendered
+    // Check that all major section headings are rendered - updated to match actual content
     const sections = [
       '1. Information We Collect',
-      '2. How We Use Your Data',
-      '3. Data Sharing',
-      '4. Cookies and Tracking',
-      '5. Data Security',
-      '6. Your Rights',
-      '7. International Users',
-      '8. Children\'s Privacy',
-      '9. Retention',
-      '10. Changes to This Policy',
-      '11. Contact Us'
+      '2. How We Collect Your Data',
+      '3. Data Storage Locations',
+      '4. How We Use Your Data',
+      '5. Data Sharing and Third-Party Services',
+      '6. Chrome Extension Permissions',
+      '7. Data Security and Retention',
+      '8. International Data Transfers',
+      '9. Your Rights and Control',
+      '10. Technical Implementation',
+      '11. Children\'s Privacy',
+      '12. Changes to This Policy',
+      '13. Contact Us'
     ];
 
     // Find all h2 elements and check if they contain our section titles
@@ -101,12 +103,12 @@ describe('Privacy Component', () => {
     const subsectionHeadings = screen.getAllByRole('heading', { level: 3 });
     expect(subsectionHeadings.length).toBeGreaterThanOrEqual(4); // At least 4 subsections
     
-    // Check for specific subsections
+    // Check for specific subsections - updated to match actual content
     const subsectionTitles = [
-      '1.1 Types of Personal Information Collected',
-      '1.2 Sources of Data',
-      '3.1 Third-Party Services',
-      '3.2 Legal Compliance'
+      '1.1 Personal Information',
+      '1.2 Canvas Academic Data',
+      '3.1 Local Storage \\(Chrome Extension\\)',
+      '3.2 Firebase Realtime Database'
     ];
     
     subsectionTitles.forEach(title => {
@@ -193,28 +195,28 @@ describe('Privacy Component', () => {
     // Check specific content in different sections using container queries
     const sections = container.querySelectorAll('section');
     
-    // Check section 4 for cookies text
-    const section4 = Array.from(sections).find(section => 
-      section.querySelector('h2')?.textContent?.includes('4. Cookies and Tracking'));
-    expect(section4).toBeDefined();
-    if (section4) {
-      expect(section4.textContent).toMatch(/we do not use tracking cookies or behavioral advertising/i);
-    }
-    
-    // Check section 5 for security text
+    // Check section 5 for data sharing text (updated section number and content)
     const section5 = Array.from(sections).find(section => 
-      section.querySelector('h2')?.textContent?.includes('5. Data Security'));
+      section.querySelector('h2')?.textContent?.includes('5. Data Sharing and Third-Party Services'));
     expect(section5).toBeDefined();
     if (section5) {
-      expect(section5.textContent).toMatch(/we use https encryption/i);
+      expect(section5.textContent).toMatch(/we do not sell, rent, or share your personal information with third parties for marketing purposes/i);
     }
     
-    // Check section 8 for children's privacy text
-    const section8 = Array.from(sections).find(section => 
-      section.querySelector('h2')?.textContent?.includes('8. Children\'s Privacy'));
-    expect(section8).toBeDefined();
-    if (section8) {
-      expect(section8.textContent).toMatch(/not intended for children under 13/i);
+    // Check section 7 for security text (updated section number and content)
+    const section7 = Array.from(sections).find(section => 
+      section.querySelector('h2')?.textContent?.includes('7. Data Security and Retention'));
+    expect(section7).toBeDefined();
+    if (section7) {
+      expect(section7.textContent).toMatch(/https encryption for all api communications/i);
+    }
+    
+    // Check section 11 for children's privacy text (updated section number)
+    const section11 = Array.from(sections).find(section => 
+      section.querySelector('h2')?.textContent?.includes('11. Children\'s Privacy'));
+    expect(section11).toBeDefined();
+    if (section11) {
+      expect(section11.textContent).toMatch(/not intended for children under 13/i);
     }
     
     // Check for the contact email link
