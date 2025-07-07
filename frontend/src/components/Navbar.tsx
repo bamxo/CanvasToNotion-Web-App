@@ -8,7 +8,7 @@ interface NavbarProps {
 
 const Navbar: FC<NavbarProps> = ({ isScrolled }) => {
   const handleInstallClick = () => {
-    window.open('https://chromewebstore.google.com/', '_blank', 'noopener,noreferrer');
+    window.open('https://chromewebstore.google.com/detail/ngnhijamcbadkalghdpbnecgjlocnmke?utm_source=item-share-cb', '_blank', 'noopener,noreferrer');
   };
 
   return (
@@ -24,10 +24,10 @@ const Navbar: FC<NavbarProps> = ({ isScrolled }) => {
           </div>
           <button onClick={handleInstallClick} className={styles.installButton}>
             {/* For Release */}
-            {/* Install Extension */}
+            Install Extension
 
             {/* For Current Deployment */}
-            Coming Soon
+            {/* Coming Soon */}
           </button>
         </div>
       </div>

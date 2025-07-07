@@ -11,7 +11,7 @@ const Hero: React.FC = () => {
   }, []);
 
   const handleInstallClick = () => {
-    window.open('https://chromewebstore.google.com/', '_blank', 'noopener,noreferrer');
+    window.open('https://chromewebstore.google.com/detail/ngnhijamcbadkalghdpbnecgjlocnmke?utm_source=item-share-cb', '_blank', 'noopener,noreferrer');
   };
 
   return (
@@ -21,12 +21,12 @@ const Hero: React.FC = () => {
           <div className={styles.tagline}>
 
             {/* For Release */}
-            {/* <span className={styles.tag}>New</span> */}
-            {/* <span className={styles.tagText}>Canvas Integration Available</span> */}
+            <span className={styles.tag}>New</span>
+            <span className={styles.tagText}>Canvas Integration Available</span>
 
             {/* For Current Deployment */}
-            <span className={styles.tag}>Coming Soon</span>
-            <span className={styles.tagText}>Canvas Integration</span>
+            {/* <span className={styles.tag}>Coming Soon</span>
+            <span className={styles.tagText}>Canvas Integration</span> */}
           </div>
           
           <h1 className={styles.heroTitle}>
@@ -47,10 +47,10 @@ const Hero: React.FC = () => {
               <div className={styles.buttonContent}>
                 <FaChrome className={styles.chromeIcon} />
                 {/* For Release */}
-                {/* <span>Add to Chrome</span> */}
+                <span>Add to Chrome</span>
 
                 {/* For Current Deployment */}
-                <span>Coming Soon</span>
+                {/* <span>Coming Soon</span> */}
                 <FaArrowRight className={styles.arrowIcon} />
               </div>
             </button>

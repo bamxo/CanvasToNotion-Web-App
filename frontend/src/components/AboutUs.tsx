@@ -57,7 +57,7 @@ const AboutUs: React.FC = () => {
   }, []);
 
   const handleButtonClick = () => {
-    window.open('https://chromewebstore.google.com/', '_blank', 'noopener,noreferrer');
+    window.open('https://chromewebstore.google.com/detail/ngnhijamcbadkalghdpbnecgjlocnmke?utm_source=item-share-cb', '_blank', 'noopener,noreferrer');
   };
 
   return (
@@ -78,11 +78,11 @@ const AboutUs: React.FC = () => {
             <button 
               onClick={handleButtonClick} 
               className={styles.ctaButton}
-              aria-label="Coming Soon"
+              aria-label="Add to Chrome"
             >
               <div className={styles.buttonContent}>
                 <FaChrome className={styles.chromeIcon} />
-                <span>Coming Soon</span>
+                <span>Add to Chrome</span>
                 <FaArrowRight className={styles.arrowIcon} />
               </div>
             </button>

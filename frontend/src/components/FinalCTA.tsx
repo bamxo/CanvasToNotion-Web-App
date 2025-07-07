@@ -5,7 +5,7 @@ import { motion } from 'framer-motion';
 
 const FinalCTA: React.FC = () => {
   const handleInstallClick = useCallback(() => {
-    window.open('https://chromewebstore.google.com/', '_blank', 'noopener,noreferrer');
+    window.open('https://chromewebstore.google.com/detail/ngnhijamcbadkalghdpbnecgjlocnmke?utm_source=item-share-cb', '_blank', 'noopener,noreferrer');
   }, []);
 
   return (
