@@ -4,6 +4,7 @@ import { FaArrowRight, FaChrome } from 'react-icons/fa';
 import Navbar from './Navbar';
 import Footer from './Footer';
 import Carousel from './Carousel';
+import { useKofiWidget } from '../hooks/useKofiWidget';
 
 const EllipseGradient = () => {
   return (
@@ -17,6 +18,9 @@ const AboutUs: React.FC = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [storyVisible, setStoryVisible] = useState(false);
   const storySectionRef = useRef<HTMLDivElement>(null);
+
+  // Initialize Ko-fi widget with faster animation for About Us page
+  useKofiWidget({ animationDelay: 800 }); // Faster animation - appears after 800ms
 
   useEffect(() => {
     const handleScroll = () => {

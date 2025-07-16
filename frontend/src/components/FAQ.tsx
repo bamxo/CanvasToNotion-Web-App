@@ -39,7 +39,7 @@ const FAQ: React.FC = () => {
   const faqs = [
     {
       question: "Is Canvas to Notion free to use?",
-      answer: "Yes! Canvas to Notion is completely free to use. There are no premium tiers or hidden fees. All features are available to all users at no cost."
+      answer: "Yes! Canvas to Notion is completely free to use. All features are available to everyone—no hidden fees, no premium tiers. We run on donations to keep it that way, so every bit of support means the world."
     },
     {
       question: "How do I connect Notion and Canvas?",

@@ -8,6 +8,7 @@ import FinalCTA from './FinalCTA';
 import BrowserMockup from './BrowserMockup';
 import FAQ from './FAQ';
 import SplashScreen from './SplashScreen';
+import { useKofiWidget } from '../hooks/useKofiWidget';
 
 const LandingPage: React.FC = () => {
   const [isScrolled, setIsScrolled] = useState(false);
@@ -16,6 +17,9 @@ const LandingPage: React.FC = () => {
   const heroContentRef = useRef<HTMLDivElement>(null);
   const mockupRef = useRef<HTMLDivElement>(null);
   const featureCardsRef = useRef<HTMLDivElement>(null);
+
+  // Initialize Ko-fi widget
+  useKofiWidget();
 
   useEffect(() => {
     const handleScroll = () => {

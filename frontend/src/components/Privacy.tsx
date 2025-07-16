@@ -209,17 +209,22 @@ const Privacy: React.FC = () => {
         </section>
 
         <section>
-          <h2>11. Children's Privacy</h2>
+          <h2>11. Donation Information</h2>
+          <p>If you choose to make a donation, your payment is processed securely through Stripe, PayPal, or Ko-fi. We do not store your payment information, but may collect basic contact details (like name and email) if provided. Please refer to Stripe's, PayPal's, or Ko-fi's privacy policy for more on how they handle your data.</p>
+        </section>
+
+        <section>
+          <h2>12. Children's Privacy</h2>
           <p>This extension is not intended for children under 13, and we do not knowingly collect personal information from anyone under 13. If we become aware that we have collected personal information from a child under 13, we will take steps to delete such information.</p>
         </section>
 
         <section>
-          <h2>12. Changes to This Policy</h2>
+          <h2>13. Changes to This Policy</h2>
           <p>We may update this Privacy Policy from time to time to reflect changes in our practices or applicable laws. Updates will be posted on our website and within the extension interface. The "Last Updated" date at the top of this policy indicates when it was last revised. Continued use of the Services after changes indicates your acceptance of the updated policy.</p>
         </section>
 
         <section>
-          <h2>13. Contact Us</h2>
+          <h2>14. Contact Us</h2>
           <p>If you have any questions about this Privacy Policy or our privacy practices, please contact us at:</p>
           <p>📧 Email: <a href="mailto:canvastonotioninfo@gmail.com">canvastonotioninfo@gmail.com</a></p>
           <p>We will respond to your inquiry within a reasonable timeframe.</p>

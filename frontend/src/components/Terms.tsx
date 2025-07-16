@@ -91,17 +91,22 @@ const Terms: React.FC = () => {
         </section>
 
         <section>
-          <h2>9. Governing Law</h2>
+          <h2>9. Donations</h2>
+          <p>Donations are completely optional and help support the continued operation of Canvas to Notion. They do not entitle the donor to any additional features or services.</p>
+        </section>
+
+        <section>
+          <h2>10. Governing Law</h2>
           <p>These Terms are governed by the laws of the State of California, without regard to its conflict of law provisions. Any disputes arising from these Terms or the Services shall be resolved in the courts located in California.</p>
         </section>
 
         <section>
-          <h2>10. Modifications to Terms</h2>
+          <h2>11. Modifications to Terms</h2>
           <p>We may revise these Terms from time to time. Updated terms will be posted in the Chrome Web Store listing or within the extension. Continued use of the Services after changes constitutes your acceptance of the new terms.</p>
         </section>
 
         <section>
-          <h2>11. Contact Us</h2>
+          <h2>12. Contact Us</h2>
           <p>If you have any questions or concerns about these Terms or the Services, please contact us at:</p>
           <p>📧 Email: <a href="mailto:canvastonotioninfo@gmail.com">canvastonotioninfo@gmail.com</a></p>
         </section>
