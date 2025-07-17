@@ -20,6 +20,7 @@ const Navbar: FC<NavbarProps> = ({ isScrolled }) => {
         <div className={styles.navRight}>
           <div className={styles.navLinks}>
             <a href="/" className={styles.navLink}>Home</a>
+            <a href="/contact" className={styles.navLink}>Contact</a>
             <a href="/about" className={styles.navLink}>About</a>
           </div>
           <button onClick={handleInstallClick} className={styles.installButton}>

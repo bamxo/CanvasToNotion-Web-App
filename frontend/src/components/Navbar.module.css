@@ -233,26 +233,36 @@
     gap: 1rem;
   }
   
+  .navLinks {
+    gap: 1.75rem;
+    margin-right: 1.5rem;
+  }
+  
+  .navbarScrolled .navLinks {
+    gap: 1.25rem;
+    margin-right: 1rem;
+  }
+  
   .navLink {
+    font-size: 1rem;
+  }
+  
+  .navbarScrolled .navLink {
     font-size: 0.9rem;
   }
   
   .installButton {
-    padding: 0.6rem 1rem;
+    padding: 0.65rem 1.2rem;
+    font-size: 0.95rem;
+  }
+
+  .navbarScrolled .installButton {
+    padding: 0.55rem 1rem;
     font-size: 0.85rem;
   }
 }
 
-@media (max-width: 480px) {
-  .navRight {
-    gap: 0;
-  }
-
-  .installButton {
-    padding: 0.5rem 1rem;
-    font-size: 0.75rem;
-  }
-
+@media (max-width: 640px) {
   .navbar {
     padding: 1rem 1.5rem;
   }
@@ -262,15 +272,72 @@
     width: 96%;
   }
 
-  /* New styles for mobile */
+  .navRight {
+    gap: 0.75rem;
+  }
+
+  .navLinks {
+    gap: 1.25rem;
+    margin-right: 1rem;
+  }
+
+  .navbarScrolled .navLinks {
+    gap: 1rem;
+    margin-right: 0.75rem;
+  }
+
+  .navLink {
+    font-size: 0.9rem;
+  }
+
+  .navbarScrolled .navLink {
+    font-size: 0.85rem;
+  }
+
+  .installButton {
+    padding: 0.55rem 1rem;
+    font-size: 0.85rem;
+  }
+
+  .navbarScrolled .installButton {
+    padding: 0.5rem 0.85rem;
+    font-size: 0.8rem;
+  }
+
   .logo {
-    height: 48px;
+    height: 56px;
   }
 
   .navbarScrolled .logo {
-    height: 40px;
+    height: 44px;
+  }
+}
+
+@media (max-width: 480px) {
+  .navbar {
+    padding: 0.75rem 1rem;
+  }
+  
+  .navbarScrolled {
+    padding: 0.6rem 1rem;
+    width: 98%;
   }
 
+  .navRight {
+    gap: 0.5rem;
+  }
+
+  .navLinks {
+    gap: 1rem;
+    margin-right: 0.75rem;
+  }
+
+  .navbarScrolled .navLinks {
+    gap: 0.75rem;
+    margin-right: 0.5rem;
+  }
+
+  /* Hide the Home link on mobile to save space */
   .navLink[href="/"] {
     display: none;
   }
@@ -281,5 +348,75 @@
 
   .navbarScrolled .navLink {
     font-size: 0.8rem;
+  }
+
+  .installButton {
+    padding: 0.5rem 0.8rem;
+    font-size: 0.8rem;
+    white-space: nowrap;
+  }
+
+  .navbarScrolled .installButton {
+    padding: 0.45rem 0.7rem;
+    font-size: 0.75rem;
+  }
+
+  .logo {
+    height: 48px;
+  }
+
+  .navbarScrolled .logo {
+    height: 38px;
+  }
+}
+
+@media (max-width: 360px) {
+  .navbar {
+    padding: 0.75rem 0.75rem;
+  }
+  
+  .navbarScrolled {
+    padding: 0.5rem 0.75rem;
+    width: 99%;
+  }
+
+  .navRight {
+    gap: 0.25rem;
+  }
+
+  .navLinks {
+    gap: 0.75rem;
+    margin-right: 0.5rem;
+  }
+
+  .navbarScrolled .navLinks {
+    gap: 0.5rem;
+    margin-right: 0.375rem;
+  }
+
+  .navLink {
+    font-size: 0.8rem;
+  }
+
+  .navbarScrolled .navLink {
+    font-size: 0.75rem;
+  }
+
+  .installButton {
+    padding: 0.45rem 0.65rem;
+    font-size: 0.75rem;
+  }
+
+  .navbarScrolled .installButton {
+    padding: 0.4rem 0.55rem;
+    font-size: 0.7rem;
+  }
+
+  .logo {
+    height: 44px;
+  }
+
+  .navbarScrolled .logo {
+    height: 36px;
   }
 } 
