@@ -1,6 +1,6 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
 import LandingPage from './components/LandingPage'
-// import Contact from './components/Contact'
+import Contact from './components/Contact'
 import AboutUs from './components/AboutUs'
 import Lookup from './components/Lookup'
 import SignUp from './components/SignUp'
@@ -17,7 +17,7 @@ function App() {
     <Router>
       <Routes>
         <Route path="/" element={<LandingPage />} />
-        {/* <Route path="/contact" element={<Contact />} /> */}
+        <Route path="/contact" element={<Contact />} />
         <Route path="/about" element={<AboutUs />} />
         <Route path="/lookup" element={<Lookup />} />
         <Route path="/signup" element={<SignUp />} />

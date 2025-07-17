@@ -57,6 +57,11 @@ export const NOTION_ENDPOINTS = {
   COMPARE: `${API_BASE}/notion/compare`,
 };
 
+// Contact form endpoint
+export const CONTACT_ENDPOINT = isProduction 
+  ? 'https://canvastonotion.netlify.app/.netlify/functions/contact' // production
+  : 'https://canvastonotion.netlify.app/.netlify/functions/contact'; // development
+
 // Health check endpoint
 export const HEALTH_ENDPOINT = isProduction 
   ? 'https://canvastonotion.netlify.app/.netlify/functions/api/health'
