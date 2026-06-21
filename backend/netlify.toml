@@ -8,6 +8,11 @@
   port = 8888
 
 [[redirects]]
+  from = "/api/usercount"
+  to = "/.netlify/functions/usercount"
+  status = 200
+
+[[redirects]]
   from = "/api/*"
   to = "/.netlify/functions/api/api/:splat"
   status = 200
