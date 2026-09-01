@@ -237,7 +237,7 @@ describe('Lookup Component', () => {
       expect.any(String), // Extension ID
       {
         type: 'AUTH_TOKEN',
-        token: 'extension-token-456'
+        token: 'google-auth-token-123'
       }
     );
     

@@ -18,7 +18,7 @@ import styles from './Settings.module.css';
 import logo from '../assets/c2n-favicon.svg';
 import { useNotionAuth } from '../hooks/useNotionAuth';
 import { AUTH_ENDPOINTS, USER_ENDPOINTS, NOTION_ENDPOINTS, COOKIE_STATE_ENDPOINTS } from '../utils/api';
-import { NOTION_REDIRECT_URI } from '../utils/constants';
+import { EXTENSION_ID, NOTION_REDIRECT_URI } from '../utils/constants';
 import { secureGetToken, secureRemoveToken } from '../utils/encryption';
 import Cookies from 'js-cookie';
 
@@ -72,38 +72,20 @@ const Settings: React.FC = () => {
         });
         setUserInfo(response.data);
         
-        // Refresh the extension token and send it to the extension
+        // Send the Firebase ID token the backend can verify (not a custom token)
         try {
-          const extensionResponse = await axios.post(
-            AUTH_ENDPOINTS.REFRESH_EXTENSION_TOKEN, 
-            {}, // No body needed, token is in the authorization header
+          const extensionId = EXTENSION_ID;
+          localStorage.setItem('extensionId', extensionId);
+          await chrome.runtime.sendMessage(
+            extensionId,
             {
-              headers: {
-                Authorization: `Bearer ${token}`
-              }
+              type: 'AUTH_TOKEN',
+              token
             }
           );
-          
-          if (extensionResponse.data && extensionResponse.data.extensionToken) {
-            // Try to send the token to the extension
-            const extensionId = localStorage.getItem('extensionId');
-            if (extensionId) {
-              try {
-                await chrome.runtime.sendMessage(
-                  extensionId,
-                  {
-                    type: 'AUTH_TOKEN',
-                    token: extensionResponse.data.extensionToken
-                  }
-                );
-                console.log('Successfully sent refreshed token to extension');
-              } catch (extError) {
-                console.error('Failed to send token to extension:', extError);
-              }
-            }
-          }
+          console.log('Successfully sent ID token to extension');
         } catch (extError) {
-          console.error('Failed to refresh extension token:', extError);
+          console.error('Failed to send token to extension:', extError);
           // Non-fatal error, user can still use the web app
         }
       } catch (error) {

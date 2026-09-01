@@ -284,7 +284,7 @@ describe('Login Component', () => {
         EXTENSION_ID,
         {
           type: 'AUTH_TOKEN',
-          token: 'extension-token-456'
+          token: 'fake-token-123'
         }
       );
       
@@ -615,7 +615,7 @@ describe('Login Component', () => {
       EXTENSION_ID,
       {
         type: 'AUTH_TOKEN',
-        token: 'extension-token-xyz'
+        token: 'new-auth-token-123'
       }
     );
     

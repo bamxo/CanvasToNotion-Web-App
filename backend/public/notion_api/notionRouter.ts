@@ -755,4 +755,259 @@ router.post('/compare', async (req: AuthenticatedRequest, res: Response) => {
   }
 });
 
+// Handle sync v2 (synchronous chunked sync)
+// Ported 1:1 from backend/netlify/functions/notion.ts:handleSyncV2 — only the
+// request/response plumbing is adapted to Express (body -> req.body,
+// user.email -> req.user!.email, getUserByEmail(adminDb, ...), and
+// { statusCode, headers, body: JSON.stringify(x) } -> res.status(n).json(x)).
+router.post('/sync-v2', async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    console.log('--- /sync-v2 endpoint called ---');
+
+    const { pageId, courses, assignments, chunkIndex, totalChunks, isInitialChunk } = req.body;
+
+    // Validate required fields
+    if (!pageId || !Array.isArray(courses) || !Array.isArray(assignments)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing required fields: pageId, courses, and assignments are required'
+      });
+    }
+
+    console.log(`Processing chunk ${chunkIndex + 1}/${totalChunks} with ${assignments.length} assignments`);
+
+    // Get user data and access token
+    const userData = await getUserByEmail(adminDb, req.user!.email);
+    if (!userData?.accessToken) {
+      return res.status(403).json({
+        success: false,
+        error: 'Notion integration not connected'
+      });
+    }
+
+    const notion = new Client({ auth: userData.accessToken });
+
+    // Verify parent page access
+    try {
+      await notion.pages.retrieve({ page_id: pageId });
+    } catch (error) {
+      console.error(`No access to parent page (${pageId}):`, error);
+      return res.status(403).json({
+        success: false,
+        error: `No access to parent page. Share it with your integration via Notion's page connections.`
+      });
+    }
+
+    // Get all child blocks in parent page hierarchy
+    const childrenResponse = await notion.blocks.children.list({ block_id: pageId });
+
+    // Check to see if the Courses and Assignments DBs already exist
+    const existingCoursesDb = childrenResponse.results.find(child =>
+      "type" in child &&
+      child.type === "child_database" &&
+      child.child_database?.title == "Courses"
+    );
+    const existingAssignmentsDb = childrenResponse.results.find(child =>
+      "type" in child &&
+      child.type === "child_database" &&
+      child.child_database?.title == "Assignments"
+    );
+
+    // Create Courses DB if it doesn't exist (only on initial chunk)
+    let coursesDbId = existingCoursesDb?.id;
+    if (!coursesDbId && isInitialChunk) {
+      console.log("Creating Courses database...");
+      const newCoursesDb = await notion.databases.create({
+        parent: { type: "page_id", page_id: pageId },
+        is_inline: false,
+        title: [{ type: "text", text: { content: "Courses" } }],
+        properties: {
+          Name: { title: {} }
+        }
+      });
+      coursesDbId = newCoursesDb.id;
+    } else if (!coursesDbId) {
+      // If not initial chunk and DB doesn't exist, something went wrong
+      return res.status(400).json({
+        success: false,
+        error: 'Courses database not found. Please start sync from beginning.'
+      });
+    }
+
+    // Create Assignments DB if it doesn't exist (only on initial chunk)
+    let assignmentsDbId = existingAssignmentsDb?.id;
+    if (!assignmentsDbId && isInitialChunk) {
+      console.log("Creating Assignments database...");
+      const newAssignmentsDb = await notion.databases.create({
+        parent: { type: "page_id", page_id: pageId },
+        is_inline: true,
+        title: [{ type: "text", text: { content: "Assignments" } }],
+        properties: {
+          Name: { title: {} },
+          DueDate: { date: {} },
+          Points: { number: {} },
+          URL: { url: {} },
+          Status: {
+            select: {
+              options: [
+                { name: "Not Started", color: "red" },
+                { name: "In Progress", color: "yellow" },
+                { name: "Done", color: "green" }
+              ]
+            }
+          },
+          Course: {
+            relation: {
+              database_id: coursesDbId!,
+              type: "single_property",
+              single_property: {}
+            }
+          }
+        }
+      });
+      assignmentsDbId = newAssignmentsDb.id;
+    } else if (!assignmentsDbId) {
+      return res.status(400).json({
+        success: false,
+        error: 'Assignments database not found. Please start sync from beginning.'
+      });
+    }
+
+    // Get existing course names to avoid duplicates
+    const existingCourseNames = new Set<string>();
+    const existingCoursePages = await notion.databases.query({ database_id: coursesDbId! });
+
+    for (const page of existingCoursePages.results) {
+      if (
+        'properties' in page &&
+        'Name' in page.properties &&
+        'title' in page.properties.Name &&
+        Array.isArray(page.properties.Name.title)
+      ) {
+        const titleText = page.properties.Name.title.map(t => t.plain_text).join('').trim();
+        if (titleText) {
+          existingCourseNames.add(titleText);
+        }
+      }
+    }
+
+    // Build coursePageIds map from existing courses and create new ones
+    const coursePageIds = new Map<string, string>();
+
+    // First, populate from existing courses
+    for (const page of existingCoursePages.results) {
+      if (
+        'properties' in page &&
+        'Name' in page.properties &&
+        'title' in page.properties.Name &&
+        Array.isArray(page.properties.Name.title)
+      ) {
+        const titleText = page.properties.Name.title.map(t => t.plain_text).join('').trim();
+        if (titleText) {
+          coursePageIds.set(titleText, page.id);
+        }
+      }
+    }
+
+    // Create courses that don't exist yet (mainly on initial chunk)
+    let coursesCreated = 0;
+    for (const course of courses) {
+      if (!coursePageIds.has(course.name)) {
+        console.log(`Creating course: ${course.name}`);
+        const coursePage = await notion.pages.create({
+          parent: { database_id: coursesDbId! },
+          properties: {
+            Name: { title: [{ text: { content: course.name } }] }
+          }
+        });
+        coursePageIds.set(course.name, coursePage.id);
+        coursesCreated++;
+      }
+    }
+
+    // Get existing assignment URLs to avoid duplicates
+    const notionAssignmentUrls = new Set<string>();
+    const notionAssignments = await notion.databases.query({ database_id: assignmentsDbId! });
+
+    for (const assignment of notionAssignments.results) {
+      if ('properties' in assignment && 'URL' in assignment.properties) {
+        if ('url' in assignment.properties.URL && assignment.properties.URL.url) {
+          notionAssignmentUrls.add(assignment.properties.URL.url.trim());
+        }
+      }
+    }
+
+    // Process assignments in this chunk
+    let assignmentsCreated = 0;
+    let assignmentsSkipped = 0;
+    const errors: string[] = [];
+
+    for (const assignment of assignments) {
+      const canvasUrl = assignment.html_url?.trim();
+
+      // Skip if already exists in Notion
+      if (notionAssignmentUrls.has(canvasUrl)) {
+        assignmentsSkipped++;
+        continue;
+      }
+
+      const courseName = courses.find((c: { id: string; name: string }) =>
+        String(c.id) === String(assignment.courseId)
+      )?.name;
+      const coursePageId = coursePageIds.get(courseName);
+
+      if (!coursePageId) {
+        console.log(`Course not found for assignment: ${assignment.name} (courseId: ${assignment.courseId})`);
+        errors.push(`Course not found for: ${assignment.name}`);
+        continue;
+      }
+
+      try {
+        const dueDate = assignment.due_at
+          ? { date: { start: new Date(assignment.due_at).toISOString() } }
+          : { date: null };
+
+        await notion.pages.create({
+          parent: { database_id: assignmentsDbId! },
+          properties: {
+            Name: { title: [{ text: { content: assignment.name } }] },
+            DueDate: dueDate,
+            Points: { number: assignment.points_possible || 0 },
+            URL: { url: assignment.html_url },
+            Status: { select: { name: "Not Started" } },
+            Course: { relation: [{ id: coursePageId }] }
+          }
+        });
+
+        assignmentsCreated++;
+        // Add to set to avoid duplicates within the same chunk
+        notionAssignmentUrls.add(canvasUrl);
+      } catch (error: any) {
+        console.error(`Error creating assignment ${assignment.name}:`, error);
+        errors.push(`Failed to create: ${assignment.name}`);
+      }
+    }
+
+    console.log(`Chunk ${chunkIndex + 1}/${totalChunks} completed: ${assignmentsCreated} created, ${assignmentsSkipped} skipped`);
+
+    return res.status(200).json({
+      success: true,
+      chunkIndex,
+      totalChunks,
+      results: {
+        assignmentsCreated,
+        assignmentsSkipped,
+        coursesCreated,
+        errors: errors.length > 0 ? errors : undefined
+      }
+    });
+  } catch (error: any) {
+    console.error('Sync-v2 endpoint error:', error);
+    return res.status(500).json({
+      success: false,
+      error: error.message || 'Unknown error during sync'
+    });
+  }
+});
+
 export default router;

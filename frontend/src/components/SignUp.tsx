@@ -110,24 +110,21 @@ const SignUp: React.FC = () => {
               );
             }
             
-            // If we got an extension token, send it to the extension
-            if (loginResponse.data.extensionToken) {
-              console.log('Received extension token during signup, sending to extension...');
-              try {
-                await window.chrome.runtime.sendMessage(
-                  EXTENSION_ID,
-                  {
-                    type: 'AUTH_TOKEN',
-                    token: loginResponse.data.extensionToken
-                  }
-                );
-                // Store the extension ID for future token refreshes
-                localStorage.setItem('extensionId', EXTENSION_ID);
-                console.log('Successfully sent token to extension');
-              } catch (extError) {
-                console.error('Failed to send token to extension:', extError);
-                // Don't block signup if extension communication fails
-              }
+            // Send the Firebase ID token — custom tokens cannot be verified by /api/notion/*
+            console.log('Sending ID token to extension during signup...');
+            try {
+              await window.chrome.runtime.sendMessage(
+                EXTENSION_ID,
+                {
+                  type: 'AUTH_TOKEN',
+                  token: loginResponse.data.idToken
+                }
+              );
+              localStorage.setItem('extensionId', EXTENSION_ID);
+              console.log('Successfully sent token to extension');
+            } catch (extError) {
+              console.error('Failed to send token to extension:', extError);
+              // Don't block signup if extension communication fails
             }
             
             navigate('/get-started');
