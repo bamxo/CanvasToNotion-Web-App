@@ -122,24 +122,21 @@ const Login: React.FC = () => {
           );
         }
 
-        // If we got an extension token, send it to the extension
-        if (backendResponse.data.extensionToken) {
-          console.log('Received extension token, attempting to send to extension...');
-          try {
-            await window.chrome.runtime.sendMessage(
-              EXTENSION_ID,
-              {
-                type: 'AUTH_TOKEN',
-                token: backendResponse.data.extensionToken
-              }
-            );
-            // Store the extension ID for future token refreshes
-            localStorage.setItem('extensionId', EXTENSION_ID);
-            console.log('Successfully sent token to extension');
-          } catch (extError) {
-            console.error('Failed to send token to extension:', extError);
-            // Don't block login if extension communication fails
-          }
+        // Send the Firebase ID token — custom tokens cannot be verified by /api/notion/*
+        console.log('Sending ID token to extension...');
+        try {
+          await window.chrome.runtime.sendMessage(
+            EXTENSION_ID,
+            {
+              type: 'AUTH_TOKEN',
+              token: backendResponse.data.idToken
+            }
+          );
+          localStorage.setItem('extensionId', EXTENSION_ID);
+          console.log('Successfully sent token to extension');
+        } catch (extError) {
+          console.error('Failed to send token to extension:', extError);
+          // Don't block login if extension communication fails
         }
 
         // Redirect to settings page
@@ -209,24 +206,21 @@ const Login: React.FC = () => {
           );
         }
         
-        // If we got an extension token, send it to the extension
-        if (response.data.extensionToken) {
-          console.log('Received extension token, attempting to send to extension...');
-          try {
-            await window.chrome.runtime.sendMessage(
-              EXTENSION_ID,
-              {
-                type: 'AUTH_TOKEN',
-                token: response.data.extensionToken
-              }
-            );
-            // Store the extension ID for future token refreshes
-            localStorage.setItem('extensionId', EXTENSION_ID);
-            console.log('Successfully sent token to extension');
-          } catch (extError) {
-            console.error('Failed to send token to extension:', extError);
-            // Don't block login if extension communication fails
-          }
+        // Send the Firebase ID token — custom tokens cannot be verified by /api/notion/*
+        console.log('Sending ID token to extension...');
+        try {
+          await window.chrome.runtime.sendMessage(
+            EXTENSION_ID,
+            {
+              type: 'AUTH_TOKEN',
+              token: response.data.idToken
+            }
+          );
+          localStorage.setItem('extensionId', EXTENSION_ID);
+          console.log('Successfully sent token to extension');
+        } catch (extError) {
+          console.error('Failed to send token to extension:', extError);
+          // Don't block login if extension communication fails
         }
 
         // Redirect to settings page

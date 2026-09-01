@@ -5,7 +5,7 @@ export const IS_PRODUCTION = import.meta.env.PROD;
 
 export const EXTENSION_ID = IS_PRODUCTION 
   ? 'nomigaendijedpgeohegnfpplcglgdcp' // production extension id
-  : 'mmkkbofjkcdbkmocjboidimajhnjheai'; // development extension id
+  : 'jjifklpgpnmokeffammagniaiicffhib'; // development extension id (unpacked)
 
 // URLs for different environments
 export const BASE_URL = IS_PRODUCTION 
