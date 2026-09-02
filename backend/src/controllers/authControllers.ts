@@ -188,18 +188,19 @@ export const forgotPassword = async (req: Request, res: Response): Promise<void>
       return;
     }
 
-    const link = await admin.auth().generatePasswordResetLink(email);
+    // Firebase sends its own templated password-reset email (no SMTP needed).
+    await axios.post(
+      `https://identitytoolkit.googleapis.com/v1/accounts:sendOobCode?key=${firebaseConfig.apiKey}`,
+      { requestType: 'PASSWORD_RESET', email }
+    );
 
-    res.status(200).json({
-      message: 'Password reset link generated',
-      // Only surface the link outside production.
-      link: process.env.NODE_ENV === 'development' ? link : undefined
-    });
+    res.status(200).json({ message: 'Password reset email sent' });
   } catch (error) {
-    res.status(400).json({
-      error: 'Failed to generate password reset link',
-      details: error instanceof Error ? error.message : undefined
-    });
+    const errorMessage = axios.isAxiosError(error)
+      ? error.response?.data?.error?.message || 'Failed to send password reset email'
+      : 'Failed to send password reset email';
+    res.status(axios.isAxiosError(error) ? error.response?.status || 500 : 500)
+      .json({ error: errorMessage });
   }
 };
 

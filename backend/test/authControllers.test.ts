@@ -270,31 +270,33 @@ describe('POST /forgot-password', () => {
     expect(res.body).toEqual({ error: 'Email is required' });
   });
 
-  it('generates a password reset link via the Admin SDK', async () => {
-    adminAuth.generatePasswordResetLink.mockResolvedValueOnce('https://reset.link/abc');
+  it('sends a password reset email via the Firebase sendOobCode endpoint', async () => {
+    mockedAxios.post.mockResolvedValueOnce({ data: {} });
 
     const res = await request(app)
       .post('/forgot-password')
       .send({ email: 'reset@example.com' });
 
-    expect(adminAuth.generatePasswordResetLink).toHaveBeenCalledWith('reset@example.com');
+    expect(mockedAxios.post).toHaveBeenCalledWith(
+      expect.stringContaining('accounts:sendOobCode'),
+      { requestType: 'PASSWORD_RESET', email: 'reset@example.com' }
+    );
     expect(res.status).toBe(200);
-    // NODE_ENV is not 'development' in the test runner, so link is omitted.
-    expect(res.body).toEqual({ message: 'Password reset link generated' });
+    expect(res.body).toEqual({ message: 'Password reset email sent' });
   });
 
-  it('returns 400 when link generation fails', async () => {
-    adminAuth.generatePasswordResetLink.mockRejectedValueOnce(new Error('no user'));
+  it('propagates an error when sending the reset email fails', async () => {
+    mockedAxios.post.mockRejectedValueOnce({
+      isAxiosError: true,
+      response: { status: 400, data: { error: { message: 'EMAIL_NOT_FOUND' } } }
+    });
 
     const res = await request(app)
       .post('/forgot-password')
       .send({ email: 'missing@example.com' });
 
     expect(res.status).toBe(400);
-    expect(res.body).toEqual({
-      error: 'Failed to generate password reset link',
-      details: 'no user'
-    });
+    expect(res.body).toEqual({ error: 'EMAIL_NOT_FOUND' });
   });
 });
 
