@@ -37,12 +37,16 @@ const ALLOWED_ORIGINS = [
 
 const corsOptions: CorsOptions = {
   origin: (origin, callback) => {
-    // Allow non-browser / same-origin requests (no Origin header).
-    if (!origin || ALLOWED_ORIGINS.includes(origin)) {
+    // Allow non-browser / same-origin requests (no Origin header) and the
+    // known web origins. For anything else (e.g. chrome-extension:// service
+    // worker fetches), do NOT throw — deny the CORS headers but let the
+    // request through so non-browser clients still work. Throwing here would
+    // surface as an HTML 500 for every extension-originated POST.
+    if (!origin || ALLOWED_ORIGINS.includes(origin) || origin.startsWith('chrome-extension://')) {
       callback(null, true);
       return;
     }
-    callback(new Error(`Origin ${origin} not allowed by CORS`));
+    callback(null, false);
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
@@ -93,6 +97,18 @@ app.get('/health', (_req: Request, res: Response) => {
 });
 app.get('/api/health', (_req: Request, res: Response) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+// ---------------------------------------------------------------------------
+// JSON error handler - last resort so clients always get JSON, never Express's
+// default HTML error page.
+// ---------------------------------------------------------------------------
+app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
+  console.error('Unhandled error:', err);
+  if (res.headersSent) return;
+  res.status(err?.status || 500).json({
+    error: err?.message || 'Internal server error',
+  });
 });
 
 // ---------------------------------------------------------------------------
