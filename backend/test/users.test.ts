@@ -11,14 +11,14 @@ const myRoute = "../public";
 // Mock middleware and controller
 vi.mock('../public/middleware/auth', () => ({
   verifyToken: (req: any, res: any, next: any) => {
-    req.user = { id: 'mock-user' }; // Mocked decoded token
+    req.user = { uid: 'mock-user' }; // Mocked decoded token (Admin SDK shape)
     return next();
   }
 }));
 
 vi.mock('../public/controllers/userControllers', () => ({
   getProfile: (req: any, res: any) => {
-    return res.json({ name: 'Mock User', id: req.user.id });
+    return res.json({ name: 'Mock User', id: req.user.uid });
   },
   updateProfile: (req: any, res: any) => {
     return res.json({ message: 'Profile updated', data: req.body });

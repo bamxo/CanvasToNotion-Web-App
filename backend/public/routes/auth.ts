@@ -14,4 +14,7 @@ router.post('/delete-account', authController.deleteAccount);
 router.post('/refresh-extension-token', verifyToken, authController.refreshExtensionToken);
 router.post('/logout', authController.logout);
 
+// GET /auth/user - does its own bearer-token check (matches Netlify handleGetUser).
+router.get('/user', authController.getUser);
+
 export default router;

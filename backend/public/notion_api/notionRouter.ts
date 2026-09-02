@@ -42,6 +42,50 @@ const getUserByEmail = async (
   }
 };
 
+// Helper function to get the raw user entry (id + data) by email
+const getUserEntryByEmail = async (
+  db: database.Database,
+  email: string
+): Promise<{ userId: string; userData: UserData } | null> => {
+  try {
+    const usersRef = db.ref('users');
+    const snapshot = await usersRef.orderByChild('email').equalTo(email).once('value');
+
+    if (snapshot.exists()) {
+      const userEntries = Object.entries(snapshot.val());
+      if (userEntries.length > 0) {
+        const [userId, userData] = userEntries[0] as [string, UserData];
+        return { userId, userData: userData as UserData };
+      }
+    }
+    console.log(`No user found with email: ${email}`);
+    return null;
+  } catch (error) {
+    console.error('Error fetching user entry by email:', error);
+    throw error;
+  }
+};
+
+// Format a human-readable sync status message (ported from notion.ts)
+const formatSyncStatusMessage = (syncStatus: any): string => {
+  if (!syncStatus) return 'No sync information available';
+
+  switch (syncStatus.status) {
+    case 'pending':
+      return 'Sync in progress...';
+    case 'complete':
+      if (syncStatus.results) {
+        const { newAssignmentsCreated, skippedAssignments } = syncStatus.results;
+        return `Sync completed: ${newAssignmentsCreated} assignments created, ${skippedAssignments} already existed.`;
+      }
+      return 'Sync completed successfully';
+    case 'error':
+      return `Sync failed: ${syncStatus.error || 'Unknown error'}`;
+    default:
+      return `Sync status: ${syncStatus.status}`;
+  }
+};
+
 const updateUserByEmail = async (
   db: database.Database,
   email: string,
@@ -106,93 +150,22 @@ router.post('/token', async (req: AuthenticatedRequest, res: Response) => {
     );
     
     const { access_token, workspace_id } = tokenResponse.data;
-    const notion = new Client({ auth: access_token });
-    
-    const botUser = await notion.users.me({});
-    const botId = botUser.id;
 
-    // Modified search logic with type-safe filtering
-    const searchResponse = await notion.search({});
-    const accessibleResources = searchResponse.results
-      .filter(item => {
-        // Handle databases
-        if (item.object === 'database') {
-          const db = item as DatabaseObjectResponse;
-          return db.created_by?.id !== botId;
-        }
-        
-        // Handle pages
-        if (item.object === 'page') {
-          const page = item as PageObjectResponse;
-          return page.created_by?.id !== botId;
-        }
-        
-        return true;
-      }).map(item => {
-        let title = 'Untitled';
-        let icon: string | null = null;
-
-        // Extract icon emoji if present
-        if ('icon' in item && item.icon && item.icon.type === 'emoji') {
-          icon = item.icon.emoji;
-        }
-
-        if (item.object === 'page') {
-          // For pages, title is in properties.title if it exists
-          if ('properties' in item && item.properties.title) {
-            if ('title' in item.properties.title && Array.isArray(item.properties.title.title) && item.properties.title.title.length > 0) {
-              title = item.properties.title.title.map(textObj => textObj.plain_text).join('');
-            }
-          } else if ('parent' in item && item.parent.type === 'database_id') {
-            // If it's a database page, use a different approach to find the title
-            const titleProperty = Object.values(item.properties).find(
-              prop => ('rich_text' in prop && prop.rich_text.length > 0) || 
-                    ('title' in prop && prop.title.length > 0)
-            );
-            
-            if (titleProperty) {
-              if ('rich_text' in titleProperty) {
-                title = titleProperty.rich_text.map(textObj => textObj.plain_text).join('');
-              } else if ('title' in titleProperty) {
-                title = titleProperty.title.map(textObj => textObj.plain_text).join('');
-              }
-            }
-          }
-        } else if (item.object === 'database') {
-          // For databases, title is in title array
-          if ('title' in item && Array.isArray(item.title) && item.title.length > 0) {
-            title = item.title.map(textObj => textObj.plain_text).join('');
-          }
-        }
-        
-        return {
-          id: item.id,
-          type: item.object,
-          title,
-          icon
-        };
-      })
-
-    
-    // Update the user's data in Firebase
-    const userData = {
+    // Store the token (lean parity with notion.ts:handleTokenExchange —
+    // no eager users.me()/search()/pageIDs population here; /pages does that on demand).
+    const updated = await updateUserByEmail(adminDb, email, {
       accessToken: access_token,
       workspaceId: workspace_id,
-      pageIDs: accessibleResources,
       lastUpdated: new Date().toISOString()
-    };
-    
-    const updated = await updateUserByEmail(adminDb, email, userData);
-    
+    });
+
     res.json({
       success: true,
-      updated: updated,
-      accessToken: access_token,
-      workspaceId: workspace_id,
-      accessibleResources
+      updated,
+      message: 'Notion token stored successfully'
     });
   } catch (error: any) {
-    console.error('Notion API Error:', error);
+    console.error('Error exchanging Notion token:', error);
     res.status(500).json({
       success: false,
       error: error.response?.data || error.message
@@ -201,28 +174,38 @@ router.post('/token', async (req: AuthenticatedRequest, res: Response) => {
 });
 
 router.post('/sync', async (req: AuthenticatedRequest, res: Response) => {
+  const uid = req.user!.uid;
+  const syncStatusRef = adminDb.ref(`users/${uid}/syncStatus`);
   try {
     const { pageId, courses, assignments } = req.body;
     const email = req.user!.email; // Get email from authenticated user
-    
+
     console.log("First assignment object:", assignments[0]);
 
     // Validate required fields
     if (!pageId || !Array.isArray(courses) || !Array.isArray(assignments)) {
-      return res.status(400).json({ 
-        success: false, 
-        error: 'Valid pageId, courses, and assignments are required' 
+      return res.status(400).json({
+        success: false,
+        error: 'Valid pageId, courses, and assignments are required'
       });
     }
 
     // Get user data and access token from firebase
     const userData = await getUserByEmail(adminDb, email);
     if (!userData?.accessToken) {
-      return res.status(403).json({ 
-        success: false, 
-        error: 'Notion integration not connected' 
+      return res.status(403).json({
+        success: false,
+        error: 'Notion integration not connected'
       });
     }
+
+    // Mark sync as pending (parity with notion.ts:handleSync)
+    await syncStatusRef.set({
+      status: 'pending',
+      startedAt: new Date().toISOString(),
+      totalAssignments: assignments.length,
+      totalCourses: courses.length
+    });
 
     // Initialize notion client using token
     const notion = new Client({ auth: userData.accessToken });
@@ -442,11 +425,25 @@ router.post('/sync', async (req: AuthenticatedRequest, res: Response) => {
       }
     }
 
+    const coursesCreated = coursePageIds.size - existingCourseNames.size;
+
+    // Mark sync as complete (parity with notion-background.ts result shape)
+    await syncStatusRef.set({
+      status: 'complete',
+      results: {
+        coursesCreated,
+        totalAssignments: assignments.length,
+        newAssignmentsCreated: newAssignmentsCount,
+        skippedAssignments: skippedAssignmentsCount
+      },
+      completedAt: new Date().toISOString()
+    });
+
     res.json({
       success: true,
       message: 'Sync completed',
       results: {
-        coursesCreated: coursePageIds.size - existingCourseNames.size,
+        coursesCreated,
         totalAssignments: assignments.length,
         newAssignmentsCreated: newAssignmentsCount,
         skippedAssignments: skippedAssignmentsCount,
@@ -456,11 +453,53 @@ router.post('/sync', async (req: AuthenticatedRequest, res: Response) => {
 
   } catch (error: any) {
     console.error('Sync error:', error);
+    try {
+      await syncStatusRef.set({
+        status: 'error',
+        error: error.message,
+        errorAt: new Date().toISOString()
+      });
+    } catch (statusErr) {
+      console.error('Error saving sync error status:', statusErr);
+    }
     res.status(500).json({
       success: false,
-      error: error.code === 'object_not_found' 
-        ? 'Verify page sharing with your Notion integration' 
+      error: error.code === 'object_not_found'
+        ? 'Verify page sharing with your Notion integration'
         : error.message
+    });
+  }
+});
+
+// Return the current sync status for the authenticated user (parity with notion.ts:handleSyncStatus)
+router.get('/sync-status', async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const email = req.user!.email;
+
+    const entry = await getUserEntryByEmail(adminDb, email);
+    if (!entry) {
+      return res.status(404).json({ success: false, error: 'User not found' });
+    }
+
+    const syncStatusSnapshot = await adminDb.ref(`users/${entry.userId}/syncStatus`).once('value');
+    if (!syncStatusSnapshot.exists()) {
+      return res.status(404).json({ success: false, error: 'No sync status found' });
+    }
+
+    const syncStatus = syncStatusSnapshot.val();
+
+    res.json({
+      success: true,
+      syncStatus: {
+        ...syncStatus,
+        message: formatSyncStatusMessage(syncStatus)
+      }
+    });
+  } catch (error: any) {
+    console.error('Error fetching sync status:', error);
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
     });
   }
 });

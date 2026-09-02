@@ -1,29 +1,10 @@
 // src/db.ts
-import * as admin from 'firebase-admin';
-import fs from 'fs';
-import path from 'path';
+// Realtime Database handle for the Express app.
+// The service account is now read from process.env.FIREBASE_SERVICE_ACCOUNT via
+// the unified initialiser - no serviceAccountKey.json disk read, no process.exit.
 import dotenv from 'dotenv';
+import { getFirebaseAdmin } from './config/firebaseAdmin';
 
 dotenv.config();
-// Load service account key
-let serviceAccount;
-try {
-  // Adjust the path to the serviceAccountKey.json location
-  const serviceAccountPath = path.join(__dirname, '..', 'serviceAccountKey.json');  // Adjusted path
-  serviceAccount = JSON.parse(fs.readFileSync(serviceAccountPath, 'utf8'));
-} catch (error) {
-  console.error('Error loading Firebase service account:', error);
-  process.exit(1);
-}
 
-// Initialize Admin SDK
-if (!admin.apps.length) {
-    admin.initializeApp({
-        credential: admin.credential.cert(serviceAccount),
-        databaseURL: process.env.FIREBASE_DATABASE_URL,
-      }); 
-}
-
-const adminDb = admin.database();
-
-export { adminDb };
+export const adminDb = getFirebaseAdmin().database();

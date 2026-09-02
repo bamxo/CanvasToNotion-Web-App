@@ -1,7 +1,9 @@
-// src/server.ts - Main application file
-import express, { Express } from 'express';
-import cors from 'cors';
-import bodyParser from 'body-parser';
+// src/index.ts - Express application (target Vercel backend)
+//
+// Deployed to Vercel as a SINGLE @vercel/node serverless function behind a
+// catch-all rewrite (see backend/vercel.json + backend/api/index.ts).
+import express, { Express, Request, Response, NextFunction } from 'express';
+import cors, { CorsOptions } from 'cors';
 import cookieParser from 'cookie-parser';
 import dotenv from 'dotenv';
 
@@ -13,41 +15,92 @@ import authRoutes from './routes/auth';
 import databaseRoutes from './routes/database';
 import userRoutes from './routes/users';
 import notionRouter from './notion_api/notionRouter';
+import cookieStateRoutes from './routes/cookieState';
+import contactRoutes from './routes/contact';
+import usercountRoutes from './routes/usercount';
 
 const app: Express = express();
 const PORT: number = parseInt(process.env.PORT || '3000', 10);
 
-// CORS configuration
-app.use(cors({
-  origin: ['http://localhost:5173', 'http://localhost:3000'],
+// ---------------------------------------------------------------------------
+// CORS
+// ---------------------------------------------------------------------------
+const ALLOWED_ORIGINS = [
+  'https://canvastonotion.io',
+  'https://canvastonotion.netlify.app',
+  'https://api.canvastonotion.io',
+  'http://localhost:5173',
+  'http://localhost:3000',
+];
+
+const corsOptions: CorsOptions = {
+  origin: (origin, callback) => {
+    // Allow non-browser / same-origin requests (no Origin header).
+    if (!origin || ALLOWED_ORIGINS.includes(origin)) {
+      callback(null, true);
+      return;
+    }
+    callback(new Error(`Origin ${origin} not allowed by CORS`));
+  },
   credentials: true,
-  exposedHeaders: ['set-cookie']
-}));
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  exposedHeaders: ['set-cookie'],
+};
 
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions));
+
+// ---------------------------------------------------------------------------
 // Middleware
-app.use(bodyParser.json());
+// ---------------------------------------------------------------------------
 app.use(cookieParser());
+// Global JSON body parser. It is a no-op for non-JSON content types, so the
+// contact router's multipart uploads (handled by multer on that router) are
+// unaffected.
+app.use(express.json());
 
-// Debug middleware
-app.use((req, res, next) => {
-  console.log(`${req.method} ${req.path}`);
-  next();
-});
+// Request logging - disabled in production to keep function logs quiet.
+if (process.env.NODE_ENV !== 'production') {
+  app.use((req: Request, _res: Response, next: NextFunction) => {
+    console.log(`${req.method} ${req.path}`);
+    next();
+  });
+}
 
+// ---------------------------------------------------------------------------
 // Routes
-app.use('/api/auth', authRoutes);
-app.use('/api/database', databaseRoutes);
-app.use('/api/users', userRoutes);
-app.use('/api/notion', notionRouter);
+// ---------------------------------------------------------------------------
+function mountRoutes(prefix: string): void {
+  app.use(`${prefix}/auth`, authRoutes);
+  app.use(`${prefix}/users`, userRoutes);
+  app.use(`${prefix}/db`, databaseRoutes);
+  app.use(`${prefix}/notion`, notionRouter);
+  app.use(`${prefix}/cookie-state`, cookieStateRoutes);
+  app.use(`${prefix}/contact`, contactRoutes);
+  app.use(`${prefix}/usercount`, usercountRoutes);
+}
 
-// Start server
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-  console.log('Available routes:');
-  console.log('- /api/auth/*');
-  console.log('- /api/database/*');
-  console.log('- /api/users/*');
-  console.log('- /api/notion/*');
+// Primary mount points.
+mountRoutes('');
+// Compatibility aliases - some older config / clients use the /api/ prefix.
+mountRoutes('/api');
+
+app.get('/health', (_req: Request, res: Response) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+app.get('/api/health', (_req: Request, res: Response) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+// ---------------------------------------------------------------------------
+// Local server - never runs on Vercel (or under the test runner).
+// ---------------------------------------------------------------------------
+if (!process.env.VERCEL && process.env.NODE_ENV !== 'test') {
+  app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+  });
+}
+
+export { app };
 export default app;

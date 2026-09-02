@@ -27,6 +27,16 @@ export interface FirebaseUser {
   [key: string]: any;
 }
 
+// Shape of req.user after the verifyToken middleware runs (Admin SDK decoded token).
+// Controllers MUST read `req.user.uid` - NOT `req.user.localId`.
+export interface AuthUser {
+  uid: string;
+  email: string;
+  displayName?: string;
+  photoURL?: string;
+  emailVerified?: boolean;
+}
+
 // Auth related types
 export interface SignupRequest {
   email: string;
@@ -66,7 +76,7 @@ export interface AuthResponse {
 
 // Express request with user
 export interface AuthenticatedRequest extends Request {
-  user?: FirebaseUser;
+  user?: AuthUser;
 }
 
 // Database request params

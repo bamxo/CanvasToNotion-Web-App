@@ -1,42 +1,47 @@
-// src/middleware/auth.ts - Token verification middleware
+// src/middleware/auth.ts - Firebase ID token verification middleware
+//
+// Matches the Netlify functions' behaviour: verify the Firebase ID token with
+// the Admin SDK (admin.auth().verifyIdToken) rather than the identitytoolkit
+// accounts:lookup REST call. The token is taken from the Authorization: Bearer
+// header (as the Netlify functions do), with the `authToken` cookie kept as a
+// fallback for browser requests.
 import { Response, NextFunction } from 'express';
-import axios from 'axios';
-import firebaseConfig from '../config/firebase';
-import { AuthenticatedRequest, FirebaseUser } from '../types';
+import { admin } from '../config/firebaseAdmin';
+import { AuthenticatedRequest } from '../types';
 
 export const verifyToken = async (
-  req: AuthenticatedRequest, 
-  res: Response, 
+  req: AuthenticatedRequest,
+  res: Response,
   next: NextFunction
 ): Promise<void> => {
+  // Authorization header wins (matches Netlify); fall back to the authToken cookie.
+  const authHeader = req.headers.authorization;
+  const headerToken =
+    authHeader && authHeader.startsWith('Bearer ')
+      ? authHeader.split('Bearer ')[1]
+      : undefined;
+
+  const idToken = headerToken || req.cookies?.authToken;
+
+  if (!idToken) {
+    res.status(401).json({ error: 'No authentication token provided' });
+    return;
+  }
+
   try {
-    // First check for a session cookie
-    const sessionCookie = req.cookies?.sessionid;
-    
-    // Then check for Authorization header as fallback
-    const authHeader = req.headers.authorization;
-    const headerToken = authHeader?.split('Bearer ')[1];
-    
-    // Use cookie token if available, otherwise use header token
-    const idToken = sessionCookie || headerToken;
-    
-    if (!idToken) {
-      res.status(401).json({ error: 'No authentication token provided' });
-      return;
-    }
-    
-    const response = await axios.post<{ users: FirebaseUser[] }>(
-      `https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${firebaseConfig.apiKey}`,
-      { idToken }
-    );
-    
-    if (response.data && response.data.users && response.data.users.length > 0) {
-      req.user = response.data.users[0];
-      next();
-    } else {
-      res.status(401).json({ error: 'Invalid token' });
-    }
+    const decoded = await admin.auth().verifyIdToken(idToken);
+
+    req.user = {
+      uid: decoded.uid,
+      email: decoded.email ?? '',
+      displayName: decoded.name as string | undefined,
+      photoURL: decoded.picture as string | undefined,
+      emailVerified: decoded.email_verified as boolean | undefined,
+    };
+
+    next();
   } catch (error) {
-    res.status(401).json({ error: 'Authentication failed' });
+    console.error('Error verifying auth token:', error);
+    res.status(401).json({ error: 'Invalid token' });
   }
 };

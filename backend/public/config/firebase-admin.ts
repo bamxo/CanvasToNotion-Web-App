@@ -1,16 +1,12 @@
+// src/config/firebase-admin.ts
+// Backwards-compatible shim. The real initialisation now lives in
+// ./firebaseAdmin.ts (reads FIREBASE_SERVICE_ACCOUNT from the environment).
+// Existing importers (authControllers.ts, userControllers.ts) still do
+//   import { admin } from '../config/firebase-admin'
+// so keep the named `admin` export working.
 import * as admin from 'firebase-admin';
-import serviceAccount from '../../serviceAccountKey.json'; // Adjust path as needed
+import { getFirebaseAdmin } from './firebaseAdmin';
 
-// Initialize Firebase Admin
-if (!admin.apps.length) {
-  admin.initializeApp({
-    credential: admin.credential.cert({
-      projectId: serviceAccount.project_id,
-      clientEmail: serviceAccount.client_email,
-      privateKey: serviceAccount.private_key,
-    }),
-    databaseURL: process.env.FIREBASE_DATABASE_URL 
-  });
-}
+getFirebaseAdmin();
 
 export { admin };

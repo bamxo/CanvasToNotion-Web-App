@@ -8,7 +8,7 @@ import { admin } from '../config/firebase-admin';
 // Get user profile
 export const getProfile = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
-    const userId = req.user?.localId;
+    const userId = req.user?.uid;
     
     if (!userId) {
       res.status(401).json({ error: 'User not authenticated' });
@@ -39,7 +39,7 @@ export const getProfile = async (req: AuthenticatedRequest, res: Response): Prom
 // Get user info from Firebase Auth
 export const getUserInfo = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
-    const userId = req.user?.localId;
+    const userId = req.user?.uid;
     
     if (!userId) {
       res.status(401).json({ error: 'User not authenticated' });
@@ -63,7 +63,7 @@ export const getUserInfo = async (req: AuthenticatedRequest, res: Response): Pro
 // Update user profile
 export const updateProfile = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
-    const userId = req.user?.localId;
+    const userId = req.user?.uid;
     
     if (!userId) {
       res.status(401).json({ error: 'User not authenticated' });

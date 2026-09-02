@@ -1,8 +1,4 @@
-import request from 'supertest';
-import axios from 'axios';
-import express from 'express';
-import dotenv from 'dotenv';
-import { describe, beforeEach, it, expect, vi, test} from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { adminDb } from '../public/db'; // Adjust path if needed
 
 vi.mock('firebase-admin', () => {
@@ -16,8 +12,13 @@ vi.mock('firebase-admin', () => {
     ref: refMock,
   }));
 
+  // The unified initialiser (public/config/firebaseAdmin.ts) calls
+  // admin.initializeApp() and then .database() on the returned app.
+  const appMock = { database: databaseMock };
+
   return {
-    initializeApp: vi.fn(),
+    initializeApp: vi.fn(() => appMock),
+    app: vi.fn(() => appMock),
     credential: {
       cert: vi.fn(),
     },

@@ -1,74 +1,87 @@
+import { describe, beforeEach, it, expect, vi } from 'vitest';
+import type { NextFunction, Response } from 'express';
+
+// The middleware now verifies Firebase ID tokens with the Admin SDK
+// (admin.auth().verifyIdToken) instead of the identitytoolkit REST call.
+const verifyIdToken = vi.fn();
+vi.mock('../public/config/firebaseAdmin', () => ({
+  admin: {
+    auth: () => ({ verifyIdToken }),
+  },
+  getFirebaseAdmin: vi.fn(),
+}));
+
 import { verifyToken } from '../public/middleware/auth';
-import { Request, Response, NextFunction } from 'express';
-import axios from 'axios';
-import { FirebaseUser } from '../public/types';
-import { describe, beforeEach, it, expect, vi, test} from 'vitest';
-vi.mock('axios');
-const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
 
 describe('verifyToken middleware', () => {
   let req: any;
   let res: any;
-  let next: NextFunction & { mockImplementation: any; mockClear: any };
+  let next: NextFunction;
 
   beforeEach(() => {
+    verifyIdToken.mockReset();
     req = {
-      headers: {
-        authorization: 'Bearer fakeToken',
-      },
+      headers: { authorization: 'Bearer fakeToken' },
+      cookies: {},
     };
     res = {
       status: vi.fn().mockReturnThis(),
       json: vi.fn(),
-    }as unknown as Response; 
-
-    next = vi.fn() as unknown as NextFunction & { mockImplementation: any; mockClear: any };
+    } as unknown as Response;
+    next = vi.fn() as unknown as NextFunction;
   });
 
-  it('should call next if token is valid', async () => {
-    const mockUser: FirebaseUser = {
-      localId: '12345',
+  it('should call next and populate req.user when the token is valid', async () => {
+    verifyIdToken.mockResolvedValueOnce({
+      uid: '12345',
       email: 'test@example.com',
-      emailVerified: true
-      // add other fields as required
-    };
+      name: 'Test User',
+      picture: 'https://example.com/p.png',
+      email_verified: true,
+    });
 
-    mockedAxios.post.mockResolvedValueOnce({ data: { users: [mockUser] } });
+    await verifyToken(req, res, next);
 
-    await verifyToken(req as any, res as any, next);
-
-    expect(mockedAxios.post).toHaveBeenCalled();
-    expect((req as any).user).toEqual(mockUser);
+    expect(verifyIdToken).toHaveBeenCalledWith('fakeToken');
+    expect(req.user).toEqual({
+      uid: '12345',
+      email: 'test@example.com',
+      displayName: 'Test User',
+      photoURL: 'https://example.com/p.png',
+      emailVerified: true,
+    });
     expect(next).toHaveBeenCalled();
   });
 
-  it('should return 401 if token is invalid', async () => {
-    mockedAxios.post.mockResolvedValueOnce({ data: { users: [] } });
+  it('should fall back to the authToken cookie when there is no header', async () => {
+    req.headers = {};
+    req.cookies = { authToken: 'cookieToken' };
+    verifyIdToken.mockResolvedValueOnce({ uid: 'u1', email: 'c@example.com' });
 
-    await verifyToken(req as any, res as any, next);
+    await verifyToken(req, res, next);
+
+    expect(verifyIdToken).toHaveBeenCalledWith('cookieToken');
+    expect(next).toHaveBeenCalled();
+  });
+
+  it('should return 401 with "Invalid token" when verification fails', async () => {
+    verifyIdToken.mockRejectedValueOnce(new Error('token expired'));
+
+    await verifyToken(req, res, next);
 
     expect(res.status).toHaveBeenCalledWith(401);
     expect(res.json).toHaveBeenCalledWith({ error: 'Invalid token' });
     expect(next).not.toHaveBeenCalled();
   });
 
-  it('should return 401 if no token is provided', async () => {
+  it('should return 401 when no token is provided', async () => {
     req.headers = {};
+    req.cookies = {};
 
-    await verifyToken(req as any, res as any, next);
+    await verifyToken(req, res, next);
 
     expect(res.status).toHaveBeenCalledWith(401);
     expect(res.json).toHaveBeenCalledWith({ error: 'No authentication token provided' });
-    expect(next).not.toHaveBeenCalled();
-  });
-
-  it('should return 401 on axios error', async () => {
-    mockedAxios.post.mockRejectedValueOnce(new Error('Request failed'));
-
-    await verifyToken(req as any, res as any, next);
-
-    expect(res.status).toHaveBeenCalledWith(401);
-    expect(res.json).toHaveBeenCalledWith({ error: 'Authentication failed' });
     expect(next).not.toHaveBeenCalled();
   });
 });
