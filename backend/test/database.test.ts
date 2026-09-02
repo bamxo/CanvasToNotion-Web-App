@@ -3,14 +3,14 @@ import request from 'supertest';
 import { describe, beforeEach, it, expect, vi, test} from 'vitest';
 
 // Mock the middleware and controller
-vi.mock('../public/middleware/auth', () => ({
+vi.mock('../src/middleware/auth', () => ({
   verifyToken: (req: any, res: any, next: any) => {
     req.user = { id: 'mock-user' };
     return next();
   }
 }));
 
-vi.mock('../public/controllers/databaseControllers', () => ({
+vi.mock('../src/controllers/databaseControllers', () => ({
   updateData: vi.fn((req:any, res:any) => {
     res.json({ message: `Updated ${req.params.path}`, body: req.body });
   }),
@@ -22,7 +22,7 @@ vi.mock('../public/controllers/databaseControllers', () => ({
   })
 }));
 
-import databaseRoutes from '../public/routes/database';
+import databaseRoutes from '../src/routes/database';
 
 const app = express();
 app.use(express.json());

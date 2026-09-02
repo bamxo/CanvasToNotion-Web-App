@@ -7,10 +7,10 @@ import { Handler } from '@netlify/functions';
 import { getFirebaseAdmin } from './firebase-admin';
 
 // Import routes
-import authRoutes from '../../public/routes/auth';
-import databaseRoutes from '../../public/routes/database';
-import userRoutes from '../../public/routes/users';
-import notionRouter from '../../public/notion_api/notionRouter';
+import authRoutes from '../../src/routes/auth';
+import databaseRoutes from '../../src/routes/database';
+import userRoutes from '../../src/routes/users';
+import notionRouter from '../../src/notion_api/notionRouter';
 
 // Load environment variables
 dotenv.config();

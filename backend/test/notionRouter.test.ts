@@ -41,13 +41,13 @@ const { refBehaviour, adminDb, verifyToken, axiosPost } = vi.hoisted(() => {
   return { refBehaviour, adminDb, verifyToken, axiosPost };
 });
 
-vi.mock('../public/db', () => ({ adminDb }));
-vi.mock('../public/middleware/auth', () => ({ verifyToken }));
+vi.mock('../src/db', () => ({ adminDb }));
+vi.mock('../src/middleware/auth', () => ({ verifyToken }));
 vi.mock('axios', () => ({ default: { post: (...args: any[]) => axiosPost(...args) } }));
 
 // ---- Helpers ---------------------------------------------------------------
 
-import notionRouter from '../public/notion_api/notionRouter';
+import notionRouter from '../src/notion_api/notionRouter';
 
 const buildApp = () => {
   const app = express();

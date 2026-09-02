@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { adminDb } from '../public/db'; // Adjust path if needed
+import { adminDb } from '../src/db'; // Adjust path if needed
 
 vi.mock('firebase-admin', () => {
   const valMock = vi.fn(() => 'mocked data');
@@ -12,7 +12,7 @@ vi.mock('firebase-admin', () => {
     ref: refMock,
   }));
 
-  // The unified initialiser (public/config/firebaseAdmin.ts) calls
+  // The unified initialiser (src/config/firebaseAdmin.ts) calls
   // admin.initializeApp() and then .database() on the returned app.
   const appMock = { database: databaseMock };
 

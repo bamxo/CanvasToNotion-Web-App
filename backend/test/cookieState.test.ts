@@ -5,14 +5,14 @@ import { describe, beforeEach, it, expect, vi } from 'vitest';
 
 // Mock the Admin SDK used by the cookie-state controller's bearer check.
 const verifyIdToken = vi.fn();
-vi.mock('../public/config/firebaseAdmin', () => ({
+vi.mock('../src/config/firebaseAdmin', () => ({
   admin: {
     auth: () => ({ verifyIdToken }),
   },
   getFirebaseAdmin: vi.fn(),
 }));
 
-import cookieStateRoutes from '../public/routes/cookieState';
+import cookieStateRoutes from '../src/routes/cookieState';
 
 const makeApp = () => {
   const app = express();
