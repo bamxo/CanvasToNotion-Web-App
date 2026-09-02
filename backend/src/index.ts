@@ -1,7 +1,9 @@
 // src/index.ts - Express application (target Vercel backend)
 //
-// Deployed to Vercel as a SINGLE @vercel/node serverless function behind a
-// catch-all rewrite (see backend/vercel.json + backend/api/index.ts).
+// Deployed to Vercel as a zero-config Express app. Vercel auto-detects this
+// file (`src/index.ts`) as the serverless entry, runs the whole Express app
+// as a single function, and routes every request to the exported `default`
+// app. No `api/` directory, no catch-all rewrite (see backend/vercel.json).
 import express, { Express, Request, Response, NextFunction } from 'express';
 import cors, { CorsOptions } from 'cors';
 import cookieParser from 'cookie-parser';

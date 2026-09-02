@@ -4,14 +4,14 @@ import type { NextFunction, Response } from 'express';
 // The middleware now verifies Firebase ID tokens with the Admin SDK
 // (admin.auth().verifyIdToken) instead of the identitytoolkit REST call.
 const verifyIdToken = vi.fn();
-vi.mock('../public/config/firebaseAdmin', () => ({
+vi.mock('../src/config/firebaseAdmin', () => ({
   admin: {
     auth: () => ({ verifyIdToken }),
   },
   getFirebaseAdmin: vi.fn(),
 }));
 
-import { verifyToken } from '../public/middleware/auth';
+import { verifyToken } from '../src/middleware/auth';
 
 describe('verifyToken middleware', () => {
   let req: any;

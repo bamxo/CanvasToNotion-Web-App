@@ -11,12 +11,12 @@ const { once, ref, database } = vi.hoisted(() => {
   return { once, ref, database };
 });
 
-vi.mock('../public/config/firebaseAdmin', () => ({
+vi.mock('../src/config/firebaseAdmin', () => ({
   admin: { database },
   getFirebaseAdmin: vi.fn(),
 }));
 
-import usercountRoutes from '../public/routes/usercount';
+import usercountRoutes from '../src/routes/usercount';
 
 const makeApp = () => {
   const app = express();

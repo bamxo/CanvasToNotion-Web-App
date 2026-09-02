@@ -41,7 +41,7 @@ vi.mock('google-auth-library', () => ({
 }));
 
 // Firebase Admin SDK shim
-vi.mock('../public/config/firebase-admin', () => ({
+vi.mock('../src/config/firebase-admin', () => ({
   admin: {
     auth: () => adminAuth,
     database: () => ({ ref: () => adminDbRef })
@@ -57,7 +57,7 @@ import {
   deleteAccount,
   logout,
   refreshExtensionToken
-} from '../public/controllers/authControllers';
+} from '../src/controllers/authControllers';
 
 const app = express();
 app.use(bodyParser.json());

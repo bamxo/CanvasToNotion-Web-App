@@ -9,7 +9,7 @@ vi.mock('nodemailer', () => ({
   createTransport: vi.fn(() => ({ sendMail })),
 }));
 
-import contactRoutes from '../public/routes/contact';
+import contactRoutes from '../src/routes/contact';
 
 const makeApp = () => {
   const app = express();

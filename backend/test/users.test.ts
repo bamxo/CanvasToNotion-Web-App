@@ -4,19 +4,19 @@ import express from 'express';
 import dotenv from 'dotenv';
 import { describe, beforeEach, it, expect, vi, test } from 'vitest';
 
-import userRoutes from '../public/routes/users';
+import userRoutes from '../src/routes/users';
 
 
 const myRoute = "../public";
 // Mock middleware and controller
-vi.mock('../public/middleware/auth', () => ({
+vi.mock('../src/middleware/auth', () => ({
   verifyToken: (req: any, res: any, next: any) => {
     req.user = { uid: 'mock-user' }; // Mocked decoded token (Admin SDK shape)
     return next();
   }
 }));
 
-vi.mock('../public/controllers/userControllers', () => ({
+vi.mock('../src/controllers/userControllers', () => ({
   getProfile: (req: any, res: any) => {
     return res.json({ name: 'Mock User', id: req.user.uid });
   },
