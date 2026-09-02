@@ -17,7 +17,7 @@ import axios from 'axios';
 import styles from './Settings.module.css';
 import logo from '../assets/c2n-favicon.svg';
 import { useNotionAuth } from '../hooks/useNotionAuth';
-import { AUTH_ENDPOINTS, USER_ENDPOINTS, NOTION_ENDPOINTS, COOKIE_STATE_ENDPOINTS } from '../utils/api';
+import { AUTH_ENDPOINTS, USER_ENDPOINTS, NOTION_ENDPOINTS, COOKIE_STATE_ENDPOINTS, IS_CROSS_ORIGIN_BACKEND } from '../utils/api';
 import { EXTENSION_ID, NOTION_REDIRECT_URI } from '../utils/constants';
 import { secureGetToken, secureRemoveToken } from '../utils/encryption';
 import Cookies from 'js-cookie';
@@ -48,9 +48,12 @@ const Settings: React.FC = () => {
       const token = secureGetToken('authToken');
       const isAuthenticatedCookie = Cookies.get('isAuthenticated');
       
-      // In development mode, only check for token. In production, check for both token and cookie
-      const isAuthenticated = import.meta.env.PROD 
-        ? (token && isAuthenticatedCookie) 
+      // In development mode, only check for token. In production, check for both
+      // token and cookie — unless the backend is on a different site than this
+      // page (dev:vercel), where the isAuthenticated cookie isn't readable here.
+      const requireCookie = import.meta.env.PROD && !IS_CROSS_ORIGIN_BACKEND;
+      const isAuthenticated = requireCookie
+        ? (token && isAuthenticatedCookie)
         : token;
       
       if (!isAuthenticated) {

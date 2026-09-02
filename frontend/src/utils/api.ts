@@ -28,6 +28,13 @@ const PRODUCTION_AUTH_USER_ENDPOINT = `${PRODUCTION_API_BASE}/auth/user`;
 export const API_BASE =
   OVERRIDE_API_BASE || (isProduction ? PRODUCTION_API_BASE : LOCAL_API_BASE);
 
+// True when VITE_API_BASE points the app at a backend on a different site than
+// this frontend (e.g. `npm run dev:vercel` → localhost UI + Vercel backend).
+// In that setup the `isAuthenticated` cookie is set for a domain this page
+// can't read via document.cookie, so cookie-gated auth checks must fall back
+// to the bearer token alone. Always false in a normal production build.
+export const IS_CROSS_ORIGIN_BACKEND = !!OVERRIDE_API_BASE;
+
 // Auth endpoints
 export const AUTH_ENDPOINTS = {
   SIGNUP: `${API_BASE}/auth/signup`,
