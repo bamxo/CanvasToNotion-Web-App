@@ -18,6 +18,7 @@ export default defineConfig({
         'test/',
         'netlify/',
         'netlify/functions/**',
+        '_netlify-legacy/**',
         '.netlify/',
         'dist/',
       ],

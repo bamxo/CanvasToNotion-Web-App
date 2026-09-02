@@ -1,573 +1,472 @@
 import request from 'supertest';
 import axios from 'axios';
 import bodyParser from 'body-parser';
-import { describe, afterEach, expect, it, beforeAll, beforeEach, vi } from 'vitest';
-import express, {Express} from "express"
-import { forgotPassword, signup, googleAuth, testDatabase, login} from '../public/controllers/authControllers';
-import { AxiosError, isAxiosError } from 'axios';
+import cookieParser from 'cookie-parser';
+import { describe, afterEach, expect, it, vi } from 'vitest';
+import express from 'express';
+import { AxiosError } from 'axios';
 
+// ---------------------------------------------------------------------------
+// Mocks
+// ---------------------------------------------------------------------------
 vi.mock('axios');
-const mockedAxios = axios as unknown as { 
-  post: ReturnType<typeof vi.fn>,
-  put: ReturnType<typeof vi.fn>,
-  get: ReturnType<typeof vi.fn>
+const mockedAxios = axios as unknown as {
+  post: ReturnType<typeof vi.fn>;
+  put: ReturnType<typeof vi.fn>;
+  get: ReturnType<typeof vi.fn>;
 };
+(axios as any).isAxiosError = (error: any): error is AxiosError =>
+  error && error.response !== undefined;
 
-(axios as any).isAxiosError = (error: any): error is AxiosError => {
-    return error && error.response !== undefined;
-  };
+// Shared mock state - hoisted so the vi.mock factories below can use it.
+const { verifyIdTokenMock, adminAuth, adminDbRef } = vi.hoisted(() => ({
+  verifyIdTokenMock: vi.fn(),
+  adminAuth: {
+    createUser: vi.fn(),
+    createCustomToken: vi.fn(),
+    generatePasswordResetLink: vi.fn(),
+    verifyIdToken: vi.fn(),
+    deleteUser: vi.fn(),
+    getUserByEmail: vi.fn(),
+    updateUser: vi.fn()
+  },
+  adminDbRef: { set: vi.fn(), remove: vi.fn() }
+}));
+
+// google-auth-library - capture the verifyIdToken mock
+vi.mock('google-auth-library', () => ({
+  OAuth2Client: vi.fn().mockImplementation(() => ({
+    verifyIdToken: verifyIdTokenMock
+  }))
+}));
+
+// Firebase Admin SDK shim
+vi.mock('../public/config/firebase-admin', () => ({
+  admin: {
+    auth: () => adminAuth,
+    database: () => ({ ref: () => adminDbRef })
+  }
+}));
+
+import {
+  signup,
+  login,
+  forgotPassword,
+  googleAuth,
+  getUser,
+  deleteAccount,
+  logout,
+  refreshExtensionToken
+} from '../public/controllers/authControllers';
 
 const app = express();
 app.use(bodyParser.json());
-
-app.post('/forgot-password', forgotPassword);
+app.use(cookieParser());
 app.post('/signup', signup);
-app.post('/google-auth', googleAuth);
-app.get('/test-database', testDatabase);
+app.post('/login', login);
+app.post('/forgot-password', forgotPassword);
+app.post('/google', googleAuth);
+app.get('/user', getUser);
+app.post('/delete-account', deleteAccount);
+app.post('/logout', logout);
+// refreshExtensionToken normally sits behind verifyToken - fake it here.
+app.post(
+  '/refresh-extension-token',
+  (req: any, _res, next) => {
+    req.user = { uid: 'uid-123' };
+    next();
+  },
+  refreshExtensionToken as any
+);
 
-describe('POST /forgot-password', () => {
-    const baseData = {
-        email: 'user@example.com',
-        password: 'testpass',
-        displayName: 'Test User',
-    };
-        
-    afterEach(() => {
-        vi.clearAllMocks();
-    });
-
-    it('should return 400 if email is missing', async () => {
-        const res = await request(app).post('/forgot-password').send({});
-
-        expect(res.status).toBe(400);
-        expect(res.body).toEqual({ error: 'Email is required' });
-    });
-
-    it('should return 200 if request is successful', async () => {
-        mockedAxios.post.mockResolvedValueOnce({ data: {} });
-
-        const res = await request(app)
-        .post('/forgot-password')
-        .send({ email: 'test@example.com' });
-
-        expect(res.status).toBe(200);
-        expect(res.body).toEqual({ message: 'Password reset email sent' });
-    });
-    
-    it('should return 500 if unknown error occurs', async () => {
-        mockedAxios.post.mockRejectedValueOnce(new Error('Something went wrong'));
-
-        const res = await request(app)
-        .post('/forgot-password')
-        .send({ email: 'test@example.com' });
-
-        expect(res.status).toBe(500);
-        expect(res.body).toEqual({ error: 'Failed to send password reset email' });
-    });
-    
-    it('should fall back to email username if displayName not provided', async () => {
-        const authData = {
-        localId: 'xyz789',
-        idToken: 'token-xyz',
-        email: 'noname@example.com',
-        };
-
-        mockedAxios.post.mockResolvedValueOnce({ data: authData });
-        mockedAxios.put.mockResolvedValueOnce({});
-
-        const res = await request(app).post('/signup').send({
-        email: authData.email,
-        password: 'pass123',
-        });
-
-        expect(mockedAxios.put).toHaveBeenCalledWith(
-        expect.stringContaining('/users/xyz789.json?auth=token-xyz'),
-        expect.objectContaining({
-            displayName: 'noname',
-        })
-        );
-
-        expect(res.status).toBe(201);
-        expect(res.body).toEqual(authData);
-    });
-
-    it('should return partial success if DB save fails', async () => {
-        const authResponse = {
-        data: {
-            localId: 'failDB',
-            idToken: 'fail-token',
-            email: 'dbfail@example.com',
-            displayName: 'DB Fail',
-        },
-        };
-
-        mockedAxios.post.mockResolvedValueOnce(authResponse);
-        mockedAxios.put.mockRejectedValueOnce(new Error('DB is down'));
-
-        const res = await request(app).post('/signup').send({
-        email: authResponse.data.email,
-        password: '123456',
-        displayName: 'DB Fail',
-        });
-
-        expect(res.status).toBe(201);
-        expect(res.body).toEqual({
-        ...authResponse.data,
-        warning: 'User created but profile data not saved',
-        });
-    });
-
-    it('should not try to save to DB if localId is missing', async () => {
-        const authResponse = {
-        data: {
-            idToken: 'no-local-id-token',
-            email: 'nolocal@example.com',
-        },
-        };
-
-        mockedAxios.post.mockResolvedValueOnce(authResponse);
-
-        const res = await request(app).post('/signup').send({
-        email: 'nolocal@example.com',
-        password: 'pass123',
-        });
-
-        expect(mockedAxios.put).not.toHaveBeenCalled();
-        expect(res.status).toBe(201);
-        expect(res.body).toEqual(authResponse.data);
-    });
+afterEach(() => {
+  vi.clearAllMocks();
 });
 
+// ---------------------------------------------------------------------------
+// signup
+// ---------------------------------------------------------------------------
 describe('POST /signup', () => {
-    afterEach(() => {
-      vi.clearAllMocks();
-    });
-  
-    it('should return 400 if email or password is missing', async () => {
-      const res = await request(app).post('/signup').send({});
-  
-      expect(res.status).toBe(400);
-      expect(res.body).toEqual({ error: 'Email and password are required' });
-    });
-  
-    it('should create user and save profile data successfully', async () => {
-      const mockAuthResponse = {
-        data: {
-          localId: 'user123',
-          idToken: 'fake-token',
-          email: 'test@example.com',
-          displayName: 'Test User',
-        },
-      };
-  
-      mockedAxios.post.mockResolvedValueOnce(mockAuthResponse); // Auth creation
-      mockedAxios.put.mockResolvedValueOnce({}); // DB save
-  
-      const res = await request(app).post('/signup').send({
-        email: 'test@example.com',
-        password: 'securePass123',
-        displayName: 'Test User',
-      });
-  
-      expect(mockedAxios.post).toHaveBeenCalledTimes(1);
-      expect(mockedAxios.put).toHaveBeenCalledTimes(1);
-      expect(res.status).toBe(201);
-      expect(res.body).toEqual(mockAuthResponse.data);
-    });
-  
-    it('should create user but warn if DB save fails', async () => {
-      const mockAuthResponse = {
-        data: {
-          localId: 'user123',
-          idToken: 'fake-token',
-          email: 'test@example.com',
-          displayName: 'Test User',
-        },
-      };
-  
-      mockedAxios.post.mockResolvedValueOnce(mockAuthResponse); // Auth creation
-      mockedAxios.put.mockRejectedValueOnce(new Error('DB error')); // DB fail
-  
-      const res = await request(app).post('/signup').send({
-        email: 'test@example.com',
-        password: 'securePass123',
-        displayName: 'Test User',
-      });
-  
-      expect(mockedAxios.post).toHaveBeenCalledTimes(1);
-      expect(mockedAxios.put).toHaveBeenCalledTimes(1);
-      expect(res.status).toBe(201);
-      expect(res.body).toEqual({
-        ...mockAuthResponse.data,
-        warning: 'User created but profile data not saved',
-      });
-    });
-  
-    it('should return Firebase error if signup fails', async () => {
-      mockedAxios.post.mockRejectedValueOnce({
-        isAxiosError: true,
-        response: {
-          status: 400,
-          data: {
-            error: {
-              message: 'EMAIL_EXISTS',
-            },
-          },
-        },
-      });
-  
-      const res = await request(app).post('/signup').send({
-        email: 'existing@example.com',
-        password: 'password123',
-      });
-  
-      expect(res.status).toBe(400);
-      expect(res.body).toEqual({ error: 'EMAIL_EXISTS' });
-    });
-  
-    it('should return 500 on unexpected error', async () => {
-      mockedAxios.post.mockRejectedValueOnce(new Error('Unexpected'));
-  
-      const res = await request(app).post('/signup').send({
-        email: 'unexpected@example.com',
-        password: 'password123',
-      });
-  
-      expect(res.status).toBe(500);
-      expect(res.body).toEqual({ error: 'Authentication failed' });
-    });
+  it('returns 400 when email or password is missing', async () => {
+    const res = await request(app).post('/signup').send({});
+    expect(res.status).toBe(400);
+    expect(res.body).toEqual({ error: 'Email and password are required' });
   });
 
-
-describe('POST /signup - Firebase mocked', () => {
-    const mockEmail = 'mockuser@example.com';
-    const mockPassword = 'secure123';
-    const mockDisplayName = 'Mock User';
-  
-    const mockFirebaseAuthResponse = {
+  it('creates the user via the Admin SDK, writes the profile and sets the authToken cookie', async () => {
+    adminAuth.createUser.mockResolvedValueOnce({ uid: 'newUid' });
+    mockedAxios.post.mockResolvedValueOnce({
       data: {
-        idToken: 'mock-id-token',
-        email: mockEmail,
-        refreshToken: 'mock-refresh-token',
-        expiresIn: '3600',
-        localId: 'mockLocalId123',
-        displayName: mockDisplayName,
-      },
-    };
-  
-    afterEach(() => {
-      vi.clearAllMocks();
+        idToken: 'id-token',
+        email: 'new@example.com',
+        refreshToken: 'refresh-token',
+        expiresIn: '3600'
+      }
     });
-  
-    it('should mock Firebase signup and database write', async () => {
-      // 1. Mock Firebase auth response
-      mockedAxios.post.mockResolvedValueOnce(mockFirebaseAuthResponse);
-  
-      // 2. Mock Firebase Realtime Database put response
-      mockedAxios.put.mockResolvedValueOnce({});
-  
-      const res = await request(app).post('/signup').send({
-        email: mockEmail,
-        password: mockPassword,
-        displayName: mockDisplayName,
-      });
-  
-      expect(mockedAxios.post).toHaveBeenCalledWith(
-        expect.stringContaining('identitytoolkit.googleapis.com/v1/accounts:signUp'),
-        expect.objectContaining({
-          email: mockEmail,
-          password: mockPassword,
-          displayName: mockDisplayName,
-          returnSecureToken: true,
-        })
-      );
-  
-      expect(mockedAxios.put).toHaveBeenCalledWith(
-        expect.stringContaining(`/users/mockLocalId123.json?auth=mock-id-token`),
-        expect.objectContaining({
-          email: mockEmail,
-          displayName: mockDisplayName,
-        })
-      );
-  
-      expect(res.status).toBe(201);
-      expect(res.body).toEqual(mockFirebaseAuthResponse.data);
+    adminDbRef.set.mockResolvedValueOnce(undefined);
+
+    const res = await request(app)
+      .post('/signup')
+      .send({ email: 'new@example.com', password: 'pass1234', displayName: 'New Person' });
+
+    expect(adminAuth.createUser).toHaveBeenCalledWith({
+      email: 'new@example.com',
+      password: 'pass1234',
+      displayName: 'New Person'
     });
-}); 
-
-
-describe('POST /google-auth', () => {
-  const mockIdToken = 'mock-google-id-token';
-  const mockLocalId = 'google123';
-  const mockAuthResponse = {
-    data: {
-      localId: mockLocalId,
-      idToken: 'firebase-id-token',
-      email: 'googleuser@example.com',
-      displayName: 'Google User',
-      photoUrl: 'http://photo.url/avatar.png',
-    },
-  };
-
-  afterEach(() => {
-    vi.clearAllMocks();
+    expect(mockedAxios.post).toHaveBeenCalledWith(
+      expect.stringContaining('accounts:signInWithPassword'),
+      expect.objectContaining({ email: 'new@example.com', password: 'pass1234', returnSecureToken: true })
+    );
+    expect(adminDbRef.set).toHaveBeenCalledWith(
+      expect.objectContaining({ email: 'new@example.com', displayName: 'New Person' })
+    );
+    expect(res.status).toBe(201);
+    expect(res.body).toEqual({
+      idToken: 'id-token',
+      email: 'new@example.com',
+      refreshToken: 'refresh-token',
+      expiresIn: '3600',
+      localId: 'newUid',
+      displayName: 'New Person'
+    });
+    expect(res.headers['set-cookie'][0]).toMatch(/^authToken=id-token/);
   });
 
-  it('should return 400 if no idToken is provided', async () => {
-    const res = await request(app).post('/google-auth').send({});
+  it('defaults displayName to the email local-part', async () => {
+    adminAuth.createUser.mockResolvedValueOnce({ uid: 'u2' });
+    mockedAxios.post.mockResolvedValueOnce({
+      data: { idToken: 't', email: 'noname@example.com', refreshToken: 'r', expiresIn: '3600' }
+    });
+    adminDbRef.set.mockResolvedValueOnce(undefined);
 
+    const res = await request(app)
+      .post('/signup')
+      .send({ email: 'noname@example.com', password: 'pass1234' });
+
+    expect(adminAuth.createUser).toHaveBeenCalledWith(
+      expect.objectContaining({ displayName: 'noname' })
+    );
+    expect(res.status).toBe(201);
+    expect(res.body.displayName).toBe('noname');
+  });
+
+  it('returns 201 with a warning when the DB write fails', async () => {
+    adminAuth.createUser.mockResolvedValueOnce({ uid: 'u3' });
+    mockedAxios.post.mockResolvedValueOnce({
+      data: { idToken: 't3', email: 'db@example.com', refreshToken: 'r3', expiresIn: '3600' }
+    });
+    adminDbRef.set.mockRejectedValueOnce(new Error('DB down'));
+
+    const res = await request(app)
+      .post('/signup')
+      .send({ email: 'db@example.com', password: 'pass1234', displayName: 'DB' });
+
+    expect(res.status).toBe(201);
+    expect(res.body).toEqual({
+      idToken: 't3',
+      email: 'db@example.com',
+      refreshToken: 'r3',
+      expiresIn: '3600',
+      localId: 'u3',
+      warning: 'User created but profile data not saved'
+    });
+    expect(res.headers['set-cookie'][0]).toMatch(/^authToken=t3/);
+  });
+
+  it('formats an Admin SDK error message', async () => {
+    adminAuth.createUser.mockRejectedValueOnce(new Error('The email address is already in use'));
+
+    const res = await request(app)
+      .post('/signup')
+      .send({ email: 'existing@example.com', password: 'pass1234' });
+
+    expect(res.status).toBe(400);
+    expect(res.body).toEqual({ error: 'The email address is already in use' });
+  });
+
+  it('propagates an axios error status/message', async () => {
+    adminAuth.createUser.mockResolvedValueOnce({ uid: 'u4' });
+    mockedAxios.post.mockRejectedValueOnce({
+      response: { status: 403, data: { error: { message: 'TOKEN_EXPIRED' } } }
+    });
+
+    const res = await request(app)
+      .post('/signup')
+      .send({ email: 'x@example.com', password: 'pass1234' });
+
+    expect(res.status).toBe(403);
+    expect(res.body).toEqual({ error: 'TOKEN_EXPIRED' });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// login
+// ---------------------------------------------------------------------------
+describe('POST /login', () => {
+  it('returns 400 when credentials are missing', async () => {
+    const res = await request(app).post('/login').send({ email: 'a@b.com' });
+    expect(res.status).toBe(400);
+    expect(res.body).toEqual({ error: 'Email and password are required' });
+  });
+
+  it('returns the auth data and sets the authToken cookie', async () => {
+    mockedAxios.post.mockResolvedValueOnce({
+      data: {
+        localId: 'lid',
+        idToken: 'login-token',
+        refreshToken: 'r',
+        expiresIn: '3600',
+        email: 'a@b.com'
+      }
+    });
+
+    const res = await request(app)
+      .post('/login')
+      .send({ email: 'a@b.com', password: 'pass1234' });
+
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveProperty('idToken', 'login-token');
+    expect(res.body).not.toHaveProperty('extensionToken');
+    expect(res.headers['set-cookie'][0]).toMatch(/^authToken=login-token/);
+  });
+
+  it('includes an extensionToken when requestExtensionToken is set', async () => {
+    mockedAxios.post.mockResolvedValueOnce({
+      data: { localId: 'lid', idToken: 'it', refreshToken: 'r', expiresIn: '3600', email: 'a@b.com' }
+    });
+    adminAuth.createCustomToken.mockResolvedValueOnce('custom-token');
+
+    const res = await request(app)
+      .post('/login')
+      .send({ email: 'a@b.com', password: 'pass1234', requestExtensionToken: true });
+
+    expect(adminAuth.createCustomToken).toHaveBeenCalledWith('lid');
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({ idToken: 'it', localId: 'lid', extensionToken: 'custom-token' });
+  });
+
+  it('propagates an axios error status/message', async () => {
+    mockedAxios.post.mockRejectedValueOnce({
+      response: { status: 400, data: { error: { message: 'INVALID_PASSWORD' } } }
+    });
+
+    const res = await request(app)
+      .post('/login')
+      .send({ email: 'a@b.com', password: 'wrong' });
+
+    expect(res.status).toBe(400);
+    expect(res.body).toEqual({ error: 'INVALID_PASSWORD' });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// forgotPassword
+// ---------------------------------------------------------------------------
+describe('POST /forgot-password', () => {
+  it('returns 400 when email is missing', async () => {
+    const res = await request(app).post('/forgot-password').send({});
+    expect(res.status).toBe(400);
+    expect(res.body).toEqual({ error: 'Email is required' });
+  });
+
+  it('generates a password reset link via the Admin SDK', async () => {
+    adminAuth.generatePasswordResetLink.mockResolvedValueOnce('https://reset.link/abc');
+
+    const res = await request(app)
+      .post('/forgot-password')
+      .send({ email: 'reset@example.com' });
+
+    expect(adminAuth.generatePasswordResetLink).toHaveBeenCalledWith('reset@example.com');
+    expect(res.status).toBe(200);
+    // NODE_ENV is not 'development' in the test runner, so link is omitted.
+    expect(res.body).toEqual({ message: 'Password reset link generated' });
+  });
+
+  it('returns 400 when link generation fails', async () => {
+    adminAuth.generatePasswordResetLink.mockRejectedValueOnce(new Error('no user'));
+
+    const res = await request(app)
+      .post('/forgot-password')
+      .send({ email: 'missing@example.com' });
+
+    expect(res.status).toBe(400);
+    expect(res.body).toEqual({
+      error: 'Failed to generate password reset link',
+      details: 'no user'
+    });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// getUser (GET /auth/user)
+// ---------------------------------------------------------------------------
+describe('GET /user', () => {
+  it('returns 401 when the Authorization header is missing', async () => {
+    const res = await request(app).get('/user');
+    expect(res.status).toBe(401);
+    expect(res.body).toEqual({ error: 'Authorization header is required' });
+  });
+
+  it('verifies the token via accounts:lookup and returns the user shape', async () => {
+    mockedAxios.post.mockResolvedValueOnce({
+      data: {
+        users: [
+          {
+            email: 'john@example.com',
+            displayName: 'John Doe',
+            photoUrl: 'http://photo/john.png'
+          }
+        ]
+      }
+    });
+
+    const res = await request(app).get('/user').set('Authorization', 'Bearer abc123');
+
+    expect(mockedAxios.post).toHaveBeenCalledWith(
+      expect.stringContaining('accounts:lookup'),
+      { idToken: 'abc123' }
+    );
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({
+      email: 'john@example.com',
+      firstName: 'John',
+      displayName: 'John Doe',
+      photoURL: 'http://photo/john.png'
+    });
+  });
+
+  it('returns 404 when no user is found', async () => {
+    mockedAxios.post.mockResolvedValueOnce({ data: { users: [] } });
+
+    const res = await request(app).get('/user').set('Authorization', 'Bearer abc123');
+
+    expect(res.status).toBe(404);
+    expect(res.body).toEqual({ error: 'User not found' });
+  });
+
+  it('returns 401 when the lookup call fails', async () => {
+    mockedAxios.post.mockRejectedValueOnce(new Error('bad token'));
+
+    const res = await request(app).get('/user').set('Authorization', 'Bearer abc123');
+
+    expect(res.status).toBe(401);
+    expect(res.body).toEqual({ error: 'Invalid token' });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// googleAuth
+// ---------------------------------------------------------------------------
+describe('POST /google', () => {
+  it('returns 400 when the Google ID token is missing', async () => {
+    const res = await request(app).post('/google').send({});
     expect(res.status).toBe(400);
     expect(res.body).toEqual({ error: 'Google ID token is required' });
   });
 
-  it('should authenticate and create user profile if new', async () => {
-    // Mock the Google client verification
-    vi.mock('../public/config/google-auth', () => ({
-      googleClient: {
-        verifyIdToken: vi.fn().mockResolvedValue({
-          getPayload: () => ({
-            email: 'googleuser@example.com',
-            name: 'Google User',
-            picture: 'http://photo.url/avatar.png',
-            email_verified: true,
-            sub: 'google123'
-          })
-        })
-      },
-      GOOGLE_CLIENT_ID: 'fake-client-id'
-    }));
-    
-    // 1. Mock admin.auth().getUserByEmail to throw (user not found)
-    vi.mock('../public/config/firebase-admin', () => ({
-      admin: {
-        auth: () => ({
-          getUserByEmail: vi.fn().mockRejectedValue(new Error('User not found')),
-          createUser: vi.fn().mockResolvedValue({ uid: 'google123' }),
-          updateUser: vi.fn().mockResolvedValue({}),
-          createCustomToken: vi.fn().mockResolvedValue('custom-token-123')
-        }),
-        database: () => ({
-          ref: () => ({
-            set: vi.fn().mockResolvedValue({})
-          })
-        })
-      }
-    }));
+  it('returns 401 when both Google verification paths fail', async () => {
+    verifyIdTokenMock.mockRejectedValueOnce(new Error('bad google token'));
+    mockedAxios.get.mockRejectedValueOnce(new Error('tokeninfo down'));
 
-    // 3. Mock Firebase token exchange
-    mockedAxios.post.mockResolvedValueOnce({
-      data: {
-        idToken: 'firebase-id-token',
-        email: 'googleuser@example.com'
-      }
-    });
+    const res = await request(app).post('/google').send({ idToken: 'g-token' });
 
-    const res = await request(app).post('/google-auth').send({ idToken: mockIdToken });
-
-    // Check response
     expect(res.status).toBe(401);
-    expect(res.body).toEqual({ error: 'Invalid Google ID token' });
+    expect(res.body).toMatchObject({ error: 'Invalid Google ID token' });
   });
 
-  it('should not create user profile if user already exists', async () => {
-    // Mock the Google client verification
-    vi.mock('../public/config/google-auth', () => ({
-      googleClient: {
-        verifyIdToken: vi.fn().mockResolvedValue({
-          getPayload: () => ({
-            email: 'existing@example.com',
-            name: 'Existing User',
-            picture: 'http://photo.url/avatar.png',
-            email_verified: true,
-            sub: 'google123'
-          })
-        })
-      },
-      GOOGLE_CLIENT_ID: 'fake-client-id'
-    }));
-    
-    // Mock admin.auth() for existing user
-    vi.mock('../public/config/firebase-admin', () => ({
-      admin: {
-        auth: () => ({
-          getUserByEmail: vi.fn().mockResolvedValue({
-            uid: 'existing123',
-            providerData: [{ providerId: 'google.com' }]
-          }),
-          createCustomToken: vi.fn().mockResolvedValue('custom-token-123')
-        })
-      }
-    }));
-
-    // Mock Firebase token exchange
-    mockedAxios.post.mockResolvedValueOnce({
-      data: {
-        idToken: 'firebase-id-token',
-        email: 'existing@example.com'
-      }
+  it('creates a new Firebase user, links the provider and returns tokens', async () => {
+    verifyIdTokenMock.mockResolvedValueOnce({
+      getPayload: () => ({
+        email: 'g@example.com',
+        name: 'G User',
+        picture: 'http://photo/g.png',
+        email_verified: true,
+        sub: 'google-sub'
+      })
     });
+    adminAuth.getUserByEmail.mockRejectedValueOnce(new Error('not found'));
+    adminAuth.createUser.mockResolvedValueOnce({ uid: 'g-uid' });
+    adminAuth.updateUser.mockResolvedValueOnce(undefined);
+    adminDbRef.set.mockResolvedValueOnce(undefined);
+    adminAuth.createCustomToken.mockResolvedValueOnce('g-custom-token');
+    mockedAxios.post.mockResolvedValueOnce({ data: { idToken: 'g-firebase-id-token' } });
 
-    const res = await request(app).post('/google-auth').send({ idToken: mockIdToken });
+    const res = await request(app).post('/google').send({ idToken: 'g-token' });
 
-    expect(res.status).toBe(401);
-    expect(res.body).toEqual({ error: 'Invalid Google ID token' });
-  });
-
-  it('should return Firebase error if signInWithIdp fails', async () => {
-    mockedAxios.post.mockRejectedValueOnce({
-      isAxiosError: true,
-      response: {
-        status: 401,
-        data: {
-          error: {
-            message: 'INVALID_ID_TOKEN',
-          },
-        },
-      },
+    expect(adminAuth.createUser).toHaveBeenCalled();
+    expect(adminAuth.createCustomToken).toHaveBeenCalledWith('g-uid');
+    expect(mockedAxios.post).toHaveBeenCalledWith(
+      expect.stringContaining('accounts:signInWithIdp'),
+      expect.objectContaining({ postBody: expect.stringContaining('providerId=google.com') })
+    );
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({
+      idToken: 'g-firebase-id-token',
+      customToken: 'g-custom-token',
+      email: 'g@example.com',
+      photoURL: 'http://photo/g.png'
     });
-
-    const res = await request(app).post('/google-auth').send({ idToken: mockIdToken });
-
-    expect(res.status).toBe(401);
-    expect(res.body).toEqual({ error: 'Invalid Google ID token' });
-  });
-
-  it('should handle unexpected errors gracefully', async () => {
-    mockedAxios.post.mockRejectedValueOnce(new Error('Network error'));
-
-    const res = await request(app).post('/google-auth').send({ idToken: mockIdToken });
-
-    expect(res.status).toBe(401);
-    expect(res.body).toEqual({ error: 'Invalid Google ID token' });
+    expect(res.headers['set-cookie'][0]).toMatch(/^authToken=g-firebase-id-token/);
   });
 });
 
+// ---------------------------------------------------------------------------
+// deleteAccount
+// ---------------------------------------------------------------------------
+describe('POST /delete-account', () => {
+  it('returns 400 when the ID token is missing', async () => {
+    const res = await request(app).post('/delete-account').send({});
+    expect(res.status).toBe(400);
+    expect(res.body).toEqual({ error: 'ID token is required' });
+  });
 
-describe('GET /test-database', () => {
-    it('should return 200 and success data on success', async () => {
-      const fakeResponse = { message: 'Test write to Firebase' };
-      mockedAxios.put.mockResolvedValue({ data: fakeResponse });
-  
-      const response = await request(app).get('/test-database');
-  
-      expect(response.status).toBe(200);
-      expect(response.body).toEqual({
-        success: true,
-        data: fakeResponse
-      });
-    });  
-    it('should return 500 and error message on Axios error', async () => {
-        mockedAxios.put.mockRejectedValue({
-          response: { data: { error: 'Permission denied' } }
-        });
-    
-        const response = await request(app).get('/test-database');
-    
-        expect(response.status).toBe(500);
-        expect(response.body).toEqual({
-          error: 'Failed to write to database',
-          details: { error: 'Permission denied' }
-        });
-    });
-    it('should return 500 and error message on general error', async () => {
-        mockedAxios.put.mockRejectedValue(new Error('Unexpected failure'));
-    
-        const response = await request(app).get('/test-database');
-    
-        expect(response.status).toBe(500);
-        expect(response.body).toEqual({
-          error: 'Failed to write to database',
-          details: 'Unexpected failure'
-        });
-      });
+  it('removes the profile and deletes the auth user', async () => {
+    adminAuth.verifyIdToken.mockResolvedValueOnce({ uid: 'del-uid' });
+    adminDbRef.remove.mockResolvedValueOnce(undefined);
+    adminAuth.deleteUser.mockResolvedValueOnce(undefined);
+
+    const res = await request(app).post('/delete-account').send({ idToken: 'tok' });
+
+    expect(adminDbRef.remove).toHaveBeenCalled();
+    expect(adminAuth.deleteUser).toHaveBeenCalledWith('del-uid');
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ message: 'Account deleted successfully' });
+  });
+
+  it('returns 500 when verification fails', async () => {
+    adminAuth.verifyIdToken.mockRejectedValueOnce(new Error('bad'));
+
+    const res = await request(app).post('/delete-account').send({ idToken: 'tok' });
+
+    expect(res.status).toBe(500);
+    expect(res.body).toEqual({ error: 'Failed to delete account' });
+  });
 });
 
-
-
-describe('POST /login', () => {
-    let app: Express;
-
-
-    beforeAll(() => {
-      app = express();
-      app.use(bodyParser.json());
-      app.post('/login', login);
-    });
-   
-    afterEach(() => {
-      vi.clearAllMocks();
-    });
-  
-    it('should return auth data without extension token', async () => {
-      mockedAxios.post.mockResolvedValueOnce({
-        data: {
-          localId: 'mockLocalId',
-          idToken: 'mockIdToken',
-          refreshToken: 'mockRefreshToken',
-          expiresIn: '3600'
-        }
-      });
-  
-      const res = await request(app).post('/login').send({
-        email: 'test@example.com',
-        password: 'password123',
-        requestExtensionToken: false
-      });
-  
-      expect(res.status).toBe(200);
-      expect(res.body).toHaveProperty('idToken');
-      expect(res.body).not.toHaveProperty('extensionToken');
-    });
-  
-    it('should return auth data without extension token', async () => {
-      // Arrange mock response
-      const mockAuthResponse = {
-        data: {
-          localId: 'mockLocalId',
-          idToken: 'mockIdToken',
-          refreshToken: 'mockRefreshToken',
-          expiresIn: '3600'
-        }
-      };
-  
-      mockedAxios.post.mockResolvedValueOnce(mockAuthResponse);
-  
-      // Act
-      const res = await request(app).post('/login').send({
-        email: 'test@example.com',
-        password: 'password123',
-        requestExtensionToken: false
-      });
-  
-      // Assert
-      expect(res.status).toBe(200);
-      expect(res.body).toHaveProperty('idToken');
-      expect(res.body).not.toHaveProperty('extensionToken');
-    });
-
-    it('should return auth data with extension token when requested', async () => {
-        // Arrange mock response
-        const mockAuthResponse = {
-          data: {
-            localId: 'mockLocalId',
-            idToken: 'mockIdToken',
-            refreshToken: 'mockRefreshToken',
-            expiresIn: '3600'
-          }
-        };
-      
-        mockedAxios.post.mockResolvedValueOnce(mockAuthResponse);
-      
-        // Act
-        const res = await request(app).post('/login').send({
-          email: 'test@example.com',
-          password: 'password123',
-          requestExtensionToken: true
-        });
-      
-        // Assert
-        expect(res.status).toBe(401);
-        expect(res.body).toEqual({ error: 'INVALID_ID_TOKEN' });
-      });
-    
+// ---------------------------------------------------------------------------
+// logout
+// ---------------------------------------------------------------------------
+describe('POST /logout', () => {
+  it('clears the authToken cookie', async () => {
+    const res = await request(app).post('/logout').send({});
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ success: true, message: 'Logged out successfully' });
+    expect(res.headers['set-cookie'][0]).toMatch(/^authToken=;/);
   });
+});
+
+// ---------------------------------------------------------------------------
+// refreshExtensionToken
+// ---------------------------------------------------------------------------
+describe('POST /refresh-extension-token', () => {
+  it('mints a custom token for req.user.uid', async () => {
+    adminAuth.createCustomToken.mockResolvedValueOnce('fresh-ext-token');
+
+    const res = await request(app).post('/refresh-extension-token').send({});
+
+    expect(adminAuth.createCustomToken).toHaveBeenCalledWith('uid-123');
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ success: true, extensionToken: 'fresh-ext-token' });
+  });
+});
