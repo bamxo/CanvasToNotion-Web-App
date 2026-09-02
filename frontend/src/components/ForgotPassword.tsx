@@ -10,6 +10,7 @@ import { useNavigate } from 'react-router-dom';
 import styles from './ForgotPassword.module.css';
 import GradientBackgroundWrapper from './GradientBackgroundWrapper';
 import { mapFirebaseError } from '../utils/errorMessages';
+import { AUTH_ENDPOINTS } from '../utils/api';
 
 const ForgotPassword: React.FC = () => {
   const navigate = useNavigate();
@@ -45,7 +46,7 @@ const ForgotPassword: React.FC = () => {
     setError(null);
 
     try {
-      const response = await fetch('http://localhost:3000/api/auth/forgot-password', {
+      const response = await fetch(AUTH_ENDPOINTS.FORGOT_PASSWORD, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
