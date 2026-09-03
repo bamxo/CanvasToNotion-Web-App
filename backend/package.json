@@ -7,6 +7,7 @@
     "start": "node dist/index.js",
     "dev": "nodemon src/index.ts",
     "build": "tsc",
+    "backfill:legacy-tier": "ts-node src/scripts/backfillLegacyTier.ts",
     "test": "vitest run --coverage",
     "test:watch": "vitest"
   },
