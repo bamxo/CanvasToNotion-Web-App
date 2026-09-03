@@ -329,11 +329,27 @@ export const getUser = async (req: Request, res: Response): Promise<void> => {
 // ---------------------------------------------------------------------------
 // googleAuth
 // ---------------------------------------------------------------------------
+
+// Describes the shape of the Google payload feeding providerToLink, which
+// returns an opaque auth/internal-error when it dislikes its input. Logs the
+// sub (a public, stable Google account id) but never the ID token itself.
+const describeGooglePayload = (payload: any, source: string): string =>
+  [
+    `source=${source}`,
+    `sub=${payload?.sub ?? 'MISSING'}`,
+    `sub_type=${typeof payload?.sub}`,
+    `name=${payload?.name === undefined ? 'MISSING' : JSON.stringify(payload.name)}`,
+    `picture=${payload?.picture === undefined ? 'MISSING' : 'present'}`,
+    `email_verified=${JSON.stringify(payload?.email_verified)} (${typeof payload?.email_verified})`,
+    `aud=${payload?.aud ?? 'MISSING'}`
+  ].join(' ');
+
 export const googleAuth = async (req: Request, res: Response): Promise<void> => {
   // Tracked outside the try so the catch can report which user and which step
   // failed - the 500 is otherwise indistinguishable between the steps below.
   let email: string | undefined;
   let step = 'verify-id-token';
+  let payloadSource = 'verifyIdToken';
 
   try {
     const { idToken, requestExtensionToken }: GoogleAuthRequest = req.body;
@@ -353,6 +369,8 @@ export const googleAuth = async (req: Request, res: Response): Promise<void> => 
       payload = ticket.getPayload();
     } catch (err) {
       const errMessage = err instanceof Error ? err.message : 'verification failed';
+      payloadSource = 'tokeninfo-fallback';
+      console.error(`[googleAuth] verifyIdToken failed, trying tokeninfo:`, errMessage);
       try {
         const tokenInfoResponse = await axios.get(
           `https://oauth2.googleapis.com/tokeninfo?id_token=${idToken}`
@@ -385,65 +403,120 @@ export const googleAuth = async (req: Request, res: Response): Promise<void> => 
 
     email = payload.email;
 
-    // 2. Get or create the Firebase user, linking the google.com provider.
-    let userRecord;
-    step = 'get-user-by-email';
-    try {
-      userRecord = await admin.auth().getUserByEmail(payload.email);
+    // 2. Resolve the Firebase user, then create/link only if genuinely new.
+    //
+    // The Google `sub` is the stable identity; the email is not. Institutions
+    // migrate accounts between domains (students.foo.edu -> foo.edu) and Google
+    // keeps reporting the same sub under the new address. Looking up by email
+    // alone misses the existing account, tries to create a second one, and then
+    // fails to attach a sub that is already attached elsewhere - which Firebase
+    // reports only as an opaque auth/internal-error.
+    let userRecord: admin.auth.UserRecord | undefined;
 
-      const hasGoogleProvider = userRecord.providerData.some(
-        (provider) => provider.providerId === 'google.com'
-      );
-
-      if (!hasGoogleProvider) {
-        step = 'link-google-provider';
-        await admin.auth().updateUser(userRecord.uid, {
-          providerToLink: {
-            providerId: 'google.com',
-            uid: payload.sub,
-            email: payload.email,
-            displayName: payload.name,
-            photoURL: payload.picture
-          }
-        });
+    if (payload.sub) {
+      step = 'lookup-by-google-sub';
+      try {
+        userRecord = await admin.auth().getUserByProviderUid('google.com', payload.sub);
+      } catch (err) {
+        if ((err as { code?: string })?.code !== 'auth/user-not-found') {
+          throw err;
+        }
       }
-    } catch (e) {
-      // NOTE: this also catches failures from the provider-link step above, in
-      // which case the createUser below will fail with auth/email-already-exists.
-      console.error(
-        `[googleAuth] step "${step}" failed for ${payload.email}, falling back to createUser:`,
-        (e as { code?: string })?.code ?? e
-      );
-      step = 'create-user';
-      userRecord = await admin.auth().createUser({
-        email: payload.email,
-        displayName: payload.name,
-        photoURL: payload.picture,
-        emailVerified: payload.email_verified
-      });
+    }
 
-      await admin.auth().updateUser(userRecord.uid, {
-        providerToLink: {
-          providerId: 'google.com',
-          uid: payload.sub,
+    if (userRecord && userRecord.email !== payload.email) {
+      // Their address changed upstream. Sign-in already works because we hold
+      // the right uid, so a collision here must not fail the request.
+      step = 'sync-migrated-email';
+      console.error(
+        `[googleAuth] email changed upstream for ${userRecord.uid}: ${userRecord.email} -> ${payload.email}`
+      );
+      try {
+        await admin.auth().updateUser(userRecord.uid, {
+          email: payload.email,
+          emailVerified: true
+        });
+      } catch (syncErr) {
+        console.error(
+          `[googleAuth] could not sync migrated email for ${userRecord.uid}:`,
+          (syncErr as { code?: string })?.code ?? syncErr
+        );
+      }
+    }
+
+    if (!userRecord) {
+      step = 'get-user-by-email';
+      try {
+        userRecord = await admin.auth().getUserByEmail(payload.email);
+
+        const hasGoogleProvider = userRecord.providerData.some(
+          (provider) => provider.providerId === 'google.com'
+        );
+
+        if (!hasGoogleProvider) {
+          step = 'link-google-provider';
+          await admin.auth().updateUser(userRecord.uid, {
+            providerToLink: {
+              providerId: 'google.com',
+              uid: payload.sub,
+              email: payload.email,
+              displayName: payload.name,
+              photoURL: payload.picture
+            }
+          });
+        }
+      } catch (e) {
+        // Only a genuine "no such user" means we should create one. Treating any
+        // failure as absence is what previously turned a failed link into an
+        // auth/email-already-exists 500 that could never recover.
+        if ((e as { code?: string })?.code !== 'auth/user-not-found') {
+          throw e;
+        }
+
+        step = 'create-user';
+        userRecord = await admin.auth().createUser({
           email: payload.email,
           displayName: payload.name,
-          photoURL: payload.picture
-        }
-      });
-
-      try {
-        await admin.database().ref(`/users/${userRecord.uid}`).set({
-          email: payload.email,
-          displayName: payload.name || payload.email.split('@')[0],
           photoURL: payload.picture,
-          provider: 'google.com',
-          createdAt: new Date().toISOString(),
-          lastLogin: new Date().toISOString(),
-          tier: DEFAULT_NEW_USER_TIER
+          emailVerified: payload.email_verified
         });
-      } catch (dbError) {
-        // Continue even if the profile write fails.
+
+        step = 'link-google-provider-after-create';
+        try {
+          await admin.auth().updateUser(userRecord.uid, {
+            providerToLink: {
+              providerId: 'google.com',
+              uid: payload.sub,
+              email: payload.email,
+              displayName: payload.name,
+              photoURL: payload.picture
+            }
+          });
+        } catch (linkErr) {
+          // Roll back the account we just made rather than leaving a shell that
+          // holds the address and blocks every future attempt.
+          console.error(
+            `[googleAuth] link failed for new ${userRecord.uid}, rolling back:`,
+            (linkErr as { code?: string })?.code ?? linkErr,
+            describeGooglePayload(payload, payloadSource)
+          );
+          await admin.auth().deleteUser(userRecord.uid);
+          throw linkErr;
+        }
+
+        try {
+          await admin.database().ref(`/users/${userRecord.uid}`).set({
+            email: payload.email,
+            displayName: payload.name || payload.email.split('@')[0],
+            photoURL: payload.picture,
+            provider: 'google.com',
+            createdAt: new Date().toISOString(),
+            lastLogin: new Date().toISOString(),
+            tier: DEFAULT_NEW_USER_TIER
+          });
+        } catch (dbError) {
+          // Continue even if the profile write fails.
+        }
       }
     }
 
