@@ -10,7 +10,7 @@ const isProduction = import.meta.env.PROD;
 
 // Base URLs
 const LOCAL_API_BASE = 'http://localhost:3000/api';
-const PRODUCTION_API_BASE = 'https://api.canvastonotion.io';
+const PRODUCTION_API_BASE = 'https://api2.canvastonotion.io';
 
 // Optional override: point the running UI at any deployed backend (e.g. a Vercel
 // URL) without changing code. Set VITE_API_BASE in frontend/.env.local — it wins
@@ -40,6 +40,7 @@ export const AUTH_ENDPOINTS = {
   SIGNUP: `${API_BASE}/auth/signup`,
   LOGIN: `${API_BASE}/auth/login`,
   FORGOT_PASSWORD: `${API_BASE}/auth/forgot-password`,
+  RESET_PASSWORD: `${API_BASE}/auth/reset-password`,
   GOOGLE: `${API_BASE}/auth/google`,
   USER: OVERRIDE_API_BASE
     ? `${OVERRIDE_API_BASE}/auth/user`

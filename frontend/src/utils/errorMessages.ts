@@ -30,6 +30,8 @@ export const getErrorMessage = (systemErrorCode: string): string => {
     'OPERATION_NOT_ALLOWED': 'This operation is not allowed. Please contact support.',
     'EXPIRED_ACTION_CODE': 'This link has expired. Please request a new one.',
     'INVALID_ACTION_CODE': 'Invalid or expired link. Please request a new one.',
+    'EXPIRED_OOB_CODE': 'This link has expired. Please request a new one.',
+    'INVALID_OOB_CODE': 'This password reset link is invalid or has already been used. Please request a new one.',
     
     // Network and server errors
     'NETWORK_REQUEST_FAILED': 'Network error. Please check your connection and try again.',
