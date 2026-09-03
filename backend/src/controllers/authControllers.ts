@@ -330,6 +330,11 @@ export const getUser = async (req: Request, res: Response): Promise<void> => {
 // googleAuth
 // ---------------------------------------------------------------------------
 export const googleAuth = async (req: Request, res: Response): Promise<void> => {
+  // Tracked outside the try so the catch can report which user and which step
+  // failed - the 500 is otherwise indistinguishable between the steps below.
+  let email: string | undefined;
+  let step = 'verify-id-token';
+
   try {
     const { idToken, requestExtensionToken }: GoogleAuthRequest = req.body;
 
@@ -378,8 +383,11 @@ export const googleAuth = async (req: Request, res: Response): Promise<void> => 
       return;
     }
 
+    email = payload.email;
+
     // 2. Get or create the Firebase user, linking the google.com provider.
     let userRecord;
+    step = 'get-user-by-email';
     try {
       userRecord = await admin.auth().getUserByEmail(payload.email);
 
@@ -388,6 +396,7 @@ export const googleAuth = async (req: Request, res: Response): Promise<void> => 
       );
 
       if (!hasGoogleProvider) {
+        step = 'link-google-provider';
         await admin.auth().updateUser(userRecord.uid, {
           providerToLink: {
             providerId: 'google.com',
@@ -399,6 +408,13 @@ export const googleAuth = async (req: Request, res: Response): Promise<void> => 
         });
       }
     } catch (e) {
+      // NOTE: this also catches failures from the provider-link step above, in
+      // which case the createUser below will fail with auth/email-already-exists.
+      console.error(
+        `[googleAuth] step "${step}" failed for ${payload.email}, falling back to createUser:`,
+        (e as { code?: string })?.code ?? e
+      );
+      step = 'create-user';
       userRecord = await admin.auth().createUser({
         email: payload.email,
         displayName: payload.name,
@@ -432,9 +448,11 @@ export const googleAuth = async (req: Request, res: Response): Promise<void> => 
     }
 
     // 3. Create a Firebase custom token (used by the extension).
+    step = 'create-custom-token';
     const customToken = await admin.auth().createCustomToken(userRecord.uid);
 
     // 4. Exchange the Google ID token for a Firebase ID token.
+    step = 'sign-in-with-idp';
     const response = await axios.post(
       `https://identitytoolkit.googleapis.com/v1/accounts:signInWithIdp?key=${firebaseConfig.apiKey}`,
       {
@@ -454,6 +472,22 @@ export const googleAuth = async (req: Request, res: Response): Promise<void> => 
       photoURL: payload.picture
     });
   } catch (error) {
+    // Identity Toolkit returns the useful reason in the response body
+    // (EMAIL_EXISTS, FEDERATED_USER_ID_ALREADY_LINKED, USER_DISABLED, ...);
+    // axios only puts "Request failed with status code 400" in error.message.
+    const detail = axios.isAxiosError(error)
+      ? error.response?.data?.error?.message ?? error.message
+      : (error as { code?: string })?.code ?? error;
+
+    // Log the stack rather than the error object: an AxiosError carries the
+    // outgoing request config, and that request body holds the user's Google
+    // ID token - it must not reach the logs.
+    console.error(
+      `[googleAuth] step "${step}" failed for ${email ?? 'unknown email'}:`,
+      detail,
+      error instanceof Error ? error.stack : error
+    );
+
     res.status(500).json({ error: 'Google authentication failed' });
   }
 };
