@@ -19,7 +19,7 @@ const mockedAxios = axios as unknown as {
   error && error.response !== undefined;
 
 // Shared mock state - hoisted so the vi.mock factories below can use it.
-const { verifyIdTokenMock, adminAuth, adminDbRef } = vi.hoisted(() => ({
+const { verifyIdTokenMock, adminAuth, adminDbRef, sendPasswordResetEmailMock } = vi.hoisted(() => ({
   verifyIdTokenMock: vi.fn(),
   adminAuth: {
     createUser: vi.fn(),
@@ -30,7 +30,8 @@ const { verifyIdTokenMock, adminAuth, adminDbRef } = vi.hoisted(() => ({
     getUserByEmail: vi.fn(),
     updateUser: vi.fn()
   },
-  adminDbRef: { set: vi.fn(), remove: vi.fn() }
+  adminDbRef: { set: vi.fn(), remove: vi.fn() },
+  sendPasswordResetEmailMock: vi.fn()
 }));
 
 // google-auth-library - capture the verifyIdToken mock
@@ -48,10 +49,16 @@ vi.mock('../src/config/firebase-admin', () => ({
   }
 }));
 
+// Branded password-reset email sender - stubbed so no real mail is sent.
+vi.mock('../src/utils/passwordResetEmail', () => ({
+  sendPasswordResetEmail: sendPasswordResetEmailMock
+}));
+
 import {
   signup,
   login,
   forgotPassword,
+  resetPassword,
   googleAuth,
   getUser,
   deleteAccount,
@@ -65,6 +72,7 @@ app.use(cookieParser());
 app.post('/signup', signup);
 app.post('/login', login);
 app.post('/forgot-password', forgotPassword);
+app.post('/reset-password', resetPassword);
 app.post('/google', googleAuth);
 app.get('/user', getUser);
 app.post('/delete-account', deleteAccount);
@@ -270,33 +278,124 @@ describe('POST /forgot-password', () => {
     expect(res.body).toEqual({ error: 'Email is required' });
   });
 
-  it('sends a password reset email via the Firebase sendOobCode endpoint', async () => {
-    mockedAxios.post.mockResolvedValueOnce({ data: {} });
+  it('generates a reset link and mails our own app URL carrying the oobCode', async () => {
+    adminAuth.generatePasswordResetLink.mockResolvedValueOnce(
+      'https://c2n.firebaseapp.com/__/auth/action?mode=resetPassword&oobCode=OOB123&apiKey=k'
+    );
 
     const res = await request(app)
       .post('/forgot-password')
       .send({ email: 'reset@example.com' });
 
-    expect(mockedAxios.post).toHaveBeenCalledWith(
-      expect.stringContaining('accounts:sendOobCode'),
-      { requestType: 'PASSWORD_RESET', email: 'reset@example.com' }
+    expect(adminAuth.generatePasswordResetLink).toHaveBeenCalledWith('reset@example.com');
+    expect(sendPasswordResetEmailMock).toHaveBeenCalledWith(
+      'reset@example.com',
+      expect.stringMatching(/\/reset-password\?oobCode=OOB123$/)
     );
     expect(res.status).toBe(200);
     expect(res.body).toEqual({ message: 'Password reset email sent' });
   });
 
-  it('propagates an error when sending the reset email fails', async () => {
-    mockedAxios.post.mockRejectedValueOnce({
-      isAxiosError: true,
-      response: { status: 400, data: { error: { message: 'EMAIL_NOT_FOUND' } } }
-    });
+  it('honours APP_BASE_URL for the reset link host', async () => {
+    process.env.APP_BASE_URL = 'https://app.example.com/';
+    adminAuth.generatePasswordResetLink.mockResolvedValueOnce(
+      'https://c2n.firebaseapp.com/__/auth/action?mode=resetPassword&oobCode=ZZZ'
+    );
+
+    await request(app).post('/forgot-password').send({ email: 'reset@example.com' });
+
+    expect(sendPasswordResetEmailMock).toHaveBeenCalledWith(
+      'reset@example.com',
+      'https://app.example.com/reset-password?oobCode=ZZZ'
+    );
+    delete process.env.APP_BASE_URL;
+  });
+
+  it('returns 200 without mailing when the account does not exist (no enumeration)', async () => {
+    adminAuth.generatePasswordResetLink.mockRejectedValueOnce(
+      Object.assign(new Error('no user'), { code: 'auth/user-not-found' })
+    );
 
     const res = await request(app)
       .post('/forgot-password')
       .send({ email: 'missing@example.com' });
 
+    expect(sendPasswordResetEmailMock).not.toHaveBeenCalled();
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ message: 'Password reset email sent' });
+  });
+
+  it('returns 500 when link generation fails unexpectedly', async () => {
+    adminAuth.generatePasswordResetLink.mockRejectedValueOnce(new Error('boom'));
+
+    const res = await request(app)
+      .post('/forgot-password')
+      .send({ email: 'reset@example.com' });
+
+    expect(res.status).toBe(500);
+    expect(res.body).toEqual({ error: 'Failed to send password reset email' });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// resetPassword
+// ---------------------------------------------------------------------------
+describe('POST /reset-password', () => {
+  it('returns 400 when oobCode or newPassword is missing', async () => {
+    const res = await request(app).post('/reset-password').send({ oobCode: 'x' });
     expect(res.status).toBe(400);
-    expect(res.body).toEqual({ error: 'EMAIL_NOT_FOUND' });
+    expect(res.body).toEqual({ error: 'Reset code and new password are required' });
+  });
+
+  it('returns 400 when the new password is too short', async () => {
+    const res = await request(app)
+      .post('/reset-password')
+      .send({ oobCode: 'x', newPassword: 'short' });
+    expect(res.status).toBe(400);
+    expect(res.body).toEqual({ error: 'Password must be at least 8 characters long' });
+  });
+
+  it('confirms the reset via the Firebase resetPassword endpoint', async () => {
+    mockedAxios.post.mockResolvedValueOnce({ data: { email: 'reset@example.com' } });
+
+    const res = await request(app)
+      .post('/reset-password')
+      .send({ oobCode: 'OOB123', newPassword: 'newpass1234' });
+
+    expect(mockedAxios.post).toHaveBeenCalledWith(
+      expect.stringContaining('accounts:resetPassword'),
+      { oobCode: 'OOB123', newPassword: 'newpass1234' }
+    );
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ message: 'Password has been reset' });
+  });
+
+  it('maps an expired code to a 400', async () => {
+    mockedAxios.post.mockRejectedValueOnce({
+      isAxiosError: true,
+      response: { status: 400, data: { error: { message: 'EXPIRED_OOB_CODE' } } }
+    });
+
+    const res = await request(app)
+      .post('/reset-password')
+      .send({ oobCode: 'stale', newPassword: 'newpass1234' });
+
+    expect(res.status).toBe(400);
+    expect(res.body).toEqual({ error: 'EXPIRED_OOB_CODE' });
+  });
+
+  it('maps an invalid code to a 400', async () => {
+    mockedAxios.post.mockRejectedValueOnce({
+      isAxiosError: true,
+      response: { status: 400, data: { error: { message: 'INVALID_OOB_CODE' } } }
+    });
+
+    const res = await request(app)
+      .post('/reset-password')
+      .send({ oobCode: 'bad', newPassword: 'newpass1234' });
+
+    expect(res.status).toBe(400);
+    expect(res.body).toEqual({ error: 'INVALID_OOB_CODE' });
   });
 });
 

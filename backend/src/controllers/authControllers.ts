@@ -16,6 +16,7 @@ import {
   AuthenticatedRequest
 } from '../types';
 import { OAuth2Client } from 'google-auth-library';
+import { sendPasswordResetEmail } from '../utils/passwordResetEmail';
 
 const GOOGLE_CLIENT_ID =
   process.env.GOOGLE_CLIENT_ID || process.env.VITE_GOOGLE_CLIENT_ID || '';
@@ -177,8 +178,20 @@ export const login = async (req: Request, res: Response): Promise<void> => {
 };
 
 // ---------------------------------------------------------------------------
-// forgotPassword - generate a password reset link via the Admin SDK
+// forgotPassword
+//
+// Generates a reset link with the Admin SDK (which sends nothing), pulls the
+// oobCode out of it, and mails our OWN /reset-password app URL via a branded
+// template. The user never touches Firebase's hosted action page.
 // ---------------------------------------------------------------------------
+const appBaseUrl = (): string =>
+  (
+    process.env.APP_BASE_URL ||
+    (process.env.NODE_ENV === 'production'
+      ? 'https://canvastonotion.io'
+      : 'http://localhost:5173')
+  ).replace(/\/+$/, '');
+
 export const forgotPassword = async (req: Request, res: Response): Promise<void> => {
   try {
     const { email }: PasswordResetRequest = req.body;
@@ -188,19 +201,81 @@ export const forgotPassword = async (req: Request, res: Response): Promise<void>
       return;
     }
 
-    // Firebase sends its own templated password-reset email (no SMTP needed).
-    await axios.post(
-      `https://identitytoolkit.googleapis.com/v1/accounts:sendOobCode?key=${firebaseConfig.apiKey}`,
-      { requestType: 'PASSWORD_RESET', email }
-    );
+    let resetLink: string;
+    try {
+      resetLink = await admin.auth().generatePasswordResetLink(email);
+    } catch (err) {
+      // Don't reveal whether the account exists - always report success.
+      const code = (err as { code?: string })?.code;
+      if (code === 'auth/user-not-found' || code === 'auth/email-not-found') {
+        res.status(200).json({ message: 'Password reset email sent' });
+        return;
+      }
+      console.error('[forgotPassword] generatePasswordResetLink failed:', err);
+      throw err;
+    }
+
+    const oobCode = new URL(resetLink).searchParams.get('oobCode');
+    if (!oobCode) {
+      console.error('[forgotPassword] no oobCode in generated link:', resetLink);
+      res.status(500).json({ error: 'Failed to send password reset email' });
+      return;
+    }
+
+    const resetUrl = `${appBaseUrl()}/reset-password?oobCode=${oobCode}`;
+
+    try {
+      await sendPasswordResetEmail(email, resetUrl);
+    } catch (mailErr) {
+      console.error('[forgotPassword] sendPasswordResetEmail failed:', mailErr);
+      throw mailErr;
+    }
 
     res.status(200).json({ message: 'Password reset email sent' });
   } catch (error) {
-    const errorMessage = axios.isAxiosError(error)
-      ? error.response?.data?.error?.message || 'Failed to send password reset email'
-      : 'Failed to send password reset email';
-    res.status(axios.isAxiosError(error) ? error.response?.status || 500 : 500)
-      .json({ error: errorMessage });
+    res.status(500).json({ error: 'Failed to send password reset email' });
+  }
+};
+
+// ---------------------------------------------------------------------------
+// resetPassword - confirm a reset with the oobCode + a new password
+// ---------------------------------------------------------------------------
+export const resetPassword = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { oobCode, newPassword } = req.body as { oobCode?: string; newPassword?: string };
+
+    if (!oobCode || !newPassword) {
+      res.status(400).json({ error: 'Reset code and new password are required' });
+      return;
+    }
+
+    if (newPassword.length < 8) {
+      res.status(400).json({ error: 'Password must be at least 8 characters long' });
+      return;
+    }
+
+    await axios.post(
+      `https://identitytoolkit.googleapis.com/v1/accounts:resetPassword?key=${firebaseConfig.apiKey}`,
+      { oobCode, newPassword }
+    );
+
+    res.status(200).json({ message: 'Password has been reset' });
+  } catch (error) {
+    let statusCode = 500;
+    let errorMessage = 'Failed to reset password';
+
+    if (axios.isAxiosError(error) && error.response) {
+      const code = error.response.data?.error?.message || '';
+      if (code === 'EXPIRED_OOB_CODE' || code === 'INVALID_OOB_CODE') {
+        statusCode = 400;
+        errorMessage = code;
+      } else {
+        statusCode = error.response.status || 500;
+        errorMessage = code || errorMessage;
+      }
+    }
+
+    res.status(statusCode).json({ error: errorMessage });
   }
 };
 

@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "build:vercel": "tsc && VITE_API_BASE=https://canvas-to-notion-backend.vercel.app vite build",
+    "build:vercel": "tsc && VITE_API_BASE=https://api2.canvastonotion.io vite build",
     "dev:vercel": "npm run build:vercel && vite preview --port 5173 --strictPort",
     "test": "vitest run --coverage",
     "test:watch": "vitest"
