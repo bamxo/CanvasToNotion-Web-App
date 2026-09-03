@@ -2,7 +2,7 @@ import request from 'supertest';
 import axios from 'axios';
 import bodyParser from 'body-parser';
 import cookieParser from 'cookie-parser';
-import { describe, afterEach, expect, it, vi } from 'vitest';
+import { describe, afterEach, beforeEach, expect, it, vi } from 'vitest';
 import express from 'express';
 import { AxiosError } from 'axios';
 
@@ -28,6 +28,7 @@ const { verifyIdTokenMock, adminAuth, adminDbRef, sendPasswordResetEmailMock } =
     verifyIdToken: vi.fn(),
     deleteUser: vi.fn(),
     getUserByEmail: vi.fn(),
+    getUserByProviderUid: vi.fn(),
     updateUser: vi.fn()
   },
   adminDbRef: { set: vi.fn(), remove: vi.fn() },
@@ -86,6 +87,16 @@ app.post(
   },
   refreshExtensionToken as any
 );
+
+// Firebase rejects lookups with a coded error. Using a plain Error here is what
+// previously let real failures masquerade as "this user does not exist".
+const firebaseError = (code: string, message = code) =>
+  Object.assign(new Error(message), { code });
+
+beforeEach(() => {
+  // Default: the Google identity is not attached to any account yet.
+  adminAuth.getUserByProviderUid.mockRejectedValue(firebaseError('auth/user-not-found'));
+});
 
 afterEach(() => {
   vi.clearAllMocks();
@@ -500,7 +511,7 @@ describe('POST /google', () => {
         sub: 'google-sub'
       })
     });
-    adminAuth.getUserByEmail.mockRejectedValueOnce(new Error('not found'));
+    adminAuth.getUserByEmail.mockRejectedValueOnce(firebaseError('auth/user-not-found'));
     adminAuth.createUser.mockResolvedValueOnce({ uid: 'g-uid' });
     adminAuth.updateUser.mockResolvedValueOnce(undefined);
     adminDbRef.set.mockResolvedValueOnce(undefined);
@@ -535,7 +546,7 @@ describe('POST /google', () => {
         sub: 'google-sub-gt'
       })
     });
-    adminAuth.getUserByEmail.mockRejectedValueOnce(new Error('not found'));
+    adminAuth.getUserByEmail.mockRejectedValueOnce(firebaseError('auth/user-not-found'));
     adminAuth.createUser.mockResolvedValueOnce({ uid: 'gt-uid' });
     adminAuth.updateUser.mockResolvedValueOnce(undefined);
     adminDbRef.set.mockResolvedValueOnce(undefined);
@@ -545,6 +556,81 @@ describe('POST /google', () => {
     await request(app).post('/google').send({ idToken: 'g-token' });
 
     expect(adminDbRef.set).toHaveBeenCalledWith(expect.objectContaining({ tier: 'free' }));
+  });
+
+  it('signs in a user whose email changed upstream, without creating a second account', async () => {
+    verifyIdTokenMock.mockResolvedValueOnce({
+      getPayload: () => ({
+        email: 'student@new.edu',
+        name: 'Migrated User',
+        picture: 'http://photo/m.png',
+        email_verified: true,
+        sub: 'stable-google-sub'
+      })
+    });
+    // Same Google identity, still filed under the old address.
+    adminAuth.getUserByProviderUid.mockResolvedValueOnce({
+      uid: 'existing-uid',
+      email: 'student@old.new.edu',
+      providerData: [{ providerId: 'google.com' }]
+    });
+    adminAuth.updateUser.mockResolvedValueOnce(undefined);
+    adminAuth.createCustomToken.mockResolvedValueOnce('m-custom-token');
+    mockedAxios.post.mockResolvedValueOnce({ data: { idToken: 'm-firebase-id-token' } });
+
+    const res = await request(app).post('/google').send({ idToken: 'g-token' });
+
+    expect(adminAuth.getUserByProviderUid).toHaveBeenCalledWith('google.com', 'stable-google-sub');
+    expect(adminAuth.createUser).not.toHaveBeenCalled();
+    expect(adminAuth.getUserByEmail).not.toHaveBeenCalled();
+    expect(adminAuth.updateUser).toHaveBeenCalledWith('existing-uid', {
+      email: 'student@new.edu',
+      emailVerified: true
+    });
+    expect(adminAuth.createCustomToken).toHaveBeenCalledWith('existing-uid');
+    expect(res.status).toBe(200);
+  });
+
+  it('deletes the account it just created when linking fails, leaving no orphan', async () => {
+    verifyIdTokenMock.mockResolvedValueOnce({
+      getPayload: () => ({
+        email: 'doomed@example.com',
+        email_verified: true,
+        sub: 'doomed-sub'
+      })
+    });
+    adminAuth.getUserByEmail.mockRejectedValueOnce(firebaseError('auth/user-not-found'));
+    adminAuth.createUser.mockResolvedValueOnce({ uid: 'doomed-uid' });
+    adminAuth.updateUser.mockRejectedValueOnce(firebaseError('auth/internal-error'));
+    adminAuth.deleteUser.mockResolvedValueOnce(undefined);
+
+    const res = await request(app).post('/google').send({ idToken: 'g-token' });
+
+    expect(adminAuth.deleteUser).toHaveBeenCalledWith('doomed-uid');
+    expect(res.status).toBe(500);
+  });
+
+  it('does not fall back to createUser when linking to an existing account fails', async () => {
+    verifyIdTokenMock.mockResolvedValueOnce({
+      getPayload: () => ({
+        email: 'pw@example.com',
+        email_verified: true,
+        sub: 'pw-sub'
+      })
+    });
+    adminAuth.getUserByEmail.mockResolvedValueOnce({
+      uid: 'pw-uid',
+      email: 'pw@example.com',
+      providerData: [{ providerId: 'password' }]
+    });
+    adminAuth.updateUser.mockRejectedValueOnce(firebaseError('auth/internal-error'));
+
+    const res = await request(app).post('/google').send({ idToken: 'g-token' });
+
+    // The old code called createUser here, which always threw
+    // auth/email-already-exists and wedged the account permanently.
+    expect(adminAuth.createUser).not.toHaveBeenCalled();
+    expect(res.status).toBe(500);
   });
 });
 
