@@ -8,6 +8,8 @@
     "dev": "nodemon src/index.ts",
     "build": "tsc",
     "backfill:legacy-tier": "ts-node src/scripts/backfillLegacyTier.ts",
+    "inspect:google-user": "ts-node src/scripts/inspectGoogleAuthUser.ts",
+    "audit:orphaned-accounts": "ts-node src/scripts/auditOrphanedAccounts.ts",
     "test": "vitest run --coverage",
     "test:watch": "vitest"
   },
