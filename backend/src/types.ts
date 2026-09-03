@@ -9,12 +9,26 @@ export interface FirebaseConfig {
   databaseURL: string;
 }
 
+// Pricing / subscription tier.
+//   free    - new sign-ups; ad-supported
+//   pro     - paid monthly, no ads + upcoming extras (Stripe)
+//   lifetime- one-time payment, no ads + upcoming extras (Stripe)
+//   legacy  - every user that existed before the pricing model launched
+export type UserTier = 'free' | 'pro' | 'lifetime' | 'legacy';
+
+// Tier assigned to brand-new sign-ups.
+export const DEFAULT_NEW_USER_TIER: UserTier = 'free';
+
+// Tier back-filled onto every pre-existing user.
+export const LEGACY_TIER: UserTier = 'legacy';
+
 // User related types
 export interface UserData {
   email: string;
   displayName?: string;
   photoURL?: string;
   createdAt: string;
+  tier?: UserTier;
   [key: string]: any; // For additional custom fields
 }
 

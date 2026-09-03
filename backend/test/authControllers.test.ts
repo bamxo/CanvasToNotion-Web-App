@@ -141,6 +141,20 @@ describe('POST /signup', () => {
     expect(res.headers['set-cookie'][0]).toMatch(/^authToken=id-token/);
   });
 
+  it('writes tier "free" to the new user profile', async () => {
+    adminAuth.createUser.mockResolvedValueOnce({ uid: 'tierUid' });
+    mockedAxios.post.mockResolvedValueOnce({
+      data: { idToken: 't', email: 'tier@example.com', refreshToken: 'r', expiresIn: '3600' }
+    });
+    adminDbRef.set.mockResolvedValueOnce(undefined);
+
+    await request(app)
+      .post('/signup')
+      .send({ email: 'tier@example.com', password: 'pass1234' });
+
+    expect(adminDbRef.set).toHaveBeenCalledWith(expect.objectContaining({ tier: 'free' }));
+  });
+
   it('defaults displayName to the email local-part', async () => {
     adminAuth.createUser.mockResolvedValueOnce({ uid: 'u2' });
     mockedAxios.post.mockResolvedValueOnce({
@@ -509,6 +523,28 @@ describe('POST /google', () => {
       photoURL: 'http://photo/g.png'
     });
     expect(res.headers['set-cookie'][0]).toMatch(/^authToken=g-firebase-id-token/);
+  });
+
+  it('writes tier "free" when creating a new Google user profile', async () => {
+    verifyIdTokenMock.mockResolvedValueOnce({
+      getPayload: () => ({
+        email: 'gt@example.com',
+        name: 'GT User',
+        picture: 'http://photo/gt.png',
+        email_verified: true,
+        sub: 'google-sub-gt'
+      })
+    });
+    adminAuth.getUserByEmail.mockRejectedValueOnce(new Error('not found'));
+    adminAuth.createUser.mockResolvedValueOnce({ uid: 'gt-uid' });
+    adminAuth.updateUser.mockResolvedValueOnce(undefined);
+    adminDbRef.set.mockResolvedValueOnce(undefined);
+    adminAuth.createCustomToken.mockResolvedValueOnce('gt-custom-token');
+    mockedAxios.post.mockResolvedValueOnce({ data: { idToken: 'gt-firebase-id-token' } });
+
+    await request(app).post('/google').send({ idToken: 'g-token' });
+
+    expect(adminDbRef.set).toHaveBeenCalledWith(expect.objectContaining({ tier: 'free' }));
   });
 });
 

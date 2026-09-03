@@ -13,7 +13,8 @@ import {
   PasswordResetRequest,
   GoogleAuthRequest,
   AuthResponse,
-  AuthenticatedRequest
+  AuthenticatedRequest,
+  DEFAULT_NEW_USER_TIER
 } from '../types';
 import { OAuth2Client } from 'google-auth-library';
 import { sendPasswordResetEmail } from '../utils/passwordResetEmail';
@@ -87,7 +88,8 @@ export const signup = async (req: Request, res: Response): Promise<void> => {
       const userData = {
         email,
         displayName: resolvedDisplayName,
-        createdAt: new Date().toISOString()
+        createdAt: new Date().toISOString(),
+        tier: DEFAULT_NEW_USER_TIER
       };
 
       await admin.database().ref(`users/${userRecord.uid}`).set(userData);
@@ -421,7 +423,8 @@ export const googleAuth = async (req: Request, res: Response): Promise<void> => 
           photoURL: payload.picture,
           provider: 'google.com',
           createdAt: new Date().toISOString(),
-          lastLogin: new Date().toISOString()
+          lastLogin: new Date().toISOString(),
+          tier: DEFAULT_NEW_USER_TIER
         });
       } catch (dbError) {
         // Continue even if the profile write fails.
