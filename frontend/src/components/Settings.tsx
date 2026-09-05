@@ -17,7 +17,9 @@ import axios from 'axios';
 import styles from './Settings.module.css';
 import logo from '../assets/c2n-favicon.svg';
 import { useNotionAuth } from '../hooks/useNotionAuth';
-import { AUTH_ENDPOINTS, USER_ENDPOINTS, NOTION_ENDPOINTS, COOKIE_STATE_ENDPOINTS, IS_CROSS_ORIGIN_BACKEND } from '../utils/api';
+import { useEntitlements } from '../hooks/useEntitlements';
+import LegacyPlanCard from './LegacyPlanCard';
+import { AUTH_ENDPOINTS, USER_ENDPOINTS, NOTION_ENDPOINTS, COOKIE_STATE_ENDPOINTS, BILLING_ENDPOINTS, IS_CROSS_ORIGIN_BACKEND } from '../utils/api';
 import { EXTENSION_ID, NOTION_REDIRECT_URI } from '../utils/constants';
 import { secureGetToken, secureRemoveToken } from '../utils/encryption';
 import Cookies from 'js-cookie';
@@ -42,6 +44,74 @@ const Settings: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isButtonLoading, setIsButtonLoading] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  const { tier, plan, memberSince, refetch } = useEntitlements();
+  const [planNotice, setPlanNotice] = useState<string | null>(null);
+  const [planError, setPlanError] = useState<string | null>(null);
+  const [planBusy, setPlanBusy] = useState(false);
+  const [refundDone, setRefundDone] = useState(false);
+
+  const fmtDate = (epochSeconds?: number) =>
+    epochSeconds ? new Date(epochSeconds * 1000).toLocaleDateString() : '';
+
+  useEffect(() => {
+    // Spec §6.4: refetch entitlements whenever the tab regains focus so a plan
+    // change made in the Stripe portal shows up without a manual reload.
+    const onFocus = () => refetch();
+    window.addEventListener('focus', onFocus);
+
+    const params = new URLSearchParams(window.location.search);
+    const checkout = params.get('checkout');
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    if (checkout === 'success' || checkout === 'cancelled') {
+      if (checkout === 'success') {
+        setPlanNotice('Payment received — your plan will update shortly.');
+        timer = setTimeout(refetch, 2000);
+      } else {
+        setPlanNotice('Checkout cancelled.');
+      }
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+
+    return () => {
+      window.removeEventListener('focus', onFocus);
+      if (timer) clearTimeout(timer);
+    };
+  }, [refetch]);
+
+  const openPortal = async () => {
+    setPlanBusy(true);
+    setPlanError(null);
+    try {
+      const token = secureGetToken('authToken');
+      const res = await axios.post(BILLING_ENDPOINTS.PORTAL, {}, { headers: { Authorization: `Bearer ${token}` } });
+      window.location.href = res.data.url;
+    } catch (err) {
+      setPlanError(err instanceof Error ? err.message : 'Something went wrong. Please try again.');
+    } finally {
+      setPlanBusy(false);
+    }
+  };
+
+  const requestRefund = async () => {
+    setPlanBusy(true);
+    setPlanError(null);
+    try {
+      const token = secureGetToken('authToken');
+      await axios.post(BILLING_ENDPOINTS.REFUND, {}, { headers: { Authorization: `Bearer ${token}` } });
+      setRefundDone(true);
+      refetch();
+    } catch (err) {
+      setPlanError(err instanceof Error ? err.message : 'Something went wrong. Please try again.');
+    } finally {
+      setPlanBusy(false);
+    }
+  };
+
+  const withinRefundWindow =
+    tier === 'lifetime' &&
+    !!plan?.lifetimeRefundEligibleUntil &&
+    plan.lifetimeRefundEligibleUntil * 1000 > Date.now();
 
   useEffect(() => {
     const fetchUserInfo = async () => {
@@ -294,7 +364,43 @@ const Settings: React.FC = () => {
           )}
         </div>
 
-        <div className={styles['spacer-lg']} />
+        <div className={styles['spacer-md']} />
+
+        <section className={styles.planSection}>
+          <h2 className={styles.sectionTitle}>Plan</h2>
+          <div className={styles.divider} />
+          {planNotice && <p className={styles.planNotice}>{planNotice}</p>}
+          {planError && <p className={styles.planError} role="alert">{planError}</p>}
+
+          {tier === 'free' && (
+            <p>You're on the Free plan.</p>
+          )}
+
+          {tier === 'pro' && (
+            <>
+              <p>Pro — $1/month{plan?.cancelAtPeriodEnd ? ' (cancels at period end)' : ''}.</p>
+              {plan?.currentPeriodEnd && (
+                <p>{plan.cancelAtPeriodEnd ? 'Cancels' : 'Renews'} {fmtDate(plan.currentPeriodEnd)}</p>
+              )}
+              <button className={styles.button} onClick={openPortal} disabled={planBusy}>Manage subscription</button>
+            </>
+          )}
+
+          {tier === 'lifetime' && withinRefundWindow && !refundDone && (
+            <>
+              <p>Lifetime — active. You're within your 7-day refund window (until {fmtDate(plan?.lifetimeRefundEligibleUntil)}).</p>
+              <button className={styles.button} onClick={requestRefund} disabled={planBusy}>Request a refund</button>
+            </>
+          )}
+          {tier === 'lifetime' && refundDone && <p>Refunded — your account is now Free.</p>}
+          {tier === 'lifetime' && !withinRefundWindow && !refundDone && (
+            <p>Lifetime — you're all set. Thanks!</p>
+          )}
+
+          {tier === 'legacy' && <LegacyPlanCard memberSince={memberSince} />}
+        </section>
+
+        <div className={styles['spacer-md']} />
 
         <div className={styles.connectionsSection}>
           <h2 className={styles.sectionTitle}>Manage Connections</h2>

@@ -62,6 +62,14 @@ export const COOKIE_STATE_ENDPOINTS = {
 export const USER_ENDPOINTS = {
   PROFILE: `${API_BASE}/users/profile`,
   INFO: `${API_BASE}/users/info`,
+  ENTITLEMENTS: `${API_BASE}/users/entitlements`,
+};
+
+// Billing endpoints
+export const BILLING_ENDPOINTS = {
+  CHECKOUT: `${API_BASE}/billing/checkout`,
+  PORTAL: `${API_BASE}/billing/portal`,
+  REFUND: `${API_BASE}/billing/refund`,
 };
 
 // Database endpoints

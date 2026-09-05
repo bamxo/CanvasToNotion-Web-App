@@ -22,7 +22,7 @@
 }
 
 .header {
-  padding: 24px 48px;
+  padding: 16px 48px;
   width: 100%;
   box-sizing: border-box;
 }
@@ -34,7 +34,7 @@
 }
 
 .container {
-  padding: 48px 96px;
+  padding: 16px 96px;
   width: 100%;
   box-sizing: border-box;
   margin: 0;
@@ -48,13 +48,13 @@
   font-weight: 700;
   color: #ffffff;
   margin: 0;
-  margin-bottom: 16px;
+  margin-bottom: 10px;
 }
 
 .divider {
   height: 1px;
   background-color: rgba(255, 255, 255, 0.1);
-  margin: 16px 0;
+  margin: 6px 0;
   width: 100%;
 }
 
@@ -63,7 +63,7 @@
 }
 
 .spacer-md {
-  height: 32px;
+  height: 18px;
 }
 
 .spacer-lg {
@@ -74,7 +74,7 @@
   display: grid;
   grid-template-columns: 1fr auto;
   gap: 120px;
-  margin: 24px 0;
+  margin: 6px 0;
   width: 100%;
   align-items: center;
 }
@@ -153,7 +153,7 @@
 }
 
 .connectionsSection {
-  margin-top: 48px;
+  margin-top: 10px;
   width: 100%;
 }
 
@@ -161,10 +161,10 @@
   display: flex;
   align-items: center;
   background: rgba(255, 255, 255, 0.05);
-  padding: 16px 24px;
+  padding: 10px 20px;
   border-radius: 12px;
-  margin-top: 16px;
-  margin-bottom: 24px;
+  margin-top: 20px;
+  margin-bottom: 8px;
   transition: all 0.3s ease;
   border: 1px solid rgba(255, 255, 255, 0.1);
   width: fit-content;
@@ -359,7 +359,7 @@
 .connectionButtons {
   display: flex;
   gap: 12px;
-  margin-top: 8px;
+  margin-top: 6px;
 }
 
 .removeConnectionButton {
@@ -396,3 +396,6 @@
 @keyframes spin {
   to { transform: rotate(360deg); }
 } 
+.planSection { margin-top: 0; }
+.planNotice { color: #2b7a2b; font-weight: 600; }
+.planError { color: #b00020; font-weight: 600; }

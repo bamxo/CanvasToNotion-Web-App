@@ -2,6 +2,7 @@
 import express from 'express';
 import * as userController from '../controllers/userControllers';
 import { verifyToken } from '../middleware/auth';
+import { getEntitlements } from '../billing/billingController';
 
 const router = express.Router();
 
@@ -9,5 +10,6 @@ const router = express.Router();
 router.get('/profile', verifyToken, userController.getProfile);
 router.get('/info', verifyToken, userController.getUserInfo);
 router.put('/profile', verifyToken, userController.updateProfile);
+router.get('/entitlements', verifyToken, getEntitlements);
 
 export default router;
