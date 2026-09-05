@@ -19,6 +19,7 @@ import logo from '../assets/c2n-favicon.svg';
 import { useNotionAuth } from '../hooks/useNotionAuth';
 import { useEntitlements } from '../hooks/useEntitlements';
 import LegacyPlanCard from './LegacyPlanCard';
+import FreePlanCard from './FreePlanCard';
 import { AUTH_ENDPOINTS, USER_ENDPOINTS, NOTION_ENDPOINTS, COOKIE_STATE_ENDPOINTS, BILLING_ENDPOINTS, IS_CROSS_ORIGIN_BACKEND } from '../utils/api';
 import { EXTENSION_ID, NOTION_REDIRECT_URI } from '../utils/constants';
 import { secureGetToken, secureRemoveToken } from '../utils/encryption';
@@ -45,7 +46,7 @@ const Settings: React.FC = () => {
   const [isButtonLoading, setIsButtonLoading] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
-  const { tier, plan, memberSince, refetch } = useEntitlements();
+  const { tier, plan, memberSince, classSyncUsed, classSyncLimit, refetch } = useEntitlements();
   const [planNotice, setPlanNotice] = useState<string | null>(null);
   const [planError, setPlanError] = useState<string | null>(null);
   const [planBusy, setPlanBusy] = useState(false);
@@ -373,7 +374,7 @@ const Settings: React.FC = () => {
           {planError && <p className={styles.planError} role="alert">{planError}</p>}
 
           {tier === 'free' && (
-            <p>You're on the Free plan.</p>
+            <FreePlanCard classSyncUsed={classSyncUsed} classSyncLimit={classSyncLimit} />
           )}
 
           {tier === 'pro' && (

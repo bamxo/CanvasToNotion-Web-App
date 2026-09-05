@@ -1,6 +1,6 @@
 .wrapper {
   font-family: 'Poppins', sans-serif;
-  margin-top: 18px;
+  margin-top: 16px;
 }
 
 .topRow {
@@ -56,7 +56,7 @@
 }
 
 .heading {
-  margin: 10px 0 4px;
+  margin: 12px 0 6px;
   font-size: 18px;
   font-weight: 700;
   color: #ffffff;
@@ -104,11 +104,11 @@
 }
 
 .syncCard {
-  margin-top: 20px;
+  margin-top: 18px;
   background: rgba(255, 255, 255, 0.03);
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 12px;
-  padding: 16px 22px;
+  padding: 14px 20px;
 }
 
 .syncRow {

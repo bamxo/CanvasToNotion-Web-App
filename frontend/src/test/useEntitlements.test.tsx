@@ -35,6 +35,26 @@ describe('useEntitlements', () => {
     expect(result.current.memberSince).toBe('2024-01-15T00:00:00.000Z');
   });
 
+  it('exposes classSyncUsed/classSyncLimit when the server includes them', async () => {
+    (axios as any).get.mockResolvedValueOnce({
+      data: { tier: 'free', showAds: true, hasProFeatures: false, classSyncUsed: 3, classSyncLimit: 5 },
+    });
+    const { result } = renderHook(() => useEntitlements());
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(result.current.classSyncUsed).toBe(3);
+    expect(result.current.classSyncLimit).toBe(5);
+  });
+
+  it('defaults classSyncUsed to 0 and classSyncLimit to null when the server omits them', async () => {
+    (axios as any).get.mockResolvedValueOnce({
+      data: { tier: 'pro', showAds: false, hasProFeatures: true },
+    });
+    const { result } = renderHook(() => useEntitlements());
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(result.current.classSyncUsed).toBe(0);
+    expect(result.current.classSyncLimit).toBeNull();
+  });
+
   it('surfaces an error and defaults to free', async () => {
     (axios as any).get.mockRejectedValueOnce(new Error('nope'));
     const { result } = renderHook(() => useEntitlements());

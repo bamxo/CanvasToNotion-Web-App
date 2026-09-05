@@ -12,6 +12,7 @@ import {
   nowIso,
 } from './config';
 import { handleStripeEvent } from './webhook';
+import { getSyncedCourseIds } from '../notion_api/classSyncStore';
 
 const PLAN_KEYS: (keyof BillingRecord)[] = [
   'subscriptionStatus',
@@ -42,8 +43,10 @@ export async function getEntitlements(
   const { tier, billing, createdAt } = await getUser(uid);
   const entitlements = entitlementsForTier(tier);
   const plan = planView(billing);
+  const classSyncUsed = (await getSyncedCourseIds(uid)).length;
   res.status(200).json({
     ...entitlements,
+    classSyncUsed,
     ...(plan ? { plan } : {}),
     ...(createdAt ? { memberSince: createdAt } : {}),
   });

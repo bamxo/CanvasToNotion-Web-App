@@ -4,16 +4,16 @@
   --primary-font: 'Poppins', sans-serif;
 }
 
+/* min-height (not a fixed 100vh box) so the dark background grows with the
+   page instead of stopping at one viewport - a fixed-height absolute box
+   left everything below it showing the default page background once
+   content made the page taller than the screen and it had to scroll. */
 .pageWrapper {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  position: relative;
+  min-height: 100vh;
+  width: 100%;
   display: flex;
   flex-direction: column;
-  width: 100vw;
-  height: 100vh;
   margin: 0;
   padding: 0;
   background-color: #191919;
@@ -22,7 +22,7 @@
 }
 
 .header {
-  padding: 16px 48px;
+  padding: 14px 48px;
   width: 100%;
   box-sizing: border-box;
 }
@@ -34,7 +34,7 @@
 }
 
 .container {
-  padding: 16px 96px;
+  padding: 12px 96px;
   width: 100%;
   box-sizing: border-box;
   margin: 0;
@@ -48,13 +48,13 @@
   font-weight: 700;
   color: #ffffff;
   margin: 0;
-  margin-bottom: 10px;
+  margin-bottom: 14px;
 }
 
 .divider {
   height: 1px;
   background-color: rgba(255, 255, 255, 0.1);
-  margin: 6px 0;
+  margin: 10px 0;
   width: 100%;
 }
 
@@ -63,7 +63,7 @@
 }
 
 .spacer-md {
-  height: 18px;
+  height: 20px;
 }
 
 .spacer-lg {
@@ -74,7 +74,7 @@
   display: grid;
   grid-template-columns: 1fr auto;
   gap: 120px;
-  margin: 6px 0;
+  margin: 10px 0;
   width: 100%;
   align-items: center;
 }
@@ -127,7 +127,7 @@
 .actionButtons {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 6px;
   margin-left: 0;
 }
 
@@ -135,9 +135,9 @@
   background: none;
   border: none;
   color: red;
-  padding: 8px 16px;
+  padding: 6px 16px;
   font-family: var(--primary-font);
-  font-size: 18px;
+  font-size: 16px;
   cursor: pointer;
   transition: opacity 0.2s;
   text-align: center;
@@ -149,7 +149,7 @@
 
 .deleteButton {
   color: #464646;
-  font-size: 16px;
+  font-size: 15px;
 }
 
 .connectionsSection {
@@ -163,8 +163,8 @@
   background: rgba(255, 255, 255, 0.05);
   padding: 10px 20px;
   border-radius: 12px;
-  margin-top: 20px;
-  margin-bottom: 8px;
+  margin-top: 18px;
+  margin-bottom: 10px;
   transition: all 0.3s ease;
   border: 1px solid rgba(255, 255, 255, 0.1);
   width: fit-content;
@@ -229,7 +229,7 @@
   background-color: #EA5C24;
   color: white;
   border: none;
-  padding: 12px 24px;
+  padding: 10px 22px;
   border-radius: 8px;
   font-family: var(--primary-font);
   font-size: 14px;
@@ -366,7 +366,7 @@
   background-color: transparent;
   color: #EA5C24;
   border: 1px solid #EA5C24;
-  padding: 12px 24px;
+  padding: 10px 22px;
   border-radius: 8px;
   font-family: var(--primary-font);
   font-size: 14px;

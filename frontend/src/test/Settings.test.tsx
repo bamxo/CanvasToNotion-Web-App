@@ -502,6 +502,7 @@ describe('Settings Component', () => {
 const setEntitlements = (over: Partial<ReturnType<typeof entitlementsModule.useEntitlements>>) => {
   vi.mocked(entitlementsModule.useEntitlements).mockReturnValue({
     tier: 'free', showAds: true, hasProFeatures: false, plan: undefined,
+    classSyncUsed: 0, classSyncLimit: 5,
     isLoading: false, error: null, refetch: vi.fn(), ...over,
   });
 };
@@ -527,10 +528,13 @@ describe('Settings - Plan section', () => {
     setEntitlements({ tier: 'free' });
   });
 
-  it('free user sees the free plan message with no upgrade link yet', async () => {
-    setEntitlements({ tier: 'free' });
+  it('free user sees the free plan card with usage and upgrade options', async () => {
+    setEntitlements({ tier: 'free', classSyncUsed: 3, classSyncLimit: 5 });
     render(<BrowserRouter><Settings /></BrowserRouter>);
-    expect(await screen.findByText(/on the Free plan/i)).toBeInTheDocument();
+    expect(await screen.findByText('Standard Tier')).toBeInTheDocument();
+    expect(screen.getByText('3 / 5 classes synced (60%)')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /upgrade/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /claim lifetime access/i })).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: /see plans/i })).not.toBeInTheDocument();
   });
 

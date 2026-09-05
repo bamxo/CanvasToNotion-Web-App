@@ -19,6 +19,8 @@ interface EntitlementsState {
   hasProFeatures: boolean;
   plan?: PlanView;
   memberSince?: string;
+  classSyncUsed: number;
+  classSyncLimit: number | null;
   isLoading: boolean;
   error: string | null;
   refetch: () => void;
@@ -30,9 +32,17 @@ type EntitlementsData = {
   hasProFeatures: boolean;
   plan?: PlanView;
   memberSince?: string;
+  classSyncUsed: number;
+  classSyncLimit: number | null;
 };
 
-const FREE: EntitlementsData = { tier: 'free', showAds: true, hasProFeatures: false };
+const FREE: EntitlementsData = {
+  tier: 'free',
+  showAds: true,
+  hasProFeatures: false,
+  classSyncUsed: 0,
+  classSyncLimit: null,
+};
 
 export function useEntitlements(): EntitlementsState {
   const [data, setData] = useState<EntitlementsData>(FREE);
@@ -57,6 +67,8 @@ export function useEntitlements(): EntitlementsState {
           hasProFeatures: res.data.hasProFeatures ?? false,
           plan: res.data.plan,
           memberSince: res.data.memberSince,
+          classSyncUsed: res.data.classSyncUsed ?? 0,
+          classSyncLimit: res.data.classSyncLimit ?? null,
         });
       })
       .catch((err) => {

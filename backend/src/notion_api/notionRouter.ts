@@ -7,6 +7,10 @@ import { adminDb } from '../db';
 import { database } from 'firebase-admin';
 import { verifyToken } from '../middleware/auth';
 import { AuthenticatedRequest } from '../types';
+import { getUser } from '../billing/store';
+import { entitlementsForTier } from '../billing/tierRules';
+import { getSyncedCourseIds, addSyncedCourseIds } from './classSyncStore';
+import { partitionCoursesByLimit } from './classSyncLimit';
 
 const router = express.Router();
 
@@ -948,9 +952,23 @@ router.post('/sync-v2', async (req: AuthenticatedRequest, res: Response) => {
       }
     }
 
+    // Free-tier class-sync cap. This is a backend safety net - the extension
+    // UI is expected to stop a free user from selecting more than the limit
+    // in the first place - so a course already tracked as synced is always
+    // let through (re-syncing its assignments must keep working), and only
+    // *new* courses past the cap are rejected.
+    const { tier: userTier } = await getUser(req.user!.uid);
+    const classSyncLimit = entitlementsForTier(userTier).classSyncLimit;
+    const alreadySyncedCourseIds = await getSyncedCourseIds(req.user!.uid);
+    const { allowed: allowedCourses, rejected: rejectedCourses } = partitionCoursesByLimit(
+      alreadySyncedCourseIds,
+      courses as { id: string | number; name: string }[],
+      classSyncLimit
+    );
+
     // Create courses that don't exist yet (mainly on initial chunk)
     let coursesCreated = 0;
-    for (const course of courses) {
+    for (const course of allowedCourses) {
       if (!coursePageIds.has(course.name)) {
         console.log(`Creating course: ${course.name}`);
         const coursePage = await notion.pages.create({
@@ -962,6 +980,10 @@ router.post('/sync-v2', async (req: AuthenticatedRequest, res: Response) => {
         coursePageIds.set(course.name, coursePage.id);
         coursesCreated++;
       }
+    }
+
+    if (allowedCourses.length > 0) {
+      await addSyncedCourseIds(req.user!.uid, allowedCourses.map(course => course.id));
     }
 
     // Get existing assignment URLs to avoid duplicates
@@ -979,7 +1001,9 @@ router.post('/sync-v2', async (req: AuthenticatedRequest, res: Response) => {
     // Process assignments in this chunk
     let assignmentsCreated = 0;
     let assignmentsSkipped = 0;
-    const errors: string[] = [];
+    const errors: string[] = rejectedCourses.map(
+      course => `Free plan limit reached: "${course.name}" was not synced. Upgrade to sync unlimited classes.`
+    );
 
     for (const assignment of assignments) {
       const canvasUrl = assignment.html_url?.trim();
@@ -1037,6 +1061,7 @@ router.post('/sync-v2', async (req: AuthenticatedRequest, res: Response) => {
         assignmentsCreated,
         assignmentsSkipped,
         coursesCreated,
+        classSyncLimitReached: rejectedCourses.length > 0 ? true : undefined,
         errors: errors.length > 0 ? errors : undefined
       }
     });
