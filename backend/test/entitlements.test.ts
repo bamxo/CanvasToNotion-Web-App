@@ -27,7 +27,8 @@ describe('GET /users/entitlements', () => {
     const res = await request(app).get('/users/entitlements');
     expect(res.status).toBe(200);
     expect(res.body).toEqual({
-      tier: 'free', showAds: true, hasProFeatures: false, classSyncLimit: 5, classSyncUsed: 0,
+      tier: 'free', showAds: true, hasProFeatures: false,
+      classSyncLimit: 5, classSyncUsed: 0, syncedCourseIds: [],
     });
   });
 
@@ -44,6 +45,7 @@ describe('GET /users/entitlements', () => {
       hasProFeatures: true,
       classSyncLimit: null,
       classSyncUsed: 0,
+      syncedCourseIds: [],
       plan: { subscriptionStatus: 'active', currentPeriodEnd: 123, cancelAtPeriodEnd: false },
     });
     expect(JSON.stringify(res.body)).not.toContain('cus_1');
@@ -72,6 +74,7 @@ describe('GET /users/entitlements', () => {
     getSyncedCourseIdsMock.mockResolvedValueOnce(['101', '102', '103']);
     const res = await request(app).get('/users/entitlements');
     expect(res.body.classSyncUsed).toBe(3);
+    expect(res.body.syncedCourseIds).toEqual(['101', '102', '103']);
     expect(res.body.classSyncLimit).toBe(5);
   });
 });

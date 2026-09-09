@@ -43,10 +43,11 @@ export async function getEntitlements(
   const { tier, billing, createdAt } = await getUser(uid);
   const entitlements = entitlementsForTier(tier);
   const plan = planView(billing);
-  const classSyncUsed = (await getSyncedCourseIds(uid)).length;
+  const syncedCourseIds = await getSyncedCourseIds(uid);
   res.status(200).json({
     ...entitlements,
-    classSyncUsed,
+    classSyncUsed: syncedCourseIds.length,
+    syncedCourseIds,
     ...(plan ? { plan } : {}),
     ...(createdAt ? { memberSince: createdAt } : {}),
   });

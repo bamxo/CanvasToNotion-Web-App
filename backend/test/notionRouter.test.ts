@@ -45,6 +45,18 @@ vi.mock('../src/db', () => ({ adminDb }));
 vi.mock('../src/middleware/auth', () => ({ verifyToken }));
 vi.mock('axios', () => ({ default: { post: (...args: any[]) => axiosPost(...args) } }));
 
+const { partitionRequestedCoursesMock, addSyncedCourseIdsMock } = vi.hoisted(() => ({
+  partitionRequestedCoursesMock: vi.fn(),
+  addSyncedCourseIdsMock: vi.fn(async () => undefined),
+}));
+vi.mock('../src/notion_api/classSyncGuard', () => ({
+  partitionRequestedCourses: partitionRequestedCoursesMock,
+}));
+vi.mock('../src/notion_api/classSyncStore', () => ({
+  getSyncedCourseIds: vi.fn(async () => []),
+  addSyncedCourseIds: addSyncedCourseIdsMock,
+}));
+
 // ---- Helpers ---------------------------------------------------------------
 
 import notionRouter from '../src/notion_api/notionRouter';
@@ -64,6 +76,8 @@ beforeEach(() => {
   });
   axiosPost.mockReset();
   adminDb.ref.mockClear();
+  partitionRequestedCoursesMock.mockReset();
+  addSyncedCourseIdsMock.mockClear();
 });
 
 // ---- Tests ---------------------------------------------------------------------
@@ -133,6 +147,28 @@ describe('POST /notion/token', () => {
     const res = await request(buildApp()).post('/notion/token').send({});
     expect(res.status).toBe(400);
     expect(res.body.success).toBe(false);
+  });
+});
+
+describe('POST /notion/sync — free-tier class cap', () => {
+  it('routes requested courses through partitionRequestedCourses', async () => {
+    refBehaviour['users'] = {
+      queryVal: { 'uid-1': { email: 'user@example.com', accessToken: 'tok' } },
+    };
+    partitionRequestedCoursesMock.mockResolvedValueOnce({
+      allowed: [{ id: 1, name: 'Kept' }],
+      rejected: [{ id: 2, name: 'Blocked' }],
+      shouldRecord: true,
+    });
+
+    await request(buildApp())
+      .post('/notion/sync')
+      .send({ pageId: 'p1', courses: [{ id: 1, name: 'Kept' }, { id: 2, name: 'Blocked' }], assignments: [] });
+
+    expect(partitionRequestedCoursesMock).toHaveBeenCalledWith('uid-1', [
+      { id: 1, name: 'Kept' },
+      { id: 2, name: 'Blocked' },
+    ]);
   });
 });
 

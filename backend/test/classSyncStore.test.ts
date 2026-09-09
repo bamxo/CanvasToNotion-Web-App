@@ -41,6 +41,18 @@ describe('classSyncStore', () => {
     expect(await getSyncedCourseIds('u1')).toEqual(expect.arrayContaining(['101', '102']));
   });
 
+  it('stores an ISO date as the value and never overwrites it on re-sync', async () => {
+    await addSyncedCourseIds('u1', ['101']);
+    const first = (db as any).__nodes.get('users/u1/classSync/courses')['101'];
+    expect(first).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/);
+
+    await new Promise((r) => setTimeout(r, 5));
+    await addSyncedCourseIds('u1', ['101', '102']);
+    const node = (db as any).__nodes.get('users/u1/classSync/courses');
+    expect(node['101']).toBe(first); // unchanged
+    expect(node['102']).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+  });
+
   it('is a no-op for an empty id list', async () => {
     await addSyncedCourseIds('u1', []);
     expect(refMock).not.toHaveBeenCalled();
