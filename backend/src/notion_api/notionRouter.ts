@@ -7,7 +7,7 @@ import { adminDb } from '../db';
 import { database } from 'firebase-admin';
 import { verifyToken } from '../middleware/auth';
 import { AuthenticatedRequest } from '../types';
-import { addSyncedCourseIds } from './classSyncStore';
+import { recordSyncedCourses } from './classSyncStore';
 import { partitionRequestedCourses } from './classSyncGuard';
 
 const router = express.Router();
@@ -207,7 +207,11 @@ router.post('/sync', async (req: AuthenticatedRequest, res: Response) => {
     // allowed set is recorded only after the course pages are actually created
     // (mirrors /sync-v2), and only when `shouldRecord` is true (free tier only).
     const { allowed: allowedCourses, rejected: rejectedCourses, shouldRecord } =
-      await partitionRequestedCourses(uid, courses as { id: string | number; name: string }[]);
+      await partitionRequestedCourses(
+        uid,
+        courses as { id: string | number; name: string }[],
+        userData.workspaceId,
+      );
 
     // Mark sync as pending (parity with notion.ts:handleSync)
     await syncStatusRef.set({
@@ -352,7 +356,11 @@ router.post('/sync', async (req: AuthenticatedRequest, res: Response) => {
     // Notion pages exist (mirrors /sync-v2), and only for free-tier users —
     // pro/lifetime/legacy never persist a class-sync ledger.
     if (shouldRecord && allowedCourses.length > 0) {
-      await addSyncedCourseIds(uid, allowedCourses.map((c) => c.id));
+      await recordSyncedCourses({
+        uid,
+        workspaceId: userData.workspaceId,
+        courseIds: allowedCourses.map((c) => c.id),
+      });
     }
 
     // Get existing assignment URLs to avoid duplicates
@@ -977,7 +985,11 @@ router.post('/sync-v2', async (req: AuthenticatedRequest, res: Response) => {
     // let through (re-syncing its assignments must keep working), and only
     // *new* courses past the cap are rejected.
     const { allowed: allowedCourses, rejected: rejectedCourses, shouldRecord } =
-      await partitionRequestedCourses(req.user!.uid, courses as { id: string | number; name: string }[]);
+      await partitionRequestedCourses(
+        req.user!.uid,
+        courses as { id: string | number; name: string }[],
+        userData.workspaceId,
+      );
 
     // Create courses that don't exist yet (mainly on initial chunk)
     let coursesCreated = 0;
@@ -997,7 +1009,11 @@ router.post('/sync-v2', async (req: AuthenticatedRequest, res: Response) => {
 
     // Only free-tier users persist a class-sync ledger (see classSyncGuard).
     if (shouldRecord && allowedCourses.length > 0) {
-      await addSyncedCourseIds(req.user!.uid, allowedCourses.map(course => course.id));
+      await recordSyncedCourses({
+        uid: req.user!.uid,
+        workspaceId: userData.workspaceId,
+        courseIds: allowedCourses.map((course) => course.id),
+      });
     }
 
     // Get existing assignment URLs to avoid duplicates

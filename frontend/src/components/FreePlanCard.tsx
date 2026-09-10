@@ -15,11 +15,16 @@ import { secureGetToken } from '../utils/encryption';
 interface FreePlanCardProps {
   classSyncUsed: number;
   classSyncLimit: number | null;
+  notionConnected: boolean;
 }
 
 type Plan = 'pro' | 'lifetime';
 
-const FreePlanCard: React.FC<FreePlanCardProps> = ({ classSyncUsed, classSyncLimit }) => {
+const FreePlanCard: React.FC<FreePlanCardProps> = ({
+  classSyncUsed,
+  classSyncLimit,
+  notionConnected,
+}) => {
   const [busyPlan, setBusyPlan] = useState<Plan | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -101,21 +106,39 @@ const FreePlanCard: React.FC<FreePlanCardProps> = ({ classSyncUsed, classSyncLim
 
       {error && <p className={styles.errorText} role="alert">{error}</p>}
 
-      <div className={styles.usageCard}>
-        <div className={styles.usageRow}>
-          <span className={styles.usageLabel}>Class Sync Usage</span>
-          <span className={styles.usageCount}>
-            {classSyncUsed} / {limit} classes synced ({percent}%)
-          </span>
+      {notionConnected ? (
+        <div className={styles.usageCard}>
+          <div className={styles.usageRow}>
+            <span className={styles.usageLabel}>Class Sync Usage</span>
+            <span className={styles.usageCount}>
+              {classSyncUsed} / {limit} classes synced ({percent}%)
+            </span>
+          </div>
+          <div className={styles.usageBarTrack}>
+            <div className={styles.usageBarFill} style={{ width: `${percent}%` }} />
+          </div>
+          <p className={styles.footnote}>
+            {remaining} {remaining === 1 ? 'class' : 'classes'} remaining. Free tier includes up to{' '}
+            {limit} synced classes. Upgrade for unlimited synchronizations.
+          </p>
         </div>
-        <div className={styles.usageBarTrack}>
-          <div className={styles.usageBarFill} style={{ width: `${percent}%` }} />
+      ) : (
+        <div className={styles.usageCard}>
+          <div className={styles.usageRow}>
+            <span className={styles.usageLabel}>Class Sync Usage</span>
+            <span className={styles.usageCountMuted}>
+              Connect Notion to start syncing your classes
+            </span>
+          </div>
+          <div className={styles.usageBarTrack}>
+            <div className={styles.usageBarFill} style={{ width: '0%' }} />
+          </div>
+          <p className={styles.footnote}>
+            Connect your Notion workspace to automatically sync up to {limit || 5} courses on the
+            Free tier.
+          </p>
         </div>
-        <p className={styles.footnote}>
-          {remaining} {remaining === 1 ? 'class' : 'classes'} remaining. Free tier includes up to{' '}
-          {limit} synced classes. Upgrade for unlimited synchronizations.
-        </p>
-      </div>
+      )}
     </div>
   );
 };

@@ -55,6 +55,24 @@ describe('useEntitlements', () => {
     expect(result.current.classSyncLimit).toBeNull();
   });
 
+  it('exposes notionConnected when the server includes it', async () => {
+    (axios as any).get.mockResolvedValueOnce({
+      data: { tier: 'free', showAds: true, hasProFeatures: false, notionConnected: true },
+    });
+    const { result } = renderHook(() => useEntitlements());
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(result.current.notionConnected).toBe(true);
+  });
+
+  it('defaults notionConnected to false when the server omits it', async () => {
+    (axios as any).get.mockResolvedValueOnce({
+      data: { tier: 'free', showAds: true, hasProFeatures: false },
+    });
+    const { result } = renderHook(() => useEntitlements());
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(result.current.notionConnected).toBe(false);
+  });
+
   it('surfaces an error and defaults to free', async () => {
     (axios as any).get.mockRejectedValueOnce(new Error('nope'));
     const { result } = renderHook(() => useEntitlements());

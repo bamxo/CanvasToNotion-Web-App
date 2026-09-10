@@ -176,6 +176,7 @@
   justify-content: space-between;
   align-items: baseline;
   gap: 12px;
+  line-height: 1.4;
 }
 
 .usageLabel {
@@ -187,6 +188,12 @@
   font-size: 13px;
   font-weight: 600;
   color: #FF7A50;
+}
+
+.usageCountMuted {
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.6);
 }
 
 .usageBarTrack {

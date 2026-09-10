@@ -33,7 +33,7 @@ vi.mock('../hooks/useNotionAuth', () => ({
 // (which never touch the Plan section) keep passing.
 vi.mock('../hooks/useEntitlements', () => ({
   useEntitlements: vi.fn(() => ({
-    tier: 'free', showAds: true, hasProFeatures: false,
+    tier: 'free', showAds: true, hasProFeatures: false, notionConnected: true,
     isLoading: false, error: null, refetch: () => {}
   }))
 }));
@@ -502,7 +502,7 @@ describe('Settings Component', () => {
 const setEntitlements = (over: Partial<ReturnType<typeof entitlementsModule.useEntitlements>>) => {
   vi.mocked(entitlementsModule.useEntitlements).mockReturnValue({
     tier: 'free', showAds: true, hasProFeatures: false, plan: undefined,
-    classSyncUsed: 0, classSyncLimit: 5,
+    classSyncUsed: 0, classSyncLimit: 5, notionConnected: true,
     isLoading: false, error: null, refetch: vi.fn(), ...over,
   });
 };
@@ -536,6 +536,35 @@ describe('Settings - Plan section', () => {
     expect(screen.getByRole('button', { name: /upgrade/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /claim lifetime access/i })).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: /see plans/i })).not.toBeInTheDocument();
+  });
+
+  it('refetches entitlements when the Notion connection status flips (connect / disconnect)', async () => {
+    const refetch = vi.fn();
+    setEntitlements({ tier: 'free', notionConnected: false, refetch });
+    const setConn = (isConnected: boolean) =>
+      (useNotionAuthModule.useNotionAuth as ReturnType<typeof vi.fn>).mockReturnValue({
+        userInfo: { email: 'a@b.com', firstName: 'A' },
+        notionConnection: { email: '', isConnected },
+        isConnecting: false,
+        error: '',
+        isLoading: false,
+        setNotionConnection: vi.fn(),
+      });
+
+    setConn(false);
+    const { rerender } = render(<BrowserRouter><Settings /></BrowserRouter>);
+    await screen.findByText('Standard Tier');
+    refetch.mockClear(); // ignore the hook's own mount fetch / initial effect skip
+
+    // Notion gets connected on this page
+    setConn(true);
+    rerender(<BrowserRouter><Settings /></BrowserRouter>);
+    await waitFor(() => expect(refetch).toHaveBeenCalledTimes(1));
+
+    // ...and disconnected again
+    setConn(false);
+    rerender(<BrowserRouter><Settings /></BrowserRouter>);
+    await waitFor(() => expect(refetch).toHaveBeenCalledTimes(2));
   });
 
   it('pro user can open the billing portal', async () => {

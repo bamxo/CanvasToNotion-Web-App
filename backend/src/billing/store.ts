@@ -19,13 +19,21 @@ const db = () => getDatabase();
 
 export async function getUser(
   uid: string
-): Promise<{ tier?: UserTier; billing?: BillingRecord; createdAt?: string }> {
+): Promise<{
+  tier?: UserTier;
+  billing?: BillingRecord;
+  createdAt?: string;
+  workspaceId?: string;
+  accessToken?: string;
+}> {
   const userSnap = await db().ref(`users/${uid}`).once('value');
   const user = userSnap.val() ?? {};
   return {
     tier: user.tier,
     billing: user.billing ?? undefined,
-    createdAt: user.createdAt ?? undefined
+    createdAt: user.createdAt ?? undefined,
+    workspaceId: user.workspaceId ?? undefined,
+    accessToken: user.accessToken ?? undefined,
   };
 }
 

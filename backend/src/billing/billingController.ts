@@ -12,7 +12,7 @@ import {
   nowIso,
 } from './config';
 import { handleStripeEvent } from './webhook';
-import { getSyncedCourseIds } from '../notion_api/classSyncStore';
+import { getSyncedCourseIds, getWorkspaceSyncedCourseIds } from '../notion_api/classSyncStore';
 
 const PLAN_KEYS: (keyof BillingRecord)[] = [
   'subscriptionStatus',
@@ -40,14 +40,21 @@ export async function getEntitlements(
     res.status(401).json({ error: 'User not authenticated' });
     return;
   }
-  const { tier, billing, createdAt } = await getUser(uid);
+  const { tier, billing, createdAt, workspaceId, accessToken } = await getUser(uid);
   const entitlements = entitlementsForTier(tier);
   const plan = planView(billing);
-  const syncedCourseIds = await getSyncedCourseIds(uid);
+  // Usage is keyed on the Notion workspace so a reconnect restores the same
+  // ledger; `notionConnected` reflects the *live* connection (a live access
+  // token), matching how the rest of the app reports Notion status — a
+  // disconnect clears the token but leaves workspaceId behind.
+  const syncedCourseIds = workspaceId
+    ? await getWorkspaceSyncedCourseIds(workspaceId)
+    : await getSyncedCourseIds(uid);
   res.status(200).json({
     ...entitlements,
     classSyncUsed: syncedCourseIds.length,
     syncedCourseIds,
+    notionConnected: Boolean(accessToken),
     ...(plan ? { plan } : {}),
     ...(createdAt ? { memberSince: createdAt } : {}),
   });

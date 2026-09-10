@@ -2,12 +2,16 @@ import request from 'supertest';
 import express from 'express';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 
-const { getUserMock, getSyncedCourseIdsMock } = vi.hoisted(() => ({
+const { getUserMock, getSyncedCourseIdsMock, getWorkspaceSyncedCourseIdsMock } = vi.hoisted(() => ({
   getUserMock: vi.fn(),
   getSyncedCourseIdsMock: vi.fn(),
+  getWorkspaceSyncedCourseIdsMock: vi.fn(),
 }));
 vi.mock('../src/billing/store', () => ({ getUser: getUserMock }));
-vi.mock('../src/notion_api/classSyncStore', () => ({ getSyncedCourseIds: getSyncedCourseIdsMock }));
+vi.mock('../src/notion_api/classSyncStore', () => ({
+  getSyncedCourseIds: getSyncedCourseIdsMock,
+  getWorkspaceSyncedCourseIds: getWorkspaceSyncedCourseIdsMock,
+}));
 
 import { getEntitlements } from '../src/billing/billingController';
 
@@ -19,6 +23,8 @@ beforeEach(() => {
   getUserMock.mockReset();
   getSyncedCourseIdsMock.mockReset();
   getSyncedCourseIdsMock.mockResolvedValue([]);
+  getWorkspaceSyncedCourseIdsMock.mockReset();
+  getWorkspaceSyncedCourseIdsMock.mockResolvedValue([]);
 });
 
 describe('GET /users/entitlements', () => {
@@ -29,6 +35,7 @@ describe('GET /users/entitlements', () => {
     expect(res.body).toEqual({
       tier: 'free', showAds: true, hasProFeatures: false,
       classSyncLimit: 5, classSyncUsed: 0, syncedCourseIds: [],
+      notionConnected: false,
     });
   });
 
@@ -46,6 +53,7 @@ describe('GET /users/entitlements', () => {
       classSyncLimit: null,
       classSyncUsed: 0,
       syncedCourseIds: [],
+      notionConnected: false,
       plan: { subscriptionStatus: 'active', currentPeriodEnd: 123, cancelAtPeriodEnd: false },
     });
     expect(JSON.stringify(res.body)).not.toContain('cus_1');
@@ -76,5 +84,36 @@ describe('GET /users/entitlements', () => {
     expect(res.body.classSyncUsed).toBe(3);
     expect(res.body.syncedCourseIds).toEqual(['101', '102', '103']);
     expect(res.body.classSyncLimit).toBe(5);
+  });
+
+  it('resolves classSyncUsed from the workspace ledger and reports notionConnected true when a live token is present', async () => {
+    getUserMock.mockResolvedValueOnce({ tier: 'free', workspaceId: 'ws-1', accessToken: 'notion_tok' });
+    getWorkspaceSyncedCourseIdsMock.mockResolvedValueOnce(['a', 'b', 'c']);
+    const res = await request(app).get('/users/entitlements');
+    expect(res.body.classSyncUsed).toBe(3);
+    expect(res.body.syncedCourseIds).toEqual(['a', 'b', 'c']);
+    expect(res.body.notionConnected).toBe(true);
+    expect(getSyncedCourseIdsMock).not.toHaveBeenCalled();
+  });
+
+  it('reports notionConnected false after a disconnect even though workspaceId lingers, still resolving usage from the workspace ledger', async () => {
+    // /notion/disconnect removes accessToken but leaves workspaceId behind.
+    getUserMock.mockResolvedValueOnce({ tier: 'free', workspaceId: 'ws-1' });
+    getWorkspaceSyncedCourseIdsMock.mockResolvedValueOnce(['a', 'b']);
+    const res = await request(app).get('/users/entitlements');
+    expect(res.body.notionConnected).toBe(false);
+    expect(res.body.classSyncUsed).toBe(2);
+    expect(res.body.syncedCourseIds).toEqual(['a', 'b']);
+    expect(getSyncedCourseIdsMock).not.toHaveBeenCalled();
+  });
+
+  it('falls back to the per-uid ledger and reports notionConnected false when there is no workspaceId', async () => {
+    getUserMock.mockResolvedValueOnce({ tier: 'free' });
+    getSyncedCourseIdsMock.mockResolvedValueOnce(['x']);
+    const res = await request(app).get('/users/entitlements');
+    expect(res.body.classSyncUsed).toBe(1);
+    expect(res.body.syncedCourseIds).toEqual(['x']);
+    expect(res.body.notionConnected).toBe(false);
+    expect(getWorkspaceSyncedCourseIdsMock).not.toHaveBeenCalled();
   });
 });

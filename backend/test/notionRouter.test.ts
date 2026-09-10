@@ -55,6 +55,7 @@ vi.mock('../src/notion_api/classSyncGuard', () => ({
 vi.mock('../src/notion_api/classSyncStore', () => ({
   getSyncedCourseIds: vi.fn(async () => []),
   addSyncedCourseIds: addSyncedCourseIdsMock,
+  recordSyncedCourses: vi.fn(async () => undefined),
 }));
 
 // ---- Helpers ---------------------------------------------------------------
@@ -151,9 +152,9 @@ describe('POST /notion/token', () => {
 });
 
 describe('POST /notion/sync — free-tier class cap', () => {
-  it('routes requested courses through partitionRequestedCourses', async () => {
+  it('routes requested courses through partitionRequestedCourses with the user workspaceId', async () => {
     refBehaviour['users'] = {
-      queryVal: { 'uid-1': { email: 'user@example.com', accessToken: 'tok' } },
+      queryVal: { 'uid-1': { email: 'user@example.com', accessToken: 'tok', workspaceId: 'ws-1' } },
     };
     partitionRequestedCoursesMock.mockResolvedValueOnce({
       allowed: [{ id: 1, name: 'Kept' }],
@@ -165,10 +166,24 @@ describe('POST /notion/sync — free-tier class cap', () => {
       .post('/notion/sync')
       .send({ pageId: 'p1', courses: [{ id: 1, name: 'Kept' }, { id: 2, name: 'Blocked' }], assignments: [] });
 
-    expect(partitionRequestedCoursesMock).toHaveBeenCalledWith('uid-1', [
-      { id: 1, name: 'Kept' },
-      { id: 2, name: 'Blocked' },
-    ]);
+    expect(partitionRequestedCoursesMock).toHaveBeenCalledWith(
+      'uid-1',
+      [{ id: 1, name: 'Kept' }, { id: 2, name: 'Blocked' }],
+      'ws-1',
+    );
+  });
+
+  it('passes workspaceId undefined to partitionRequestedCourses when the user has none', async () => {
+    refBehaviour['users'] = {
+      queryVal: { 'uid-1': { email: 'user@example.com', accessToken: 'tok' } },
+    };
+    partitionRequestedCoursesMock.mockResolvedValueOnce({ allowed: [], rejected: [], shouldRecord: true });
+
+    await request(buildApp())
+      .post('/notion/sync')
+      .send({ pageId: 'p1', courses: [{ id: 1, name: 'A' }], assignments: [] });
+
+    expect(partitionRequestedCoursesMock).toHaveBeenCalledWith('uid-1', [{ id: 1, name: 'A' }], undefined);
   });
 });
 

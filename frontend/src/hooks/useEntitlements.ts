@@ -21,6 +21,7 @@ interface EntitlementsState {
   memberSince?: string;
   classSyncUsed: number;
   classSyncLimit: number | null;
+  notionConnected: boolean;
   isLoading: boolean;
   error: string | null;
   refetch: () => void;
@@ -34,6 +35,7 @@ type EntitlementsData = {
   memberSince?: string;
   classSyncUsed: number;
   classSyncLimit: number | null;
+  notionConnected: boolean;
 };
 
 const FREE: EntitlementsData = {
@@ -42,6 +44,7 @@ const FREE: EntitlementsData = {
   hasProFeatures: false,
   classSyncUsed: 0,
   classSyncLimit: null,
+  notionConnected: false,
 };
 
 export function useEntitlements(): EntitlementsState {
@@ -69,6 +72,7 @@ export function useEntitlements(): EntitlementsState {
           memberSince: res.data.memberSince,
           classSyncUsed: res.data.classSyncUsed ?? 0,
           classSyncLimit: res.data.classSyncLimit ?? null,
+          notionConnected: res.data.notionConnected ?? false,
         });
       })
       .catch((err) => {

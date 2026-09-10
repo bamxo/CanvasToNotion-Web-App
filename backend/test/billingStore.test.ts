@@ -77,6 +77,24 @@ describe('billing store', () => {
     expect(refMock).not.toHaveBeenCalledWith('users/u2/billing');
   });
 
+  it('getUser returns workspaceId from the user node when present', async () => {
+    (db as any).__nodes.set('users/u3', { tier: 'free', workspaceId: 'ws-abc' });
+    const user = await getUser('u3');
+    expect(user.workspaceId).toBe('ws-abc');
+  });
+
+  it('getUser leaves workspaceId undefined when the user node has none', async () => {
+    (db as any).__nodes.set('users/u4', { tier: 'free' });
+    const user = await getUser('u4');
+    expect(user.workspaceId).toBeUndefined();
+  });
+
+  it('getUser returns accessToken from the user node when present', async () => {
+    (db as any).__nodes.set('users/u5', { tier: 'free', accessToken: 'notion_tok' });
+    const user = await getUser('u5');
+    expect(user.accessToken).toBe('notion_tok');
+  });
+
   it('event processing guard is write-once', async () => {
     expect(await isEventProcessed('evt_1')).toBe(false);
     await markEventProcessed('evt_1', 'charge.refunded');

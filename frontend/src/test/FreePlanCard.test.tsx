@@ -15,7 +15,7 @@ afterEach(cleanup);
 
 describe('FreePlanCard', () => {
   it('renders the badge, heading, description and both upgrade options', () => {
-    render(<FreePlanCard classSyncUsed={3} classSyncLimit={5} />);
+    render(<FreePlanCard classSyncUsed={3} classSyncLimit={5} notionConnected={true} />);
     expect(screen.getByText('Free Plan (Active)')).toBeInTheDocument();
     expect(screen.getByText('Standard Tier')).toBeInTheDocument();
     expect(screen.getByText(/upgrade to unlock unlimited sync/i)).toBeInTheDocument();
@@ -27,19 +27,34 @@ describe('FreePlanCard', () => {
   });
 
   it('shows usage as a fraction, percentage, and remaining count', () => {
-    render(<FreePlanCard classSyncUsed={3} classSyncLimit={5} />);
+    render(<FreePlanCard classSyncUsed={3} classSyncLimit={5} notionConnected={true} />);
     expect(screen.getByText('3 / 5 classes synced (60%)')).toBeInTheDocument();
     expect(screen.getByText(/2 classes remaining/i)).toBeInTheDocument();
   });
 
   it('singularizes "1 class remaining"', () => {
-    render(<FreePlanCard classSyncUsed={4} classSyncLimit={5} />);
+    render(<FreePlanCard classSyncUsed={4} classSyncLimit={5} notionConnected={true} />);
     expect(screen.getByText(/1 class remaining/i)).toBeInTheDocument();
+  });
+
+  it('shows the "connect Notion" state when notionConnected is false', () => {
+    render(<FreePlanCard classSyncUsed={0} classSyncLimit={5} notionConnected={false} />);
+    expect(
+      screen.getByText('Connect Notion to start syncing your classes')
+    ).toBeInTheDocument();
+    expect(screen.getByText(/Connect your Notion workspace/i)).toBeInTheDocument();
+    expect(screen.queryByText(/\/ 5 classes synced/i)).not.toBeInTheDocument();
+  });
+
+  it('shows usage counts when notionConnected is true', () => {
+    render(<FreePlanCard classSyncUsed={2} classSyncLimit={5} notionConnected={true} />);
+    expect(screen.getByText('2 / 5 classes synced (40%)')).toBeInTheDocument();
+    expect(screen.getByText(/3 classes remaining/i)).toBeInTheDocument();
   });
 
   it('clicking Upgrade starts a pro checkout and redirects to the returned url', async () => {
     (axios as any).post.mockResolvedValueOnce({ data: { url: 'https://stripe.test/s/pro' } });
-    render(<FreePlanCard classSyncUsed={0} classSyncLimit={5} />);
+    render(<FreePlanCard classSyncUsed={0} classSyncLimit={5} notionConnected={true} />);
 
     fireEvent.click(screen.getByRole('button', { name: /upgrade/i }));
 
@@ -53,7 +68,7 @@ describe('FreePlanCard', () => {
 
   it('clicking Claim Lifetime Access starts a lifetime checkout and redirects', async () => {
     (axios as any).post.mockResolvedValueOnce({ data: { url: 'https://stripe.test/s/lifetime' } });
-    render(<FreePlanCard classSyncUsed={0} classSyncLimit={5} />);
+    render(<FreePlanCard classSyncUsed={0} classSyncLimit={5} notionConnected={true} />);
 
     fireEvent.click(screen.getByRole('button', { name: /claim lifetime access/i }));
 
@@ -67,7 +82,7 @@ describe('FreePlanCard', () => {
 
   it('shows an error and does not navigate when checkout fails', async () => {
     (axios as any).post.mockRejectedValueOnce(new Error('network down'));
-    render(<FreePlanCard classSyncUsed={0} classSyncLimit={5} />);
+    render(<FreePlanCard classSyncUsed={0} classSyncLimit={5} notionConnected={true} />);
 
     fireEvent.click(screen.getByRole('button', { name: /upgrade/i }));
 
@@ -78,7 +93,7 @@ describe('FreePlanCard', () => {
   it('disables both upgrade buttons while a checkout request is in flight', async () => {
     let resolveFn: (v: unknown) => void = () => {};
     (axios as any).post.mockReturnValueOnce(new Promise((resolve) => { resolveFn = resolve; }));
-    render(<FreePlanCard classSyncUsed={0} classSyncLimit={5} />);
+    render(<FreePlanCard classSyncUsed={0} classSyncLimit={5} notionConnected={true} />);
 
     fireEvent.click(screen.getByRole('button', { name: /upgrade/i }));
 

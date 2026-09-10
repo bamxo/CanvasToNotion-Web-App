@@ -11,7 +11,7 @@
  * integration with Notion's OAuth flow for account connection.
  */
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import styles from './Settings.module.css';
@@ -46,7 +46,7 @@ const Settings: React.FC = () => {
   const [isButtonLoading, setIsButtonLoading] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
-  const { tier, plan, memberSince, classSyncUsed, classSyncLimit, refetch } = useEntitlements();
+  const { tier, plan, memberSince, classSyncUsed, classSyncLimit, notionConnected, refetch } = useEntitlements();
   const [planNotice, setPlanNotice] = useState<string | null>(null);
   const [planError, setPlanError] = useState<string | null>(null);
   const [planBusy, setPlanBusy] = useState(false);
@@ -79,6 +79,20 @@ const Settings: React.FC = () => {
       if (timer) clearTimeout(timer);
     };
   }, [refetch]);
+
+  // Keep the Plan section (class-sync usage bar) in sync with Notion
+  // connect/disconnect done on this same page. useEntitlements fetches once on
+  // mount and can win the race against the /notion/token exchange, so re-fetch
+  // whenever the Notion connection status flips. Skip the initial mount — the
+  // hook already fetches then.
+  const didConnMount = useRef(false);
+  useEffect(() => {
+    if (!didConnMount.current) {
+      didConnMount.current = true;
+      return;
+    }
+    refetch();
+  }, [notionConnection.isConnected, refetch]);
 
   const openPortal = async () => {
     setPlanBusy(true);
@@ -374,7 +388,7 @@ const Settings: React.FC = () => {
           {planError && <p className={styles.planError} role="alert">{planError}</p>}
 
           {tier === 'free' && (
-            <FreePlanCard classSyncUsed={classSyncUsed} classSyncLimit={classSyncLimit} />
+            <FreePlanCard classSyncUsed={classSyncUsed} classSyncLimit={classSyncLimit} notionConnected={notionConnected} />
           )}
 
           {tier === 'pro' && (
