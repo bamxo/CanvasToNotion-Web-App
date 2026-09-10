@@ -7,7 +7,12 @@ const { getUserMock, setTierMock, patchBillingMock, stripe } = vi.hoisted(() => 
   getUserMock: vi.fn(),
   setTierMock: vi.fn(),
   patchBillingMock: vi.fn(),
-  stripe: { refunds: { create: vi.fn() } },
+  stripe: {
+    refunds: { create: vi.fn() },
+    subscriptions: { retrieve: vi.fn() },
+    invoices: { retrieve: vi.fn() },
+    creditNotes: { create: vi.fn() },
+  },
 }));
 vi.mock('../src/billing/store', () => ({
   getUser: getUserMock, setTier: setTierMock, patchBilling: patchBillingMock,
@@ -26,6 +31,9 @@ const PAST = Math.floor(Date.now() / 1000) - 3600;
 beforeEach(() => {
   getUserMock.mockReset(); setTierMock.mockReset(); patchBillingMock.mockReset();
   stripe.refunds.create.mockReset();
+  stripe.subscriptions.retrieve.mockReset();
+  stripe.invoices.retrieve.mockReset();
+  stripe.creditNotes.create.mockReset();
 });
 
 describe('POST /billing/refund', () => {
@@ -53,8 +61,33 @@ describe('POST /billing/refund', () => {
     expect(stripe.refunds.create).not.toHaveBeenCalled();
   });
 
-  it('refunds within the window and downgrades to free', async () => {
-    getUserMock.mockResolvedValueOnce({
+  it('issues a credit note against the invoice and drops to free when no subscription is live', async () => {
+    getUserMock.mockResolvedValue({
+      tier: 'lifetime',
+      billing: {
+        lifetimePaymentIntentId: 'pi_1',
+        lifetimeInvoiceId: 'in_1',
+        lifetimeRefundEligibleUntil: FUTURE,
+      },
+    });
+    stripe.invoices.retrieve.mockResolvedValueOnce({ id: 'in_1', amount_paid: 1000, total: 1000 });
+    stripe.creditNotes.create.mockResolvedValueOnce({ id: 'cn_1' });
+
+    const res = await request(app).post('/billing/refund').send({});
+
+    expect(stripe.creditNotes.create).toHaveBeenCalledWith({
+      invoice: 'in_1', amount: 1000, refund_amount: 1000, reason: 'order_change',
+    });
+    expect(stripe.refunds.create).not.toHaveBeenCalled();
+    expect(setTierMock).toHaveBeenCalledWith('u1', 'free');
+    expect(patchBillingMock).toHaveBeenCalledWith('u1', expect.objectContaining({
+      refundedAt: expect.any(String), stripeSubscriptionId: null,
+    }));
+    expect(res.body).toEqual({ refunded: true });
+  });
+
+  it('falls back to a plain refund for legacy purchases with no stored invoice', async () => {
+    getUserMock.mockResolvedValue({
       tier: 'lifetime',
       billing: { lifetimePaymentIntentId: 'pi_1', lifetimeRefundEligibleUntil: FUTURE },
     });
@@ -63,8 +96,33 @@ describe('POST /billing/refund', () => {
     const res = await request(app).post('/billing/refund').send({});
 
     expect(stripe.refunds.create).toHaveBeenCalledWith({ payment_intent: 'pi_1' });
+    expect(stripe.creditNotes.create).not.toHaveBeenCalled();
     expect(setTierMock).toHaveBeenCalledWith('u1', 'free');
-    expect(patchBillingMock).toHaveBeenCalledWith('u1', expect.objectContaining({ refundedAt: expect.any(String) }));
+    expect(res.body).toEqual({ refunded: true });
+  });
+
+  it('refunds within the window and reverts to Pro when the upgraded-from subscription is still active', async () => {
+    getUserMock.mockResolvedValue({
+      tier: 'lifetime',
+      billing: {
+        lifetimePaymentIntentId: 'pi_1',
+        lifetimeRefundEligibleUntil: FUTURE,
+        stripeSubscriptionId: 'sub_x',
+      },
+    });
+    stripe.refunds.create.mockResolvedValueOnce({ id: 're_1' });
+    stripe.subscriptions.retrieve.mockResolvedValueOnce({
+      id: 'sub_x', status: 'active', cancel_at_period_end: true,
+      items: { data: [{ current_period_end: 1234 }] },
+    });
+
+    const res = await request(app).post('/billing/refund').send({});
+
+    expect(setTierMock).toHaveBeenCalledWith('u1', 'pro');
+    expect(setTierMock).not.toHaveBeenCalledWith('u1', 'free');
+    expect(patchBillingMock).toHaveBeenCalledWith('u1', expect.objectContaining({
+      subscriptionStatus: 'active', currentPeriodEnd: 1234, cancelAtPeriodEnd: true,
+    }));
     expect(res.body).toEqual({ refunded: true });
   });
 

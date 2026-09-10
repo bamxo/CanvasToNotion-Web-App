@@ -62,7 +62,7 @@ const FreePlanCard: React.FC<FreePlanCardProps> = ({
           </span>
           <h3 className={styles.heading}>Standard Tier</h3>
           <p className={styles.description}>
-            Limited to standard access. Upgrade to unlock unlimited sync &amp; automation features.
+            Limited to standard access. Upgrade to unlock unlimited sync.
           </p>
         </div>
 
@@ -79,8 +79,10 @@ const FreePlanCard: React.FC<FreePlanCardProps> = ({
               className={styles.upgradeButton}
               onClick={() => startCheckout('pro')}
               disabled={isBusy}
+              aria-label="Upgrade"
+              aria-busy={busyPlan === 'pro'}
             >
-              Upgrade
+              {busyPlan === 'pro' ? <span className={styles.btnSpinner} aria-hidden="true" /> : 'Upgrade'}
             </button>
           </div>
 
@@ -97,8 +99,10 @@ const FreePlanCard: React.FC<FreePlanCardProps> = ({
               className={styles.claimButton}
               onClick={() => startCheckout('lifetime')}
               disabled={isBusy}
+              aria-label="Claim Lifetime Access"
+              aria-busy={busyPlan === 'lifetime'}
             >
-              Claim Lifetime Access
+              {busyPlan === 'lifetime' ? <span className={styles.btnSpinner} aria-hidden="true" /> : 'Claim Lifetime Access'}
             </button>
           </div>
         </div>

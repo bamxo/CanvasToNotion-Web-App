@@ -9,6 +9,7 @@ export interface PlanView {
   subscriptionStatus?: string;
   currentPeriodEnd?: number;
   cancelAtPeriodEnd?: boolean;
+  lifetimePurchasedAt?: string;
   lifetimeRefundEligibleUntil?: number;
   refundedAt?: string;
 }

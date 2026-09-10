@@ -20,6 +20,9 @@ import { useNotionAuth } from '../hooks/useNotionAuth';
 import { useEntitlements } from '../hooks/useEntitlements';
 import LegacyPlanCard from './LegacyPlanCard';
 import FreePlanCard from './FreePlanCard';
+import ProPlanCard from './ProPlanCard';
+import LifetimePlanCard from './LifetimePlanCard';
+import ConfirmDialog from './ConfirmDialog';
 import { AUTH_ENDPOINTS, USER_ENDPOINTS, NOTION_ENDPOINTS, COOKIE_STATE_ENDPOINTS, BILLING_ENDPOINTS, IS_CROSS_ORIGIN_BACKEND } from '../utils/api';
 import { EXTENSION_ID, NOTION_REDIRECT_URI } from '../utils/constants';
 import { secureGetToken, secureRemoveToken } from '../utils/encryption';
@@ -51,9 +54,7 @@ const Settings: React.FC = () => {
   const [planError, setPlanError] = useState<string | null>(null);
   const [planBusy, setPlanBusy] = useState(false);
   const [refundDone, setRefundDone] = useState(false);
-
-  const fmtDate = (epochSeconds?: number) =>
-    epochSeconds ? new Date(epochSeconds * 1000).toLocaleDateString() : '';
+  const [confirmRefundOpen, setConfirmRefundOpen] = useState(false);
 
   useEffect(() => {
     // Spec §6.4: refetch entitlements whenever the tab regains focus so a plan
@@ -63,14 +64,21 @@ const Settings: React.FC = () => {
 
     const params = new URLSearchParams(window.location.search);
     const checkout = params.get('checkout');
+    const billing = params.get('billing');
     let timer: ReturnType<typeof setTimeout> | undefined;
     if (checkout === 'success' || checkout === 'cancelled') {
       if (checkout === 'success') {
-        setPlanNotice('Payment received — your plan will update shortly.');
+        // No banner on success — the plan card itself updates once entitlements
+        // refetch reflects the webhook.
         timer = setTimeout(refetch, 2000);
       } else {
         setPlanNotice('Checkout cancelled.');
       }
+      window.history.replaceState({}, '', window.location.pathname);
+    } else if (billing === 'updated') {
+      // Back from the Stripe billing portal - a cancel/reactivate/payment-method
+      // change lands via webhook a beat later, so give it a moment then refetch.
+      timer = setTimeout(refetch, 2000);
       window.history.replaceState({}, '', window.location.pathname);
     }
 
@@ -108,6 +116,37 @@ const Settings: React.FC = () => {
     }
   };
 
+  const reactivateSubscription = async () => {
+    setPlanBusy(true);
+    setPlanError(null);
+    try {
+      const token = secureGetToken('authToken');
+      await axios.post(BILLING_ENDPOINTS.REACTIVATE, {}, { headers: { Authorization: `Bearer ${token}` } });
+      refetch();
+    } catch (err) {
+      setPlanError(err instanceof Error ? err.message : 'Something went wrong. Please try again.');
+    } finally {
+      setPlanBusy(false);
+    }
+  };
+
+  const switchToLifetime = async () => {
+    setPlanBusy(true);
+    setPlanError(null);
+    try {
+      const token = secureGetToken('authToken');
+      const res = await axios.post(
+        BILLING_ENDPOINTS.CHECKOUT,
+        { plan: 'lifetime' },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      window.location.href = res.data.url;
+    } catch (err) {
+      setPlanError(err instanceof Error ? err.message : 'Something went wrong. Please try again.');
+      setPlanBusy(false);
+    }
+  };
+
   const requestRefund = async () => {
     setPlanBusy(true);
     setPlanError(null);
@@ -120,6 +159,7 @@ const Settings: React.FC = () => {
       setPlanError(err instanceof Error ? err.message : 'Something went wrong. Please try again.');
     } finally {
       setPlanBusy(false);
+      setConfirmRefundOpen(false);
     }
   };
 
@@ -392,28 +432,45 @@ const Settings: React.FC = () => {
           )}
 
           {tier === 'pro' && (
-            <>
-              <p>Pro — $1/month{plan?.cancelAtPeriodEnd ? ' (cancels at period end)' : ''}.</p>
-              {plan?.currentPeriodEnd && (
-                <p>{plan.cancelAtPeriodEnd ? 'Cancels' : 'Renews'} {fmtDate(plan.currentPeriodEnd)}</p>
-              )}
-              <button className={styles.button} onClick={openPortal} disabled={planBusy}>Manage subscription</button>
-            </>
+            <ProPlanCard
+              currentPeriodEnd={plan?.currentPeriodEnd}
+              cancelAtPeriodEnd={plan?.cancelAtPeriodEnd}
+              subscriptionStatus={plan?.subscriptionStatus}
+              syncedCount={classSyncUsed}
+              onSwitchToLifetime={switchToLifetime}
+              onManageBilling={openPortal}
+              onCancelSubscription={openPortal}
+              onReactivate={reactivateSubscription}
+              busy={planBusy}
+            />
           )}
 
-          {tier === 'lifetime' && withinRefundWindow && !refundDone && (
-            <>
-              <p>Lifetime — active. You're within your 7-day refund window (until {fmtDate(plan?.lifetimeRefundEligibleUntil)}).</p>
-              <button className={styles.button} onClick={requestRefund} disabled={planBusy}>Request a refund</button>
-            </>
-          )}
-          {tier === 'lifetime' && refundDone && <p>Refunded — your account is now Free.</p>}
-          {tier === 'lifetime' && !withinRefundWindow && !refundDone && (
-            <p>Lifetime — you're all set. Thanks!</p>
+          {tier === 'lifetime' && (
+            <LifetimePlanCard
+              purchasedAt={plan?.lifetimePurchasedAt}
+              refundEligibleUntil={plan?.lifetimeRefundEligibleUntil}
+              withinRefundWindow={withinRefundWindow}
+              refundDone={refundDone}
+              onBillingHistory={openPortal}
+              onRefund={() => setConfirmRefundOpen(true)}
+              busy={planBusy}
+            />
           )}
 
           {tier === 'legacy' && <LegacyPlanCard memberSince={memberSince} />}
         </section>
+
+        <ConfirmDialog
+          open={confirmRefundOpen}
+          title="Request a refund?"
+          message="This refunds your $10 Lifetime payment and immediately downgrades your account to the Free plan. This can't be undone."
+          confirmLabel="Request refund"
+          cancelLabel="Keep Lifetime"
+          danger
+          busy={planBusy}
+          onConfirm={requestRefund}
+          onCancel={() => setConfirmRefundOpen(false)}
+        />
 
         <div className={styles['spacer-md']} />
 

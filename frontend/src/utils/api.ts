@@ -70,6 +70,7 @@ export const BILLING_ENDPOINTS = {
   CHECKOUT: `${API_BASE}/billing/checkout`,
   PORTAL: `${API_BASE}/billing/portal`,
   REFUND: `${API_BASE}/billing/refund`,
+  REACTIVATE: `${API_BASE}/billing/reactivate`,
 };
 
 // Database endpoints

@@ -97,7 +97,10 @@ describe('FreePlanCard', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /upgrade/i }));
 
+    // the pressed button keeps its accessible name (aria-label) but is disabled
+    // and shows a spinner instead of its text label
     expect(screen.getByRole('button', { name: /upgrade/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /upgrade/i })).toHaveAttribute('aria-busy', 'true');
     expect(screen.getByRole('button', { name: /claim lifetime access/i })).toBeDisabled();
 
     resolveFn({ data: { url: 'https://stripe.test/s/pro' } });

@@ -16,6 +16,35 @@ function customerIdOf(object: any): string | undefined {
   return typeof c === 'string' ? c : c?.id;
 }
 
+// The current period end lives on the Subscription object in older Stripe API
+// versions but was moved onto the subscription *items* in 2025-03-31.basil.
+// Webhook event payloads are serialized at the account's default API version, so
+// `sub.current_period_end` can be undefined even when a fresh SDK retrieve (which
+// uses our pinned STRIPE_API_VERSION) still returns it. Check both, and return
+// null only when neither is present.
+function periodEndOf(sub: any): number | null {
+  const fromSub = sub?.current_period_end;
+  if (typeof fromSub === 'number') return fromSub;
+  const fromItem = sub?.items?.data?.[0]?.current_period_end;
+  if (typeof fromItem === 'number') return fromItem;
+  return null;
+}
+
+// A subscription can be scheduled to end in two representations: the classic
+// `cancel_at_period_end` boolean, or `cancel_at` set to a timestamp (which is
+// what the Stripe customer portal's "cancel at end of period" now does). Treat
+// either as "ending".
+function isSubscriptionEnding(sub: any): boolean {
+  return Boolean(sub?.cancel_at_period_end) || typeof sub?.cancel_at === 'number';
+}
+
+// When ending via `cancel_at`, that timestamp is the real end date; otherwise the
+// period end is when access lapses.
+function accessEndsAt(sub: any): number | null {
+  if (typeof sub?.cancel_at === 'number') return sub.cancel_at;
+  return periodEndOf(sub);
+}
+
 async function resolveUid(object: any): Promise<string | null> {
   // TRUST NOTE: metadata.firebaseUID and client_reference_id are trusted ONLY
   // because every Checkout Session in this integration is created server-side
@@ -37,8 +66,8 @@ async function onCheckoutCompleted(session: any, uid: string): Promise<void> {
     await patchBilling(uid, {
       stripeSubscriptionId: sub.id,
       subscriptionStatus: sub.status,
-      currentPeriodEnd: (sub as any).current_period_end ?? null,
-      cancelAtPeriodEnd: (sub as any).cancel_at_period_end ?? null,
+      currentPeriodEnd: accessEndsAt(sub),
+      cancelAtPeriodEnd: isSubscriptionEnding(sub),
     });
   } else if (session.mode === 'payment') {
     // Only a confirmed payment grants lifetime access. Card checkout is always
@@ -50,26 +79,88 @@ async function onCheckoutCompleted(session: any, uid: string): Promise<void> {
       console.warn(`[billing] checkout.session.completed for ${uid}: payment mode with no payment_intent`);
       return;
     }
+    const current = await getUser(uid);
     // Idempotent refund window: a Stripe retry of the same checkout must not
     // extend the deadline, so only set it when it is not already present.
-    const existing = (await getUser(uid)).billing?.lifetimeRefundEligibleUntil;
     const lifetimeRefundEligibleUntil =
-      existing ?? nowEpochSeconds() + LIFETIME_REFUND_WINDOW_DAYS * 24 * 60 * 60;
+      current.billing?.lifetimeRefundEligibleUntil ??
+      nowEpochSeconds() + LIFETIME_REFUND_WINDOW_DAYS * 24 * 60 * 60;
     await setTier(uid, 'lifetime');
     await patchBilling(uid, {
       lifetimePurchasedAt: nowIso(),
       lifetimePaymentIntentId: String(session.payment_intent),
+      // Kept so a later refund can be issued as a credit note against this
+      // invoice, which is what makes the refund visible in billing history.
+      lifetimeInvoiceId: session.invoice ? String(session.invoice) : null,
       lifetimeRefundEligibleUntil,
     });
+    // A user upgrading from Pro no longer needs the monthly subscription, but we
+    // let the paid-for period run out rather than cancelling on the spot: set it
+    // to cancel at period end and KEEP stripeSubscriptionId, so that if they
+    // refund the lifetime purchase within the window we can put them back on Pro
+    // for whatever time is left. Its eventual subscription.deleted event is a
+    // no-op for tier while they're lifetime (see the guard in onSubscription*).
+    const subId = current.billing?.stripeSubscriptionId;
+    if (subId) {
+      try {
+        await getStripe().subscriptions.update(subId, { cancel_at_period_end: true });
+        await patchBilling(uid, { cancelAtPeriodEnd: true });
+      } catch (err) {
+        console.warn(`[billing] failed to schedule cancellation of ${subId} after lifetime purchase for ${uid}:`, (err as any)?.message);
+      }
+    }
   }
 }
 
-async function onSubscriptionUpdated(sub: any, uid: string): Promise<void> {
+/**
+ * Undo lifetime access after a refund. If a Pro subscription is still running
+ * (the user upgraded from Pro and the paid period hasn't lapsed), drop them back
+ * to Pro for the remaining time; otherwise drop them to Free.
+ */
+export async function revertLifetimeAccess(uid: string): Promise<void> {
+  const { billing } = await getUser(uid);
+  const subId = billing?.stripeSubscriptionId;
+  if (subId) {
+    try {
+      const sub = await getStripe().subscriptions.retrieve(subId);
+      if (sub.status === 'active' || sub.status === 'trialing') {
+        await patchBilling(uid, {
+          subscriptionStatus: sub.status,
+          currentPeriodEnd: accessEndsAt(sub),
+          cancelAtPeriodEnd: isSubscriptionEnding(sub),
+          refundedAt: nowIso(),
+        });
+        await setTier(uid, 'pro');
+        return;
+      }
+    } catch (err) {
+      console.warn(`[billing] revertLifetimeAccess: could not check subscription ${subId} for ${uid}:`, (err as any)?.message);
+    }
+  }
+  await setTier(uid, 'free');
+  await patchBilling(uid, {
+    refundedAt: nowIso(),
+    stripeSubscriptionId: null,
+    subscriptionStatus: null,
+    currentPeriodEnd: null,
+    cancelAtPeriodEnd: null,
+  });
+}
+
+async function onSubscriptionUpdated(sub: any, uid: string, currentTier?: string): Promise<void> {
   await patchBilling(uid, {
     subscriptionStatus: sub.status,
-    currentPeriodEnd: sub.current_period_end ?? null,
-    cancelAtPeriodEnd: sub.cancel_at_period_end ?? null,
+    currentPeriodEnd: accessEndsAt(sub),
+    cancelAtPeriodEnd: isSubscriptionEnding(sub),
   });
+  // A lifetime user's tier is not governed by any subscription - e.g. the Pro
+  // subscription we cancel when they upgrade. Only keep the bookkeeping current.
+  if (currentTier === 'lifetime') {
+    if (sub.status === 'canceled' || sub.status === 'unpaid') {
+      await patchBilling(uid, { stripeSubscriptionId: null });
+    }
+    return;
+  }
   if (sub.status === 'active' || sub.status === 'trialing') {
     await setTier(uid, 'pro');
   } else if (sub.status === 'canceled' || sub.status === 'unpaid') {
@@ -78,9 +169,11 @@ async function onSubscriptionUpdated(sub: any, uid: string): Promise<void> {
   }
 }
 
-async function onSubscriptionDeleted(sub: any, uid: string): Promise<void> {
-  await setTier(uid, 'free');
+async function onSubscriptionDeleted(sub: any, uid: string, currentTier?: string): Promise<void> {
   await patchBilling(uid, { subscriptionStatus: 'canceled', stripeSubscriptionId: null });
+  // Lifetime access outlives the (now cancelled) Pro subscription.
+  if (currentTier === 'lifetime') return;
+  await setTier(uid, 'free');
 }
 
 async function onInvoicePaymentFailed(invoice: any, uid: string): Promise<void> {
@@ -92,6 +185,18 @@ async function onChargeRefunded(charge: any, uid: string): Promise<void> {
   // refund downgrades the user.
   if (typeof charge.amount === 'number' && typeof charge.amount_refunded === 'number'
       && charge.amount_refunded < charge.amount) {
+    return;
+  }
+  const { billing } = await getUser(uid);
+  const piId = typeof charge.payment_intent === 'string'
+    ? charge.payment_intent
+    : charge.payment_intent?.id;
+  // When it's the lifetime charge that was refunded, run the smart revert (back
+  // to Pro if a subscription is still live, else Free). Matching on the payment
+  // intent - not the current tier - keeps this correct even when the /billing
+  // /refund route already reverted the tier before this event arrived.
+  if (billing?.lifetimePaymentIntentId && piId === billing.lifetimePaymentIntentId) {
+    await revertLifetimeAccess(uid);
     return;
   }
   await setTier(uid, 'free');
@@ -121,10 +226,10 @@ export async function handleStripeEvent(event: Stripe.Event): Promise<void> {
         await onCheckoutCompleted(object, uid);
         break;
       case 'customer.subscription.updated':
-        await onSubscriptionUpdated(object, uid);
+        await onSubscriptionUpdated(object, uid, user.tier);
         break;
       case 'customer.subscription.deleted':
-        await onSubscriptionDeleted(object, uid);
+        await onSubscriptionDeleted(object, uid, user.tier);
         break;
       case 'invoice.payment_failed':
         await onInvoicePaymentFailed(object, uid);

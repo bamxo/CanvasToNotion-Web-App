@@ -10,6 +10,7 @@ export type BillingRecord = {
   cancelAtPeriodEnd?: boolean | null;
   lifetimePurchasedAt?: string | null;
   lifetimePaymentIntentId?: string | null;
+  lifetimeInvoiceId?: string | null;
   lifetimeRefundEligibleUntil?: number | null;
   refundedAt?: string | null;
   updatedAt?: string;

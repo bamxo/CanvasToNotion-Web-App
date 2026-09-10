@@ -36,7 +36,7 @@ describe('POST /billing/portal', () => {
     const res = await request(app).post('/billing/portal').send({});
     expect(stripe.billingPortal.sessions.create).toHaveBeenCalledWith({
       customer: 'cus_1',
-      return_url: 'https://app.test/settings',
+      return_url: 'https://app.test/settings?billing=updated',
     });
     expect(res.body).toEqual({ url: 'https://stripe.test/p/1' });
   });

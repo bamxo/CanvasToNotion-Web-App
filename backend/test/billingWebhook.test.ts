@@ -13,7 +13,7 @@ const store = vi.hoisted(() => ({
 }));
 const { stripe } = vi.hoisted(() => ({
   stripe: {
-    subscriptions: { retrieve: vi.fn() },
+    subscriptions: { retrieve: vi.fn(), update: vi.fn() },
     webhooks: { constructEvent: vi.fn() },
   },
 }));
@@ -33,6 +33,8 @@ import { webhook } from '../src/billing/billingController';
 beforeEach(() => {
   Object.values(store).forEach((m) => m.mockReset());
   stripe.subscriptions.retrieve.mockReset();
+  stripe.subscriptions.update.mockReset();
+  stripe.subscriptions.update.mockResolvedValue({});
   store.isEventProcessed.mockResolvedValue(false);
   store.uidForCustomer.mockResolvedValue(null);
   store.getUser.mockResolvedValue({ tier: 'free' });
@@ -67,15 +69,36 @@ describe('handleStripeEvent', () => {
     }));
   });
 
-  it('checkout.session.completed (payment) -> lifetime + refund window', async () => {
+  it('checkout.session.completed (payment) -> lifetime + refund window + invoice id', async () => {
     await handleStripeEvent(evt('checkout.session.completed', {
-      mode: 'payment', payment_intent: 'pi_1', metadata: { firebaseUID: 'u1' },
+      mode: 'payment', payment_intent: 'pi_1', invoice: 'in_1', metadata: { firebaseUID: 'u1' },
     }));
     expect(store.setTier).toHaveBeenCalledWith('u1', 'lifetime');
     const patch = store.patchBilling.mock.calls[0][1];
     expect(patch.lifetimePaymentIntentId).toBe('pi_1');
+    expect(patch.lifetimeInvoiceId).toBe('in_1');
     expect(typeof patch.lifetimePurchasedAt).toBe('string');
     expect(patch.lifetimeRefundEligibleUntil).toBeGreaterThan(Math.floor(Date.now() / 1000));
+  });
+
+  it('checkout.session.completed (payment) from a Pro user schedules the subscription to cancel at period end and keeps its id', async () => {
+    store.getUser.mockResolvedValue({ tier: 'pro', billing: { stripeSubscriptionId: 'sub_old' } });
+    await handleStripeEvent(evt('checkout.session.completed', {
+      mode: 'payment', payment_intent: 'pi_1', metadata: { firebaseUID: 'u1' },
+    }));
+    expect(store.setTier).toHaveBeenCalledWith('u1', 'lifetime');
+    expect(stripe.subscriptions.update).toHaveBeenCalledWith('sub_old', { cancel_at_period_end: true });
+    expect(store.patchBilling).toHaveBeenCalledWith('u1', { cancelAtPeriodEnd: true });
+    expect(store.patchBilling).not.toHaveBeenCalledWith('u1', expect.objectContaining({ stripeSubscriptionId: null }));
+  });
+
+  it('checkout.session.completed (payment) still grants lifetime if scheduling the cancellation fails', async () => {
+    store.getUser.mockResolvedValue({ tier: 'pro', billing: { stripeSubscriptionId: 'sub_old' } });
+    stripe.subscriptions.update.mockRejectedValueOnce(new Error('sub gone'));
+    await handleStripeEvent(evt('checkout.session.completed', {
+      mode: 'payment', payment_intent: 'pi_1', metadata: { firebaseUID: 'u1' },
+    }));
+    expect(store.setTier).toHaveBeenCalledWith('u1', 'lifetime');
   });
 
   it('customer.subscription.deleted -> free', async () => {
@@ -84,6 +107,24 @@ describe('handleStripeEvent', () => {
     expect(store.patchBilling).toHaveBeenCalledWith('u1', expect.objectContaining({
       subscriptionStatus: 'canceled', stripeSubscriptionId: null,
     }));
+  });
+
+  it('customer.subscription.deleted does NOT downgrade a lifetime user', async () => {
+    store.getUser.mockResolvedValue({ tier: 'lifetime', billing: { stripeSubscriptionId: 'sub_old' } });
+    await handleStripeEvent(evt('customer.subscription.deleted', { metadata: { firebaseUID: 'u1' } }));
+    expect(store.setTier).not.toHaveBeenCalled();
+    expect(store.patchBilling).toHaveBeenCalledWith('u1', expect.objectContaining({
+      subscriptionStatus: 'canceled', stripeSubscriptionId: null,
+    }));
+  });
+
+  it('customer.subscription.updated canceled does NOT downgrade a lifetime user', async () => {
+    store.getUser.mockResolvedValue({ tier: 'lifetime', billing: { stripeSubscriptionId: 'sub_old' } });
+    await handleStripeEvent(evt('customer.subscription.updated', {
+      metadata: { firebaseUID: 'u1' }, status: 'canceled',
+    }));
+    expect(store.setTier).not.toHaveBeenCalled();
+    expect(store.patchBilling).toHaveBeenCalledWith('u1', { stripeSubscriptionId: null });
   });
 
   it('invoice.payment_failed -> past_due, tier untouched', async () => {
@@ -118,6 +159,32 @@ describe('handleStripeEvent', () => {
       subscriptionStatus: 'active', currentPeriodEnd: 222, cancelAtPeriodEnd: false,
     });
     expect(store.markEventProcessed).toHaveBeenCalled();
+  });
+
+  it('customer.subscription.updated treats a scheduled cancel_at as "ending" and uses that date', async () => {
+    // The Stripe customer portal expresses "cancel at period end" as a
+    // `cancel_at` timestamp with `cancel_at_period_end` still false.
+    await handleStripeEvent(evt('customer.subscription.updated', {
+      metadata: { firebaseUID: 'u1' },
+      status: 'active', cancel_at_period_end: false, cancel_at: 555,
+      items: { data: [{ current_period_end: 999 }] },
+    }));
+    expect(store.patchBilling).toHaveBeenCalledWith('u1', {
+      subscriptionStatus: 'active', currentPeriodEnd: 555, cancelAtPeriodEnd: true,
+    });
+    // still an active subscription, so the tier stays pro
+    expect(store.setTier).toHaveBeenCalledWith('u1', 'pro');
+  });
+
+  it('customer.subscription.updated reads current_period_end from the item when absent on the subscription (2025-basil shape)', async () => {
+    await handleStripeEvent(evt('customer.subscription.updated', {
+      metadata: { firebaseUID: 'u1' },
+      status: 'active', cancel_at_period_end: false,
+      items: { data: [{ current_period_end: 444 }] },
+    }));
+    expect(store.patchBilling).toHaveBeenCalledWith('u1', {
+      subscriptionStatus: 'active', currentPeriodEnd: 444, cancelAtPeriodEnd: false,
+    });
   });
 
   it('customer.subscription.updated canceled -> free + clears subscription id', async () => {
@@ -171,6 +238,41 @@ describe('handleStripeEvent', () => {
       customer: 'cus_1', amount: 1000, amount_refunded: 1000,
     }));
     expect(store.setTier).toHaveBeenCalledWith('u1', 'free');
+  });
+
+  it('charge.refunded of the lifetime payment -> reverts to Pro when the subscription is still live', async () => {
+    store.uidForCustomer.mockResolvedValue('u1');
+    store.getUser.mockResolvedValue({
+      tier: 'lifetime',
+      billing: { lifetimePaymentIntentId: 'pi_life', stripeSubscriptionId: 'sub_x' },
+    });
+    stripe.subscriptions.retrieve.mockResolvedValue({
+      id: 'sub_x', status: 'active', cancel_at_period_end: true,
+      items: { data: [{ current_period_end: 999 }] },
+    });
+    await handleStripeEvent(evt('charge.refunded', {
+      customer: 'cus_1', amount: 1000, amount_refunded: 1000, payment_intent: 'pi_life',
+    }));
+    expect(store.setTier).toHaveBeenCalledWith('u1', 'pro');
+    expect(store.setTier).not.toHaveBeenCalledWith('u1', 'free');
+    expect(store.patchBilling).toHaveBeenCalledWith('u1', expect.objectContaining({
+      subscriptionStatus: 'active', currentPeriodEnd: 999, cancelAtPeriodEnd: true, refundedAt: expect.any(String),
+    }));
+  });
+
+  it('charge.refunded of the lifetime payment -> drops to Free when no subscription is live', async () => {
+    store.uidForCustomer.mockResolvedValue('u1');
+    store.getUser.mockResolvedValue({
+      tier: 'lifetime',
+      billing: { lifetimePaymentIntentId: 'pi_life' },
+    });
+    await handleStripeEvent(evt('charge.refunded', {
+      customer: 'cus_1', amount: 1000, amount_refunded: 1000, payment_intent: 'pi_life',
+    }));
+    expect(store.setTier).toHaveBeenCalledWith('u1', 'free');
+    expect(store.patchBilling).toHaveBeenCalledWith('u1', expect.objectContaining({
+      refundedAt: expect.any(String), stripeSubscriptionId: null,
+    }));
   });
 
   it('checkout.session.completed (payment) unpaid -> no writes', async () => {

@@ -59,10 +59,16 @@ describe('GET /users/entitlements', () => {
     expect(JSON.stringify(res.body)).not.toContain('cus_1');
   });
 
-  it('includes lifetimeRefundEligibleUntil for a lifetime user', async () => {
-    getUserMock.mockResolvedValueOnce({ tier: 'lifetime', billing: { lifetimeRefundEligibleUntil: 999 } });
+  it('includes lifetimeRefundEligibleUntil and lifetimePurchasedAt for a lifetime user', async () => {
+    getUserMock.mockResolvedValueOnce({
+      tier: 'lifetime',
+      billing: { lifetimeRefundEligibleUntil: 999, lifetimePurchasedAt: '2026-02-01T00:00:00.000Z' },
+    });
     const res = await request(app).get('/users/entitlements');
-    expect(res.body.plan).toEqual({ lifetimeRefundEligibleUntil: 999 });
+    expect(res.body.plan).toEqual({
+      lifetimeRefundEligibleUntil: 999,
+      lifetimePurchasedAt: '2026-02-01T00:00:00.000Z',
+    });
   });
 
   it('includes memberSince when the user has a createdAt', async () => {

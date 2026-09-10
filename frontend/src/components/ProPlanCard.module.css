@@ -1,0 +1,348 @@
+.wrapper {
+  font-family: 'Poppins', sans-serif;
+  margin-top: 16px;
+}
+
+.alert {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 18px;
+  padding: 14px 18px;
+  border-radius: 10px;
+  background: rgba(234, 92, 36, 0.06);
+  border: 1px solid rgba(234, 92, 36, 0.4);
+}
+
+.alertBody {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.alertIcon {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  color: #FF7A50;
+}
+
+.alertText {
+  font-size: 13px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.alertButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  min-width: 174px;
+  min-height: 20px;
+  padding: 2px 0;
+  border: none;
+  background: none;
+  color: #FF7A50;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.alertButton:hover:not(:disabled) {
+  color: #FF9670;
+}
+
+.alertButton:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.topRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 28px;
+}
+
+.main {
+  flex: 1 1 240px;
+  min-width: 0;
+}
+
+.badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.badgePlan {
+  color: #FF7A50;
+}
+
+.badgePlan .dot {
+  background: #EA5C24;
+}
+
+.badgeStatus {
+  color: #ffffff;
+}
+
+.badgeStatus .dot {
+  background: #4CAF50;
+}
+
+.badgeEnding {
+  color: #FFB27A;
+}
+
+.badgeEnding .dot {
+  background: #EAB308;
+}
+
+.badgePastDue {
+  color: #FFB27A;
+}
+
+.badgePastDue .dot {
+  background: #EAB308;
+}
+
+.dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  flex-shrink: 0;
+}
+
+.heading {
+  margin: 12px 0 6px;
+  font-size: 18px;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.description {
+  margin: 0;
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.aside {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+  min-width: 320px;
+}
+
+.upgradeBox {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 16px;
+  border-radius: 10px;
+  background: rgba(234, 92, 36, 0.06);
+  border: 1px solid rgba(234, 92, 36, 0.4);
+}
+
+.upgradeTag {
+  position: absolute;
+  top: -10px;
+  right: 14px;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: #ffffff;
+  background: #EA5C24;
+}
+
+.upgradeTitle {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.upgradePrice {
+  margin: 4px 0 0;
+  white-space: nowrap;
+}
+
+.priceAmount {
+  font-size: 18px;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.pricePeriod {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.5);
+  margin-left: 4px;
+}
+
+.switchButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 180px;
+  min-height: 34px;
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: none;
+  background: #EA5C24;
+  color: #ffffff;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.switchButton:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.asideLinks {
+  display: flex;
+  justify-content: flex-end;
+  gap: 18px;
+  padding-right: 2px;
+}
+
+.linkButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 90px;
+  min-height: 18px;
+  padding: 2px 0;
+  border: none;
+  background: none;
+  color: rgba(255, 255, 255, 0.5);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.linkButton:hover:not(:disabled) {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.linkButton:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.btnSpinner,
+.btnSpinnerDark {
+  border-radius: 50%;
+  flex-shrink: 0;
+  animation: btnspin 0.7s linear infinite;
+}
+
+.btnSpinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  border-top-color: #ffffff;
+}
+
+.btnSpinnerDark {
+  width: 11px;
+  height: 11px;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  border-top-color: rgba(255, 255, 255, 0.8);
+}
+
+@keyframes btnspin {
+  to { transform: rotate(360deg); }
+}
+
+.syncCard {
+  margin-top: 18px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 14px 20px;
+}
+
+.syncHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.syncLabel {
+  font-size: 13px;
+  color: #ffffff;
+}
+
+.syncHighlight {
+  color: #EA5C24;
+  font-weight: 600;
+}
+
+.renewal {
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.renewalLabel {
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.renewalValue {
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.syncBarTrack {
+  margin-top: 8px;
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+
+.syncBarFill {
+  height: 100%;
+  width: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #EA5C24, #FF8A50);
+  box-shadow: 0 0 12px rgba(234, 92, 36, 0.55);
+}
+
+.footnote {
+  margin: 10px 0 0;
+  font-size: 12px;
+  font-style: italic;
+  color: rgba(255, 255, 255, 0.45);
+}

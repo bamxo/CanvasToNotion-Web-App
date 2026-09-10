@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, cleanup, within } from '@testing-library/react';
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { BrowserRouter } from 'react-router-dom';
 import Settings from '../components/Settings';
@@ -572,7 +572,7 @@ describe('Settings - Plan section', () => {
     (axios as any).post = vi.fn().mockResolvedValueOnce({ data: { url: 'https://stripe.test/p/1' } });
     Object.defineProperty(window, 'location', { writable: true, value: { href: '', search: '' } });
     render(<BrowserRouter><Settings /></BrowserRouter>);
-    fireEvent.click(await screen.findByRole('button', { name: /manage subscription/i }));
+    fireEvent.click(await screen.findByRole('button', { name: /manage billing/i }));
     await waitFor(() => expect(window.location.href).toBe('https://stripe.test/p/1'));
   });
 
@@ -581,7 +581,7 @@ describe('Settings - Plan section', () => {
     (axios as any).post = vi.fn().mockRejectedValueOnce(new Error('network down'));
     Object.defineProperty(window, 'location', { writable: true, value: { href: 'http://localhost/settings', search: '' } });
     render(<BrowserRouter><Settings /></BrowserRouter>);
-    fireEvent.click(await screen.findByRole('button', { name: /manage subscription/i }));
+    fireEvent.click(await screen.findByRole('button', { name: /manage billing/i }));
     const alert = await screen.findByRole('alert');
     expect(alert).toHaveTextContent(/network down|something went wrong/i);
     expect(window.location.href).toBe('http://localhost/settings');
@@ -595,9 +595,27 @@ describe('Settings - Plan section', () => {
     });
     (axios as any).post = vi.fn().mockResolvedValueOnce({ data: { refunded: true } });
     render(<BrowserRouter><Settings /></BrowserRouter>);
+    // opens a confirmation dialog first...
     fireEvent.click(await screen.findByRole('button', { name: /request a refund/i }));
+    const dialog = await screen.findByRole('dialog');
+    // ...then the actual request fires on confirm
+    fireEvent.click(within(dialog).getByRole('button', { name: /request refund/i }));
     await waitFor(() => expect(screen.getByText(/refunded/i)).toBeInTheDocument());
     expect(refetch).toHaveBeenCalled();
+  });
+
+  it('lifetime user can back out of the refund via the confirmation dialog', async () => {
+    setEntitlements({
+      tier: 'lifetime', showAds: false, hasProFeatures: true,
+      plan: { lifetimeRefundEligibleUntil: Math.floor(Date.now() / 1000) + 3600 },
+    });
+    (axios as any).post = vi.fn();
+    render(<BrowserRouter><Settings /></BrowserRouter>);
+    fireEvent.click(await screen.findByRole('button', { name: /request a refund/i }));
+    const dialog = await screen.findByRole('dialog');
+    fireEvent.click(within(dialog).getByRole('button', { name: /keep lifetime/i }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect((axios as any).post).not.toHaveBeenCalled();
   });
 
   it('legacy user sees the legacy plan card and no buttons', async () => {
