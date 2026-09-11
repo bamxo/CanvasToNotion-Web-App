@@ -17,9 +17,22 @@ const { stripe } = vi.hoisted(() => ({
     webhooks: { constructEvent: vi.fn() },
   },
 }));
+const emails = vi.hoisted(() => ({
+  sendProUpgradeEmail: vi.fn().mockResolvedValue(undefined),
+  sendLifetimePurchaseEmail: vi.fn().mockResolvedValue(undefined),
+  sendSubscriptionCanceledEmail: vi.fn().mockResolvedValue(undefined),
+  sendPaymentFailedEmail: vi.fn().mockResolvedValue(undefined),
+  sendLifetimeRefundEmail: vi.fn().mockResolvedValue(undefined),
+}));
+const { getRecipientEmailMock } = vi.hoisted(() => ({ getRecipientEmailMock: vi.fn() }));
 
 vi.mock('../src/billing/store', () => store);
 vi.mock('../src/billing/stripe', () => ({ getStripe: () => stripe, STRIPE_API_VERSION: '2024-06-20' }));
+vi.mock('../src/utils/billingEmails', () => emails);
+vi.mock('../src/billing/notify', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../src/billing/notify')>();
+  return { ...actual, getRecipientEmail: getRecipientEmailMock };
+});
 // Wrap the real handleStripeEvent so the dispatch-logic suite exercises it for
 // real, while the HTTP-handler suite can stub it for one call.
 vi.mock('../src/billing/webhook', async (importOriginal) => {
@@ -32,6 +45,12 @@ import { webhook } from '../src/billing/billingController';
 
 beforeEach(() => {
   Object.values(store).forEach((m) => m.mockReset());
+  Object.values(emails).forEach((m) => {
+    m.mockReset();
+    m.mockResolvedValue(undefined);
+  });
+  getRecipientEmailMock.mockReset();
+  getRecipientEmailMock.mockResolvedValue('user@example.com');
   stripe.subscriptions.retrieve.mockReset();
   stripe.subscriptions.update.mockReset();
   stripe.subscriptions.update.mockResolvedValue({});
@@ -290,6 +309,108 @@ describe('handleStripeEvent', () => {
     }));
     expect(store.setTier).not.toHaveBeenCalled();
     expect(store.patchBilling).not.toHaveBeenCalled();
+  });
+});
+
+describe('handleStripeEvent - billing notification emails', () => {
+  it('checkout.session.completed (subscription) -> Pro upgrade email with price, interval and next billing date', async () => {
+    stripe.subscriptions.retrieve.mockResolvedValueOnce({
+      id: 'sub_1', status: 'active', cancel_at_period_end: false,
+      items: { data: [{ current_period_end: 1773446400, price: { unit_amount: 500, recurring: { interval: 'month' } } }] },
+    });
+    await handleStripeEvent(evt('checkout.session.completed', {
+      mode: 'subscription', subscription: 'sub_1', metadata: { firebaseUID: 'u1' },
+    }));
+    expect(emails.sendProUpgradeEmail).toHaveBeenCalledWith('user@example.com', expect.objectContaining({
+      amount: '$5.00', interval: 'month', nextBillingDate: 'March 14, 2026',
+    }));
+  });
+
+  it('checkout.session.completed (payment) -> Lifetime purchase email with amount and refund-window date', async () => {
+    await handleStripeEvent(evt('checkout.session.completed', {
+      mode: 'payment', payment_intent: 'pi_1', invoice: 'in_1', amount_total: 1000,
+      metadata: { firebaseUID: 'u1' },
+    }));
+    expect(emails.sendLifetimePurchaseEmail).toHaveBeenCalledWith('user@example.com', expect.objectContaining({
+      amount: '$10.00', refundEligibleUntil: expect.any(String),
+    }));
+  });
+
+  it('customer.subscription.updated -> cancellation email only on the false->true transition', async () => {
+    store.getUser.mockResolvedValue({ tier: 'pro', billing: { cancelAtPeriodEnd: false } });
+    await handleStripeEvent(evt('customer.subscription.updated', {
+      metadata: { firebaseUID: 'u1' }, status: 'active',
+      cancel_at_period_end: true, current_period_end: 1773446400,
+    }));
+    expect(emails.sendSubscriptionCanceledEmail).toHaveBeenCalledWith('user@example.com', expect.objectContaining({
+      accessUntil: 'March 14, 2026',
+    }));
+  });
+
+  it('customer.subscription.updated -> no cancellation email when it was already scheduled to cancel', async () => {
+    store.getUser.mockResolvedValue({ tier: 'pro', billing: { cancelAtPeriodEnd: true } });
+    await handleStripeEvent(evt('customer.subscription.updated', {
+      metadata: { firebaseUID: 'u1' }, status: 'active', cancel_at_period_end: true, current_period_end: 1773446400,
+    }));
+    expect(emails.sendSubscriptionCanceledEmail).not.toHaveBeenCalled();
+  });
+
+  it('customer.subscription.updated -> no cancellation email for a lifetime user (our own post-upgrade auto-cancel)', async () => {
+    store.getUser.mockResolvedValue({ tier: 'lifetime', billing: { cancelAtPeriodEnd: false, stripeSubscriptionId: 'sub_x' } });
+    await handleStripeEvent(evt('customer.subscription.updated', {
+      metadata: { firebaseUID: 'u1' }, status: 'active', cancel_at_period_end: true, current_period_end: 1773446400,
+    }));
+    expect(emails.sendSubscriptionCanceledEmail).not.toHaveBeenCalled();
+  });
+
+  it('invoice.payment_failed -> payment failure email, once, not repeated on a retry that is already past_due', async () => {
+    store.getUser.mockResolvedValueOnce({ tier: 'pro', billing: { subscriptionStatus: 'active', currentPeriodEnd: 1773446400 } });
+    await handleStripeEvent(evt('invoice.payment_failed', { metadata: { firebaseUID: 'u1' } }, 'evt_a'));
+    expect(emails.sendPaymentFailedEmail).toHaveBeenCalledWith('user@example.com', expect.objectContaining({
+      accessUntil: 'March 14, 2026',
+    }));
+
+    emails.sendPaymentFailedEmail.mockClear();
+    store.getUser.mockResolvedValueOnce({ tier: 'pro', billing: { subscriptionStatus: 'past_due', currentPeriodEnd: 1773446400 } });
+    await handleStripeEvent(evt('invoice.payment_failed', { metadata: { firebaseUID: 'u1' } }, 'evt_b'));
+    expect(emails.sendPaymentFailedEmail).not.toHaveBeenCalled();
+  });
+
+  it('charge.refunded of the lifetime payment -> refund email naming the plan the account landed on', async () => {
+    store.uidForCustomer.mockResolvedValue('u1');
+    // revertLifetimeAccess drops to free (no live subscription); the email reads
+    // the tier back afterwards, so let setTier drive what getUser returns.
+    let tier = 'lifetime';
+    store.setTier.mockImplementation(async (_uid: string, t: string) => { tier = t; });
+    store.getUser.mockImplementation(async () => ({
+      tier, billing: { lifetimePaymentIntentId: 'pi_life' },
+    }));
+    await handleStripeEvent(evt('charge.refunded', {
+      customer: 'cus_1', amount: 1000, amount_refunded: 1000, payment_intent: 'pi_life',
+    }));
+    expect(emails.sendLifetimeRefundEmail).toHaveBeenCalledWith('user@example.com', expect.objectContaining({
+      amount: '$10.00', newTier: 'free',
+    }));
+  });
+
+  it('a failing notification email never rejects the event', async () => {
+    emails.sendLifetimePurchaseEmail.mockRejectedValueOnce(new Error('smtp down'));
+    await expect(
+      handleStripeEvent(evt('checkout.session.completed', {
+        mode: 'payment', payment_intent: 'pi_1', amount_total: 1000, metadata: { firebaseUID: 'u1' },
+      }))
+    ).resolves.not.toThrow();
+    expect(store.setTier).toHaveBeenCalledWith('u1', 'lifetime');
+    expect(store.markEventProcessed).toHaveBeenCalled();
+  });
+
+  it('no email is sent when the account has no address on file', async () => {
+    getRecipientEmailMock.mockResolvedValue(null);
+    await handleStripeEvent(evt('checkout.session.completed', {
+      mode: 'payment', payment_intent: 'pi_1', amount_total: 1000, metadata: { firebaseUID: 'u1' },
+    }));
+    expect(emails.sendLifetimePurchaseEmail).not.toHaveBeenCalled();
+    expect(store.setTier).toHaveBeenCalledWith('u1', 'lifetime');
   });
 });
 

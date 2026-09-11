@@ -1,7 +1,7 @@
 // backend/src/billing/webhook.ts
 import type Stripe from 'stripe';
 import { getStripe } from './stripe';
-import { LIFETIME_REFUND_WINDOW_DAYS, nowEpochSeconds, nowIso } from './config';
+import { LIFETIME_REFUND_WINDOW_DAYS, appBaseUrl, nowEpochSeconds, nowIso } from './config';
 import {
   getUser,
   setTier,
@@ -10,6 +10,34 @@ import {
   isEventProcessed,
   markEventProcessed,
 } from './store';
+import { formatDate, formatUsd, getRecipientEmail } from './notify';
+import {
+  sendProUpgradeEmail,
+  sendLifetimePurchaseEmail,
+  sendSubscriptionCanceledEmail,
+  sendPaymentFailedEmail,
+  sendLifetimeRefundEmail,
+} from '../utils/billingEmails';
+
+const billingSettingsUrl = (): string => `${appBaseUrl()}/settings`;
+
+/**
+ * Send one billing notification, resolving the recipient from the uid. Never
+ * throws: a missing address or a transport failure is logged and swallowed so a
+ * failed email can't make the webhook 500 and have Stripe retry the whole event.
+ */
+async function notifyUser(uid: string, send: (to: string) => Promise<void>): Promise<void> {
+  try {
+    const to = await getRecipientEmail(uid);
+    if (!to) {
+      console.warn(`[billing] no email on file for ${uid} - skipping billing notification`);
+      return;
+    }
+    await send(to);
+  } catch (err) {
+    console.error(`[billing] billing notification failed for ${uid}:`, (err as any)?.message);
+  }
+}
 
 function customerIdOf(object: any): string | undefined {
   const c = object?.customer;
@@ -69,6 +97,15 @@ async function onCheckoutCompleted(session: any, uid: string): Promise<void> {
       currentPeriodEnd: accessEndsAt(sub),
       cancelAtPeriodEnd: isSubscriptionEnding(sub),
     });
+    const price = (sub as any)?.items?.data?.[0]?.price;
+    await notifyUser(uid, (to) =>
+      sendProUpgradeEmail(to, {
+        amount: formatUsd(price?.unit_amount),
+        interval: price?.recurring?.interval ?? null,
+        nextBillingDate: formatDate(accessEndsAt(sub)),
+        manageUrl: billingSettingsUrl(),
+      })
+    );
   } else if (session.mode === 'payment') {
     // Only a confirmed payment grants lifetime access. Card checkout is always
     // 'paid' synchronously; delayed payment methods can be 'unpaid'/'no_payment_required'.
@@ -94,6 +131,15 @@ async function onCheckoutCompleted(session: any, uid: string): Promise<void> {
       lifetimeInvoiceId: session.invoice ? String(session.invoice) : null,
       lifetimeRefundEligibleUntil,
     });
+    await notifyUser(uid, (to) =>
+      sendLifetimePurchaseEmail(to, {
+        amount: formatUsd(
+          typeof session.amount_total === 'number' ? session.amount_total : session.amount_subtotal
+        ),
+        refundEligibleUntil: formatDate(lifetimeRefundEligibleUntil),
+        manageUrl: billingSettingsUrl(),
+      })
+    );
     // A user upgrading from Pro no longer needs the monthly subscription, but we
     // let the paid-for period run out rather than cancelling on the spot: set it
     // to cancel at period end and KEEP stripeSubscriptionId, so that if they
@@ -147,19 +193,35 @@ export async function revertLifetimeAccess(uid: string): Promise<void> {
   });
 }
 
-async function onSubscriptionUpdated(sub: any, uid: string, currentTier?: string): Promise<void> {
+async function onSubscriptionUpdated(
+  sub: any,
+  uid: string,
+  currentTier?: string,
+  prevCancelAtPeriodEnd?: boolean | null
+): Promise<void> {
   await patchBilling(uid, {
     subscriptionStatus: sub.status,
     currentPeriodEnd: accessEndsAt(sub),
     cancelAtPeriodEnd: isSubscriptionEnding(sub),
   });
   // A lifetime user's tier is not governed by any subscription - e.g. the Pro
-  // subscription we cancel when they upgrade. Only keep the bookkeeping current.
+  // subscription we cancel when they upgrade. Only keep the bookkeeping current,
+  // and never email them about that self-inflicted cancellation.
   if (currentTier === 'lifetime') {
     if (sub.status === 'canceled' || sub.status === 'unpaid') {
       await patchBilling(uid, { stripeSubscriptionId: null });
     }
     return;
+  }
+  // Email once, on the transition into "scheduled to cancel" - not on every
+  // later update that still carries the flag (Stripe resends it).
+  if (!prevCancelAtPeriodEnd && isSubscriptionEnding(sub)) {
+    await notifyUser(uid, (to) =>
+      sendSubscriptionCanceledEmail(to, {
+        accessUntil: formatDate(accessEndsAt(sub)),
+        resubscribeUrl: billingSettingsUrl(),
+      })
+    );
   }
   if (sub.status === 'active' || sub.status === 'trialing') {
     await setTier(uid, 'pro');
@@ -176,8 +238,21 @@ async function onSubscriptionDeleted(sub: any, uid: string, currentTier?: string
   await setTier(uid, 'free');
 }
 
-async function onInvoicePaymentFailed(invoice: any, uid: string): Promise<void> {
+async function onInvoicePaymentFailed(
+  invoice: any,
+  uid: string,
+  prevBilling?: { subscriptionStatus?: string | null; currentPeriodEnd?: number | null }
+): Promise<void> {
   await patchBilling(uid, { subscriptionStatus: 'past_due' });
+  // Stripe fires this for every retry in the dunning schedule. Email only on the
+  // first failure (the account wasn't already past_due) so we don't nag.
+  if (prevBilling?.subscriptionStatus === 'past_due') return;
+  await notifyUser(uid, (to) =>
+    sendPaymentFailedEmail(to, {
+      accessUntil: formatDate(prevBilling?.currentPeriodEnd),
+      updatePaymentUrl: billingSettingsUrl(),
+    })
+  );
 }
 
 async function onChargeRefunded(charge: any, uid: string): Promise<void> {
@@ -197,6 +272,17 @@ async function onChargeRefunded(charge: any, uid: string): Promise<void> {
   // /refund route already reverted the tier before this event arrived.
   if (billing?.lifetimePaymentIntentId && piId === billing.lifetimePaymentIntentId) {
     await revertLifetimeAccess(uid);
+    // revertLifetimeAccess picks Pro (subscription still live) or Free - tell the
+    // user which one they landed on. Read it back rather than guess.
+    const { tier: newTier } = await getUser(uid);
+    await notifyUser(uid, (to) =>
+      sendLifetimeRefundEmail(to, {
+        amount: formatUsd(
+          typeof charge.amount_refunded === 'number' ? charge.amount_refunded : charge.amount
+        ),
+        newTier: newTier ?? 'free',
+      })
+    );
     return;
   }
   await setTier(uid, 'free');
@@ -226,13 +312,13 @@ export async function handleStripeEvent(event: Stripe.Event): Promise<void> {
         await onCheckoutCompleted(object, uid);
         break;
       case 'customer.subscription.updated':
-        await onSubscriptionUpdated(object, uid, user.tier);
+        await onSubscriptionUpdated(object, uid, user.tier, user.billing?.cancelAtPeriodEnd);
         break;
       case 'customer.subscription.deleted':
         await onSubscriptionDeleted(object, uid, user.tier);
         break;
       case 'invoice.payment_failed':
-        await onInvoicePaymentFailed(object, uid);
+        await onInvoicePaymentFailed(object, uid, user.billing);
         break;
       case 'charge.refunded':
         await onChargeRefunded(object, uid);
