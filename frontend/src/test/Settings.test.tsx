@@ -632,3 +632,71 @@ describe('Settings - Plan section', () => {
     expect(screen.queryByRole('button', { name: /manage subscription|request a refund/i })).not.toBeInTheDocument();
   });
 });
+
+describe('Settings - skeleton loaders', () => {
+  beforeEach(() => {
+    cleanup();
+    vi.clearAllMocks();
+    document.body.innerHTML = '';
+    (useNotionAuthModule.useNotionAuth as ReturnType<typeof vi.fn>).mockReturnValue({
+      userInfo: { email: 'a@b.com', firstName: 'A' },
+      notionConnection: { email: '', isConnected: false },
+      isConnecting: false,
+      error: '',
+      isLoading: false,
+      setNotionConnection: vi.fn(),
+    });
+    (axios as any).get = vi.fn().mockResolvedValue({ data: { email: 'a@b.com', displayName: 'A' } });
+  });
+
+  afterEach(() => {
+    setEntitlements({ tier: 'free' });
+  });
+
+  it('shows the plan card skeleton (not the free/standard card) while entitlements load', async () => {
+    setEntitlements({ tier: 'free', isLoading: true });
+    render(<BrowserRouter><Settings /></BrowserRouter>);
+
+    expect(await screen.findByTestId('plan-card-skeleton')).toBeInTheDocument();
+    expect(screen.queryByText('Standard Tier')).not.toBeInTheDocument();
+  });
+
+  it('replaces the plan skeleton with the real card once entitlements finish loading', async () => {
+    setEntitlements({ tier: 'free', isLoading: true });
+    const { rerender } = render(<BrowserRouter><Settings /></BrowserRouter>);
+    await screen.findByTestId('plan-card-skeleton');
+
+    setEntitlements({ tier: 'free', isLoading: false, classSyncUsed: 0, classSyncLimit: 5 });
+    rerender(<BrowserRouter><Settings /></BrowserRouter>);
+
+    expect(await screen.findByText('Standard Tier')).toBeInTheDocument();
+    expect(screen.queryByTestId('plan-card-skeleton')).not.toBeInTheDocument();
+  });
+
+  it('shows the connections skeleton (not the "Not connected" state) while the Notion status loads', async () => {
+    setEntitlements({ tier: 'free', isLoading: false });
+    (useNotionAuthModule.useNotionAuth as ReturnType<typeof vi.fn>).mockReturnValue({
+      userInfo: { email: 'a@b.com', firstName: 'A' },
+      notionConnection: { email: '', isConnected: false },
+      isConnecting: false,
+      error: '',
+      isLoading: true,
+      setNotionConnection: vi.fn(),
+    });
+    render(<BrowserRouter><Settings /></BrowserRouter>);
+
+    expect(await screen.findByTestId('connections-skeleton')).toBeInTheDocument();
+    expect(screen.queryByText('Not connected to Notion')).not.toBeInTheDocument();
+    expect(screen.queryByText('Add Connection')).not.toBeInTheDocument();
+  });
+
+  it('shows the profile skeleton (not a placeholder name) while the user info request is in flight', async () => {
+    setEntitlements({ tier: 'free', isLoading: false });
+    (axios as any).get = vi.fn().mockReturnValue(new Promise(() => {})); // never resolves
+    render(<BrowserRouter><Settings /></BrowserRouter>);
+
+    expect(await screen.findByTestId('profile-skeleton')).toBeInTheDocument();
+    expect(screen.queryByText('User')).not.toBeInTheDocument();
+    expect(screen.queryByText('user@email.com')).not.toBeInTheDocument();
+  });
+});

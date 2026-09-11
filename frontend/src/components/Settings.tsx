@@ -22,6 +22,8 @@ import LegacyPlanCard from './LegacyPlanCard';
 import FreePlanCard from './FreePlanCard';
 import ProPlanCard from './ProPlanCard';
 import LifetimePlanCard from './LifetimePlanCard';
+import PlanCardSkeleton from './PlanCardSkeleton';
+import Skeleton from './Skeleton';
 import ConfirmDialog from './ConfirmDialog';
 import { AUTH_ENDPOINTS, USER_ENDPOINTS, NOTION_ENDPOINTS, COOKIE_STATE_ENDPOINTS, BILLING_ENDPOINTS, IS_CROSS_ORIGIN_BACKEND } from '../utils/api';
 import { EXTENSION_ID, NOTION_REDIRECT_URI } from '../utils/constants';
@@ -41,6 +43,7 @@ const Settings: React.FC = () => {
   const {
     notionConnection,
     isConnecting,
+    isLoading: notionLoading,
     setNotionConnection
   } = useNotionAuth();
   const [userInfo, setUserInfo] = useState<UserInfo | null>(null);
@@ -49,7 +52,7 @@ const Settings: React.FC = () => {
   const [isButtonLoading, setIsButtonLoading] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
-  const { tier, plan, memberSince, classSyncUsed, classSyncLimit, notionConnected, refetch } = useEntitlements();
+  const { tier, plan, memberSince, classSyncUsed, classSyncLimit, notionConnected, isLoading: entitlementsLoading, refetch } = useEntitlements();
   const [planNotice, setPlanNotice] = useState<string | null>(null);
   const [planError, setPlanError] = useState<string | null>(null);
   const [planBusy, setPlanBusy] = useState(false);
@@ -373,11 +376,11 @@ const Settings: React.FC = () => {
         
         <div className={styles.profileSection}>
           {isLoading ? (
-            <div className={styles.profileGroup}>
-              <div className={styles.profilePic}></div>
+            <div className={styles.profileGroup} data-testid="profile-skeleton">
+              <Skeleton width={48} height={48} circle />
               <div className={styles.profileInfo}>
-                <p className={styles.userName}>User</p>
-                <p className={styles.userEmail}>user@email.com</p>
+                <Skeleton width={160} height={20} />
+                <Skeleton width={200} height={14} style={{ marginTop: 6 }} />
               </div>
             </div>
           ) : (
@@ -427,37 +430,43 @@ const Settings: React.FC = () => {
           {planNotice && <p className={styles.planNotice}>{planNotice}</p>}
           {planError && <p className={styles.planError} role="alert">{planError}</p>}
 
-          {tier === 'free' && (
-            <FreePlanCard classSyncUsed={classSyncUsed} classSyncLimit={classSyncLimit} notionConnected={notionConnected} />
-          )}
+          {entitlementsLoading ? (
+            <PlanCardSkeleton />
+          ) : (
+            <>
+              {tier === 'free' && (
+                <FreePlanCard classSyncUsed={classSyncUsed} classSyncLimit={classSyncLimit} notionConnected={notionConnected} />
+              )}
 
-          {tier === 'pro' && (
-            <ProPlanCard
-              currentPeriodEnd={plan?.currentPeriodEnd}
-              cancelAtPeriodEnd={plan?.cancelAtPeriodEnd}
-              subscriptionStatus={plan?.subscriptionStatus}
-              syncedCount={classSyncUsed}
-              onSwitchToLifetime={switchToLifetime}
-              onManageBilling={openPortal}
-              onCancelSubscription={openPortal}
-              onReactivate={reactivateSubscription}
-              busy={planBusy}
-            />
-          )}
+              {tier === 'pro' && (
+                <ProPlanCard
+                  currentPeriodEnd={plan?.currentPeriodEnd}
+                  cancelAtPeriodEnd={plan?.cancelAtPeriodEnd}
+                  subscriptionStatus={plan?.subscriptionStatus}
+                  syncedCount={classSyncUsed}
+                  onSwitchToLifetime={switchToLifetime}
+                  onManageBilling={openPortal}
+                  onCancelSubscription={openPortal}
+                  onReactivate={reactivateSubscription}
+                  busy={planBusy}
+                />
+              )}
 
-          {tier === 'lifetime' && (
-            <LifetimePlanCard
-              purchasedAt={plan?.lifetimePurchasedAt}
-              refundEligibleUntil={plan?.lifetimeRefundEligibleUntil}
-              withinRefundWindow={withinRefundWindow}
-              refundDone={refundDone}
-              onBillingHistory={openPortal}
-              onRefund={() => setConfirmRefundOpen(true)}
-              busy={planBusy}
-            />
-          )}
+              {tier === 'lifetime' && (
+                <LifetimePlanCard
+                  purchasedAt={plan?.lifetimePurchasedAt}
+                  refundEligibleUntil={plan?.lifetimeRefundEligibleUntil}
+                  withinRefundWindow={withinRefundWindow}
+                  refundDone={refundDone}
+                  onBillingHistory={openPortal}
+                  onRefund={() => setConfirmRefundOpen(true)}
+                  busy={planBusy}
+                />
+              )}
 
-          {tier === 'legacy' && <LegacyPlanCard memberSince={memberSince} />}
+              {tier === 'legacy' && <LegacyPlanCard memberSince={memberSince} />}
+            </>
+          )}
         </section>
 
         <ConfirmDialog
@@ -477,49 +486,63 @@ const Settings: React.FC = () => {
         <div className={styles.connectionsSection}>
           <h2 className={styles.sectionTitle}>Manage Connections</h2>
           <div className={styles.divider} />
-          
-          <div className={styles.connectionStatus}>
-            <div className={`${styles.statusIndicator} ${!notionConnection.isConnected && styles.disconnected}`} />
-            <span className={styles.connectionEmail}>
-              {notionConnection.isConnected 
-                ? `Connected to Notion`
-                : 'Not connected to Notion'
-              }
-            </span>
-          </div>
-          
-          {error && (
-            <div className={styles.errorContainer}>
-              <p className={styles.errorText}>{error}</p>
+
+          {notionLoading ? (
+            <div data-testid="connections-skeleton">
+              <Skeleton
+                width={220}
+                height={40}
+                radius={12}
+                style={{ marginTop: 18, marginBottom: 10 }}
+              />
+              <Skeleton width={160} height={40} radius={8} style={{ marginTop: 6 }} />
             </div>
-          )}
-          
-          <div className={styles.connectionButtons}>
-            <button 
-              className={styles.changeConnectionButton}
-              onClick={handleNotionConnection}
-              disabled={isButtonLoading || isConnecting}
-            >
-              {(isButtonLoading || isConnecting) ? (
-                <div className={styles.spinner} />
-              ) : (
-                notionConnection.isConnected ? 'Change Connection' : 'Add Connection'
+          ) : (
+            <>
+              <div className={styles.connectionStatus}>
+                <div className={`${styles.statusIndicator} ${!notionConnection.isConnected && styles.disconnected}`} />
+                <span className={styles.connectionEmail}>
+                  {notionConnection.isConnected
+                    ? `Connected to Notion`
+                    : 'Not connected to Notion'
+                  }
+                </span>
+              </div>
+
+              {error && (
+                <div className={styles.errorContainer}>
+                  <p className={styles.errorText}>{error}</p>
+                </div>
               )}
-            </button>
-            {notionConnection.isConnected && (
-              <button 
-                className={styles.removeConnectionButton}
-                onClick={handleRemoveConnection}
-                disabled={isButtonLoading}
-              >
-                {isButtonLoading ? (
-                  <div className={styles.spinner} />
-                ) : (
-                  'Remove Connection'
+
+              <div className={styles.connectionButtons}>
+                <button
+                  className={styles.changeConnectionButton}
+                  onClick={handleNotionConnection}
+                  disabled={isButtonLoading || isConnecting}
+                >
+                  {(isButtonLoading || isConnecting) ? (
+                    <div className={styles.spinner} />
+                  ) : (
+                    notionConnection.isConnected ? 'Change Connection' : 'Add Connection'
+                  )}
+                </button>
+                {notionConnection.isConnected && (
+                  <button
+                    className={styles.removeConnectionButton}
+                    onClick={handleRemoveConnection}
+                    disabled={isButtonLoading}
+                  >
+                    {isButtonLoading ? (
+                      <div className={styles.spinner} />
+                    ) : (
+                      'Remove Connection'
+                    )}
+                  </button>
                 )}
-              </button>
-            )}
-          </div>
+              </div>
+            </>
+          )}
         </div>
       </main>
     </div>
