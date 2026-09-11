@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "skills": {
+    "create-verification-skill": {
+      "source": "michael-denyer/pstack-claude",
+      "sourceType": "github",
+      "skillPath": "plugins/pstack/skills/create-verification-skill/SKILL.md",
+      "computedHash": "c5e39644afc82213de5840249be0cb895f7c350b8a3ac46ffb07fd17a76cfae8"
+    },
+    "maintain-verification-skill": {
+      "source": "michael-denyer/pstack-claude",
+      "sourceType": "github",
+      "skillPath": "plugins/pstack/skills/maintain-verification-skill/SKILL.md",
+      "computedHash": "f0d13afbab9793f9048edd04dfdc96347ae098b48e79c4cb39c938c6224a35e8"
+    },
+    "poteto-mode": {
+      "source": "michael-denyer/pstack-claude",
+      "sourceType": "github",
+      "skillPath": "plugins/pstack/skills/poteto-mode/SKILL.md",
+      "computedHash": "926e4a3f2bedb22caedc68291c53ef4607860d0b1fe74f17141967f1385c155a"
+    },
+    "swarm": {
+      "source": "michael-denyer/pstack-claude",
+      "sourceType": "github",
+      "skillPath": "plugins/pstack/skills/swarm/SKILL.md",
+      "computedHash": "73567b628184b5ee6ab58f495f87e82ed51edf7cbec15c7aedbd05d4e5bf7746"
+    }
+  }
+}
