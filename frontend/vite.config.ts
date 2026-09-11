@@ -9,7 +9,13 @@ interface VitestConfigExport extends UserConfig {
 }
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [
+    react({
+      babel: {
+        plugins: [['babel-plugin-react-compiler', { target: '18' }]],
+      },
+    }),
+  ],
   server: {
     host: true, // Listen on all local IPs
     port: 5173,
