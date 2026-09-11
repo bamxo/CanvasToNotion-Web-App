@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, cleanup, within } from '@testing-library/react';
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { BrowserRouter } from 'react-router-dom';
 import Settings from '../components/Settings';
@@ -6,6 +6,7 @@ import * as useNotionAuthModule from '../hooks/useNotionAuth';
 import axios from 'axios';
 import styles from '../components/Settings.module.css';
 import * as encryptionModule from '../utils/encryption';
+import * as entitlementsModule from '../hooks/useEntitlements';
 
 // Mock encryption utilities
 vi.mock('../utils/encryption', () => ({
@@ -26,6 +27,15 @@ vi.mock('js-cookie', () => ({
 // Mock the entire useNotionAuth hook to prevent hook order violations
 vi.mock('../hooks/useNotionAuth', () => ({
   useNotionAuth: vi.fn()
+}));
+
+// Mock the entitlements hook with a factory default so existing Settings tests
+// (which never touch the Plan section) keep passing.
+vi.mock('../hooks/useEntitlements', () => ({
+  useEntitlements: vi.fn(() => ({
+    tier: 'free', showAds: true, hasProFeatures: false, notionConnected: true,
+    isLoading: false, error: null, refetch: () => {}
+  }))
 }));
 
 // Mock axios
@@ -487,4 +497,206 @@ describe('Settings Component', () => {
     // Verify window.open was called
     expect(mockOpen).toHaveBeenCalledWith('/', '_blank');
   });
-}); 
+});
+
+const setEntitlements = (over: Partial<ReturnType<typeof entitlementsModule.useEntitlements>>) => {
+  vi.mocked(entitlementsModule.useEntitlements).mockReturnValue({
+    tier: 'free', showAds: true, hasProFeatures: false, plan: undefined,
+    classSyncUsed: 0, classSyncLimit: 5, notionConnected: true,
+    isLoading: false, error: null, refetch: vi.fn(), ...over,
+  });
+};
+
+describe('Settings - Plan section', () => {
+  beforeEach(() => {
+    cleanup();
+    vi.clearAllMocks();
+    document.body.innerHTML = '';
+    (useNotionAuthModule.useNotionAuth as ReturnType<typeof vi.fn>).mockReturnValue({
+      userInfo: { email: 'a@b.com', firstName: 'A' },
+      notionConnection: { email: '', isConnected: false },
+      isConnecting: false,
+      error: '',
+      isLoading: false,
+      setNotionConnection: vi.fn(),
+    });
+    // make the existing auth/user fetch resolve so the component renders its body
+    (axios as any).get = vi.fn().mockResolvedValue({ data: { email: 'a@b.com', displayName: 'A' } });
+  });
+
+  afterEach(() => {
+    setEntitlements({ tier: 'free' });
+  });
+
+  it('free user sees the free plan card with usage and upgrade options', async () => {
+    setEntitlements({ tier: 'free', classSyncUsed: 3, classSyncLimit: 5 });
+    render(<BrowserRouter><Settings /></BrowserRouter>);
+    expect(await screen.findByText('Standard Tier')).toBeInTheDocument();
+    expect(screen.getByText('3 / 5 classes synced (60%)')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /upgrade/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /claim lifetime access/i })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /see plans/i })).not.toBeInTheDocument();
+  });
+
+  it('refetches entitlements when the Notion connection status flips (connect / disconnect)', async () => {
+    const refetch = vi.fn();
+    setEntitlements({ tier: 'free', notionConnected: false, refetch });
+    const setConn = (isConnected: boolean) =>
+      (useNotionAuthModule.useNotionAuth as ReturnType<typeof vi.fn>).mockReturnValue({
+        userInfo: { email: 'a@b.com', firstName: 'A' },
+        notionConnection: { email: '', isConnected },
+        isConnecting: false,
+        error: '',
+        isLoading: false,
+        setNotionConnection: vi.fn(),
+      });
+
+    setConn(false);
+    const { rerender } = render(<BrowserRouter><Settings /></BrowserRouter>);
+    await screen.findByText('Standard Tier');
+    refetch.mockClear(); // ignore the hook's own mount fetch / initial effect skip
+
+    // Notion gets connected on this page
+    setConn(true);
+    rerender(<BrowserRouter><Settings /></BrowserRouter>);
+    await waitFor(() => expect(refetch).toHaveBeenCalledTimes(1));
+
+    // ...and disconnected again
+    setConn(false);
+    rerender(<BrowserRouter><Settings /></BrowserRouter>);
+    await waitFor(() => expect(refetch).toHaveBeenCalledTimes(2));
+  });
+
+  it('pro user can open the billing portal', async () => {
+    setEntitlements({ tier: 'pro', showAds: false, hasProFeatures: true, plan: { subscriptionStatus: 'active' } });
+    (axios as any).post = vi.fn().mockResolvedValueOnce({ data: { url: 'https://stripe.test/p/1' } });
+    Object.defineProperty(window, 'location', { writable: true, value: { href: '', search: '' } });
+    render(<BrowserRouter><Settings /></BrowserRouter>);
+    fireEvent.click(await screen.findByRole('button', { name: /manage billing/i }));
+    await waitFor(() => expect(window.location.href).toBe('https://stripe.test/p/1'));
+  });
+
+  it('shows an alert when opening the billing portal fails, without navigating', async () => {
+    setEntitlements({ tier: 'pro', showAds: false, hasProFeatures: true, plan: { subscriptionStatus: 'active' } });
+    (axios as any).post = vi.fn().mockRejectedValueOnce(new Error('network down'));
+    Object.defineProperty(window, 'location', { writable: true, value: { href: 'http://localhost/settings', search: '' } });
+    render(<BrowserRouter><Settings /></BrowserRouter>);
+    fireEvent.click(await screen.findByRole('button', { name: /manage billing/i }));
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent(/network down|something went wrong/i);
+    expect(window.location.href).toBe('http://localhost/settings');
+  });
+
+  it('lifetime user within the window can request a refund', async () => {
+    const refetch = vi.fn();
+    setEntitlements({
+      tier: 'lifetime', showAds: false, hasProFeatures: true, refetch,
+      plan: { lifetimeRefundEligibleUntil: Math.floor(Date.now() / 1000) + 3600 },
+    });
+    (axios as any).post = vi.fn().mockResolvedValueOnce({ data: { refunded: true } });
+    render(<BrowserRouter><Settings /></BrowserRouter>);
+    // opens a confirmation dialog first...
+    fireEvent.click(await screen.findByRole('button', { name: /request a refund/i }));
+    const dialog = await screen.findByRole('dialog');
+    // ...then the actual request fires on confirm
+    fireEvent.click(within(dialog).getByRole('button', { name: /request refund/i }));
+    await waitFor(() => expect(screen.getByText(/refunded/i)).toBeInTheDocument());
+    expect(refetch).toHaveBeenCalled();
+  });
+
+  it('lifetime user can back out of the refund via the confirmation dialog', async () => {
+    setEntitlements({
+      tier: 'lifetime', showAds: false, hasProFeatures: true,
+      plan: { lifetimeRefundEligibleUntil: Math.floor(Date.now() / 1000) + 3600 },
+    });
+    (axios as any).post = vi.fn();
+    render(<BrowserRouter><Settings /></BrowserRouter>);
+    fireEvent.click(await screen.findByRole('button', { name: /request a refund/i }));
+    const dialog = await screen.findByRole('dialog');
+    fireEvent.click(within(dialog).getByRole('button', { name: /keep lifetime/i }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect((axios as any).post).not.toHaveBeenCalled();
+  });
+
+  it('legacy user sees the legacy plan card and no buttons', async () => {
+    setEntitlements({
+      tier: 'legacy',
+      showAds: false,
+      hasProFeatures: true,
+      memberSince: '2024-01-15T00:00:00.000Z',
+    });
+    render(<BrowserRouter><Settings /></BrowserRouter>);
+    expect(await screen.findByText(/full access to everything, free, forever/i)).toBeInTheDocument();
+    expect(screen.getByText('Legacy Account')).toBeInTheDocument();
+    expect(screen.getByText(/legacy member since: jan 15, 2024/i)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /manage subscription|request a refund/i })).not.toBeInTheDocument();
+  });
+});
+
+describe('Settings - skeleton loaders', () => {
+  beforeEach(() => {
+    cleanup();
+    vi.clearAllMocks();
+    document.body.innerHTML = '';
+    (useNotionAuthModule.useNotionAuth as ReturnType<typeof vi.fn>).mockReturnValue({
+      userInfo: { email: 'a@b.com', firstName: 'A' },
+      notionConnection: { email: '', isConnected: false },
+      isConnecting: false,
+      error: '',
+      isLoading: false,
+      setNotionConnection: vi.fn(),
+    });
+    (axios as any).get = vi.fn().mockResolvedValue({ data: { email: 'a@b.com', displayName: 'A' } });
+  });
+
+  afterEach(() => {
+    setEntitlements({ tier: 'free' });
+  });
+
+  it('shows the plan card skeleton (not the free/standard card) while entitlements load', async () => {
+    setEntitlements({ tier: 'free', isLoading: true });
+    render(<BrowserRouter><Settings /></BrowserRouter>);
+
+    expect(await screen.findByTestId('plan-card-skeleton')).toBeInTheDocument();
+    expect(screen.queryByText('Standard Tier')).not.toBeInTheDocument();
+  });
+
+  it('replaces the plan skeleton with the real card once entitlements finish loading', async () => {
+    setEntitlements({ tier: 'free', isLoading: true });
+    const { rerender } = render(<BrowserRouter><Settings /></BrowserRouter>);
+    await screen.findByTestId('plan-card-skeleton');
+
+    setEntitlements({ tier: 'free', isLoading: false, classSyncUsed: 0, classSyncLimit: 5 });
+    rerender(<BrowserRouter><Settings /></BrowserRouter>);
+
+    expect(await screen.findByText('Standard Tier')).toBeInTheDocument();
+    expect(screen.queryByTestId('plan-card-skeleton')).not.toBeInTheDocument();
+  });
+
+  it('shows the connections skeleton (not the "Not connected" state) while the Notion status loads', async () => {
+    setEntitlements({ tier: 'free', isLoading: false });
+    (useNotionAuthModule.useNotionAuth as ReturnType<typeof vi.fn>).mockReturnValue({
+      userInfo: { email: 'a@b.com', firstName: 'A' },
+      notionConnection: { email: '', isConnected: false },
+      isConnecting: false,
+      error: '',
+      isLoading: true,
+      setNotionConnection: vi.fn(),
+    });
+    render(<BrowserRouter><Settings /></BrowserRouter>);
+
+    expect(await screen.findByTestId('connections-skeleton')).toBeInTheDocument();
+    expect(screen.queryByText('Not connected to Notion')).not.toBeInTheDocument();
+    expect(screen.queryByText('Add Connection')).not.toBeInTheDocument();
+  });
+
+  it('shows the profile skeleton (not a placeholder name) while the user info request is in flight', async () => {
+    setEntitlements({ tier: 'free', isLoading: false });
+    (axios as any).get = vi.fn().mockReturnValue(new Promise(() => {})); // never resolves
+    render(<BrowserRouter><Settings /></BrowserRouter>);
+
+    expect(await screen.findByTestId('profile-skeleton')).toBeInTheDocument();
+    expect(screen.queryByText('User')).not.toBeInTheDocument();
+    expect(screen.queryByText('user@email.com')).not.toBeInTheDocument();
+  });
+});

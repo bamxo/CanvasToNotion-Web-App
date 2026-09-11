@@ -1,0 +1,93 @@
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(0, 0, 0, 0.6);
+}
+
+.card {
+  font-family: 'Poppins', sans-serif;
+  width: 100%;
+  max-width: 400px;
+  padding: 24px;
+  border-radius: 14px;
+  background: #1f1f1f;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
+  outline: none;
+}
+
+.title {
+  margin: 0 0 8px;
+  font-size: 17px;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.message {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 22px;
+}
+
+.cancelButton,
+.confirmButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 96px;
+  min-height: 36px;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.cancelButton {
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.06);
+  color: #ffffff;
+}
+
+.confirmButton {
+  border: none;
+  background: #EA5C24;
+  color: #ffffff;
+}
+
+.confirmButton.danger {
+  background: #ff3b30;
+}
+
+.cancelButton:disabled,
+.confirmButton:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  border-top-color: #ffffff;
+  border-radius: 50%;
+  animation: confirmspin 0.7s linear infinite;
+}
+
+@keyframes confirmspin {
+  to { transform: rotate(360deg); }
+}

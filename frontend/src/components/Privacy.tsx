@@ -21,8 +21,8 @@ const Privacy: React.FC = () => {
       <Navbar isScrolled={isScrolled} />
       <div className={styles.privacyContent}>
         <h1>Privacy Policy</h1>
-        <h2>Canvas to Notion Sync Extension</h2>
-        <p className={styles.lastUpdated}>Last Updated: January 15, 2025</p>
+        <h2>Canvas to Notion: Web App & Chrome Extension</h2>
+        <p className={styles.lastUpdated}>Last Updated: September 10, 2026</p>
 
         <div className={styles.introduction}>
           <p>This Privacy Policy ("Policy") explains how Canvas to Notion ("we," "us," or "our") collects, uses, shares, and protects your personal information when you use our Chrome browser extension and related web services (the "Services"). By using the Services, you agree to the terms of this Policy.</p>
@@ -66,6 +66,16 @@ const Privacy: React.FC = () => {
             <li><strong>Error logs:</strong> Technical information for debugging (stored locally, not transmitted)</li>
             <li><strong>Performance data:</strong> Sync operation status and timing</li>
           </ul>
+
+          <h3>1.5 Billing and Subscription Data</h3>
+          <p>When you purchase a paid plan, we collect and store:</p>
+          <ul>
+            <li><strong>Plan and tier:</strong> Whether your account is on the free, Pro, or Lifetime plan</li>
+            <li><strong>Stripe identifiers:</strong> Your Stripe customer ID, subscription ID, payment intent ID, and invoice ID</li>
+            <li><strong>Subscription state:</strong> Subscription status, current billing period end date, and whether a cancellation is scheduled</li>
+            <li><strong>Purchase and refund records:</strong> Lifetime purchase date, refund eligibility window, and refund date if a refund is issued</li>
+          </ul>
+          <p><strong>We do not collect or store your card number or full payment details.</strong> Payment card details are entered on and stored by Stripe, not by us.</p>
         </section>
 
         <section>
@@ -75,6 +85,7 @@ const Privacy: React.FC = () => {
             <li><strong>Automatically via extension:</strong> When you visit Canvas pages and the extension is active</li>
             <li><strong>From third-party APIs:</strong> Canvas and Notion APIs when syncing data</li>
             <li><strong>Through authentication:</strong> Google OAuth and Firebase authentication services</li>
+            <li><strong>From Stripe:</strong> Subscription and payment status via secure webhooks when you start, change, or cancel a paid plan</li>
           </ul>
         </section>
 
@@ -96,6 +107,7 @@ const Privacy: React.FC = () => {
             <li>Notion access tokens and workspace information</li>
             <li>Account creation dates and last login information</li>
             <li>Sync status and preferences</li>
+            <li>Billing and subscription records (plan tier, Stripe customer and subscription IDs, subscription status, billing period end, and purchase and refund dates)</li>
           </ul>
 
           <h3>3.3 Browser Cookies</h3>
@@ -116,6 +128,8 @@ const Privacy: React.FC = () => {
             <li><strong>Account management:</strong> Maintain your user profile and preferences</li>
             <li><strong>Technical support:</strong> Respond to support inquiries and troubleshoot issues</li>
             <li><strong>Service improvement:</strong> Analyze usage patterns to improve functionality (no external analytics services used)</li>
+            <li><strong>Billing:</strong> Process payments, manage your Pro subscription or Lifetime access, issue refunds, and prevent duplicate or fraudulent charges</li>
+            <li><strong>Transactional email:</strong> Send billing notifications such as upgrade, renewal, cancellation, refund, and failed-payment notices</li>
           </ul>
         </section>
 
@@ -125,18 +139,22 @@ const Privacy: React.FC = () => {
           <h3>5.1 Required Third-Party Services</h3>
           <p>We share data with the following services to provide our functionality:</p>
           <ul>
+            <li><strong>Vercel:</strong> Hosting for our web app and backend API (served from api2.canvastonotion.io)</li>
             <li><strong>Firebase (Google):</strong> Authentication, user profiles, and database services</li>
+            <li><strong>Google (Gmail):</strong> Sending account and billing notification emails</li>
             <li><strong>Canvas API:</strong> Read-only access to your course and assignment information</li>
             <li><strong>Notion API:</strong> Write access to create and update content in your connected Notion workspace</li>
             <li><strong>Google OAuth:</strong> Authentication services and profile information</li>
+            <li><strong>Stripe:</strong> Payment processing, subscription management, and refunds. We share your email address and a user identifier with Stripe; Stripe collects and stores your payment card and billing details under its own <a href="https://stripe.com/privacy" target="_blank" rel="noopener noreferrer">privacy policy</a>.</li>
           </ul>
 
           <h3>5.2 Data Processing</h3>
           <ul>
             <li>Assignment and course data is sent to your connected Notion workspace</li>
             <li>Authentication data is processed by Firebase/Google services</li>
-            <li>Data is transmitted to our backend services (canvastonotion.netlify.app and canvastonotion.io)</li>
+            <li>Data is transmitted to our backend services at api2.canvastonotion.io</li>
             <li>HTML content is stripped from assignment descriptions before syncing</li>
+            <li>Billing events are received from Stripe via webhooks and stored on your user record</li>
           </ul>
 
           <h3>5.3 No Data Sales or Marketing</h3>
@@ -174,25 +192,42 @@ const Privacy: React.FC = () => {
             <li><strong>Sync data:</strong> Assignment data retained only as long as needed for sync functionality</li>
             <li><strong>Authentication tokens:</strong> Automatically expire and are refreshed; cleared upon logout</li>
             <li><strong>Local storage:</strong> User data removed from local storage upon logout</li>
+            <li><strong>Billing records:</strong> Retained as required for tax, accounting, and legal compliance (typically up to 7 years), even after account deletion</li>
           </ul>
         </section>
 
         <section>
           <h2>8. International Data Transfers</h2>
-          <p>Our services are hosted in the United States through Netlify and Firebase. By using our Services, you consent to the transfer of your data to the U.S. and processing by third-party services. Your data may be subject to U.S. data protection laws and may be accessible to U.S. government authorities under applicable laws.</p>
+          <p>Our services are hosted in the United States through Vercel (frontend and backend, served from api2.canvastonotion.io) and Firebase, and payments are processed by Stripe in the United States. By using our Services, you consent to the transfer of your data to the U.S. and processing by third-party services. Your data may be subject to U.S. data protection laws and may be accessible to U.S. government authorities under applicable laws.</p>
         </section>
 
         <section>
           <h2>9. Your Rights and Control</h2>
           <p>You have the following rights regarding your data:</p>
           <ul>
-            <li><strong>Access and deletion:</strong> Request access to or deletion of your personal data by contacting us</li>
+            <li><strong>Access and deletion:</strong> Request access to or deletion of your personal data by contacting us (we may retain billing records as described in Section 7.2 where required by law)</li>
             <li><strong>Disconnect services:</strong> Disconnect Notion integration or log out at any time</li>
+            <li><strong>Manage billing:</strong> View, change, or cancel your subscription, or request a Lifetime refund, from the Settings page</li>
             <li><strong>Revoke permissions:</strong> Revoke Google OAuth permissions through your Google account settings</li>
             <li><strong>Uninstall extension:</strong> Remove the extension entirely through Chrome settings to stop all data collection</li>
             <li><strong>Data portability:</strong> Request a copy of your data in a portable format</li>
           </ul>
-          <p>To exercise these rights, email us at <a href="mailto:canvastonotioninfo@gmail.com">canvastonotioninfo@gmail.com</a>.</p>
+          <p>To exercise these rights, email us at <a href="mailto:canvastonotioninfo@gmail.com">canvastonotioninfo@gmail.com</a>. We verify requests using your account email address.</p>
+
+          <h3>9.1 Legal Bases for Processing (EEA and UK)</h3>
+          <p>If you are in the European Economic Area or the United Kingdom, we process your personal data on the following legal bases:</p>
+          <ul>
+            <li><strong>Performance of a contract:</strong> To provide the Services you sign up for, including authentication, syncing, and paid-plan features</li>
+            <li><strong>Legitimate interests:</strong> To secure, maintain, and improve the Services, prevent fraud and abuse, and communicate with you about the Services</li>
+            <li><strong>Legal obligation:</strong> To keep billing and tax records and to respond to lawful requests</li>
+            <li><strong>Consent:</strong> Where we ask for it, such as certain optional communications; you may withdraw consent at any time</li>
+          </ul>
+
+          <h3>9.2 EEA and UK Rights</h3>
+          <p>Subject to applicable law, you have the right to access, correct, delete, or receive a portable copy of your personal data; to restrict or object to certain processing; and to withdraw consent. You also have the right to lodge a complaint with your local data protection authority. We do not use your data for automated decision-making that produces legal or similarly significant effects.</p>
+
+          <h3>9.3 California Privacy Rights (CCPA/CPRA)</h3>
+          <p>If you are a California resident, you have the right to know what personal information we collect and how we use and disclose it, to request access to or deletion of that information, to correct inaccurate information, and not to be discriminated against for exercising these rights. In the past 12 months we have collected the categories of personal information described in Section 1 and disclosed them to service providers (such as Firebase, Vercel, and Stripe) solely to provide the Services. <strong>We do not sell or share your personal information as those terms are defined under California law</strong>, and we do not knowingly collect or sell the personal information of anyone under 16.</p>
         </section>
 
         <section>
@@ -209,8 +244,9 @@ const Privacy: React.FC = () => {
         </section>
 
         <section>
-          <h2>11. Donation Information</h2>
-          <p>If you choose to make a donation, your payment is processed securely through Stripe, PayPal, or Ko-fi. We do not store your payment information, but may collect basic contact details (like name and email) if provided. Please refer to Stripe's, PayPal's, or Ko-fi's privacy policy for more on how they handle your data.</p>
+          <h2>11. Payments and Subscriptions</h2>
+          <p>Paid plans (Pro and Lifetime) are sold and processed through Stripe. Your payment card details are entered on Stripe's checkout and stored by Stripe, not by us. We store the billing and subscription data described in Section 1.5 so we can provide paid features, manage renewals and cancellations, and process refunds.</p>
+          <p>Stripe processes your payment information as an independent controller under its own <a href="https://stripe.com/privacy" target="_blank" rel="noopener noreferrer">privacy policy</a>. Lifetime purchases are refundable within 7 days of purchase; see our <a href="/terms">Terms of Service</a> for details.</p>
         </section>
 
         <section>
@@ -220,7 +256,7 @@ const Privacy: React.FC = () => {
 
         <section>
           <h2>13. Changes to This Policy</h2>
-          <p>We may update this Privacy Policy from time to time to reflect changes in our practices or applicable laws. Updates will be posted on our website and within the extension interface. The "Last Updated" date at the top of this policy indicates when it was last revised. Continued use of the Services after changes indicates your acceptance of the updated policy.</p>
+          <p>We may update this Privacy Policy from time to time to reflect changes in our practices or applicable laws. Updates will be posted on our website and within the extension interface. The "Last Updated" date at the top of this policy indicates when it was last revised. For material changes, we may also notify you by email. Continued use of the Services after changes indicates your acceptance of the updated policy.</p>
         </section>
 
         <section>

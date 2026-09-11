@@ -1,0 +1,149 @@
+.wrapper {
+  font-family: 'Poppins', sans-serif;
+  margin-top: 16px;
+}
+
+.topRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 28px;
+}
+
+.main {
+  min-width: 0;
+}
+
+.badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.badgeLegacy {
+  color: #FF7A50;
+  background: rgba(234, 92, 36, 0.1);
+  border: 1px solid rgba(234, 92, 36, 0.4);
+}
+
+.badgeFree {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.badgeFree .dot {
+  background: #4CAF50;
+}
+
+.dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  flex-shrink: 0;
+}
+
+.heading {
+  margin: 12px 0 6px;
+  font-size: 18px;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.description {
+  margin: 0;
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.accessStatus {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 220px;
+  padding: 10px 16px;
+  border: 1px solid rgba(234, 92, 36, 0.35);
+  border-radius: 8px;
+  background: rgba(234, 92, 36, 0.06);
+}
+
+.accessStatusLabel {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #EA5C24;
+}
+
+.accessStatusLine {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.verified {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #4CAF50;
+}
+
+.syncCard {
+  margin-top: 18px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 14px 20px;
+}
+
+.syncRow {
+  margin-top: 0;
+}
+
+.syncLabel {
+  font-size: 13px;
+  color: #ffffff;
+}
+
+.syncHighlight {
+  color: #EA5C24;
+  font-weight: 600;
+}
+
+.syncBarTrack {
+  margin-top: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+
+.syncBarFill {
+  height: 100%;
+  width: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #EA5C24, #FF8A50);
+  box-shadow: 0 0 12px rgba(234, 92, 36, 0.55);
+}
+
+.footnote {
+  margin: 10px 0 0;
+  font-size: 12px;
+  font-style: italic;
+  color: rgba(255, 255, 255, 0.45);
+}
