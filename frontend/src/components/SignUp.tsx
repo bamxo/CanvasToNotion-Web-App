@@ -20,9 +20,11 @@ import { secureStoreToken } from '../utils/encryption';
 
 // Add Chrome types
 declare global {
+  // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace chrome {
+    // eslint-disable-next-line @typescript-eslint/no-namespace
     namespace runtime {
-      function sendMessage(extensionId: string, message: any): Promise<any>;
+      function sendMessage(extensionId: string, message: unknown): Promise<unknown>;
     }
   }
   interface Window {
@@ -129,7 +131,7 @@ const SignUp: React.FC = () => {
             
             navigate('/get-started');
           }
-        } catch (loginErr) {
+        } catch {
           setError('Account created but automatic login failed. Please try logging in manually.');
           navigate('/login');
         }

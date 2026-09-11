@@ -9,6 +9,20 @@ interface UserInfo {
   firstName?: string;
 }
 
+// Shape read off a caught error, whichever of axios's error or a plain Error
+// it turns out to be - not a real type guarantee, just what these catch
+// blocks probe for before falling back to a generic message.
+interface CaughtErrorLike {
+  response?: {
+    data?: {
+      error?: { error_description?: string } | string;
+      message?: string;
+    };
+    statusText?: string;
+  };
+  message?: string;
+}
+
 interface NotionConnection {
   email: string;
   isConnected: boolean;
@@ -103,19 +117,21 @@ export const useNotionAuth = (): UseNotionAuthReturn => {
           });
           setError(response.data.error || 'Failed to connect to Notion.');
         }
-      } catch (err: any) {
+      } catch (err) {
         if (!mountedRef.current) return;
-        
+
         console.error('Error exchanging Notion code for token:', err);
         setNotionConnection({
           email: '',
           isConnected: false
         });
-        
-        const errorMessage = err?.response?.data?.error?.error_description ||
-                           err?.response?.data?.error ||
-                           err?.response?.data?.message ||
-                           err?.message ||
+
+        const e = err as CaughtErrorLike;
+        const responseError = e?.response?.data?.error;
+        const errorMessage = (typeof responseError === 'object' ? responseError?.error_description : undefined) ||
+                           (typeof responseError === 'string' ? responseError : undefined) ||
+                           e?.response?.data?.message ||
+                           e?.message ||
                            'Failed to connect to Notion. Please try again.';
         setError(errorMessage);
       } finally {
@@ -163,7 +179,7 @@ export const useNotionAuth = (): UseNotionAuthReturn => {
     const initializeUserInfo = async () => {
       // First try to get basic info from token
       const decodedToken = decodeJWT(authToken);
-      let email = decodedToken?.email;
+      const email = decodedToken?.email;
 
       if (email && mountedRef.current) {
         setUserInfo({ email });
@@ -201,15 +217,16 @@ export const useNotionAuth = (): UseNotionAuthReturn => {
             }
           }
         }
-      } catch (err: any) {
+      } catch (err) {
         if (!mountedRef.current) return;
-        
+
         // Only set error if we don't have any user info yet
         if (!userInfo?.email) {
           console.error('Error fetching user info:', err);
-          const errorMessage = err?.response?.data?.message ||
-                              err?.response?.statusText ||
-                              err?.message ||
+          const e = err as CaughtErrorLike;
+          const errorMessage = e?.response?.data?.message ||
+                              e?.response?.statusText ||
+                              e?.message ||
                               'Authentication Error';
           setError(errorMessage);
           navigate('/login');
@@ -221,6 +238,10 @@ export const useNotionAuth = (): UseNotionAuthReturn => {
       }
     };
 
+    // Not a derivable/subscribable value: this fetches user info from the
+    // backend on mount (token decode + API call), the standard data-fetching
+    // effect pattern - not something computable during render.
+    // eslint-disable-next-line react-you-might-not-need-an-effect/no-external-store-subscription
     initializeUserInfo();
 
     return () => {

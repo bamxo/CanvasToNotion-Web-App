@@ -10,7 +10,7 @@
  * `purchasedAt` is an ISO instant; it's optional so the card degrades
  * gracefully if the webhook hasn't populated it.
  */
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import styles from './LifetimePlanCard.module.css';
 
 // Only "Billing history" navigates to Stripe and shows a spinner. "Request a
@@ -63,9 +63,14 @@ const LifetimePlanCard: React.FC<LifetimePlanCardProps> = ({
   const showRefund = withinRefundWindow && !refundDone;
 
   const [pending, setPending] = useState<PendingAction>(null);
-  useEffect(() => {
+  // Reset the spinner once the action finishes, without waiting a tick for an
+  // effect: adjust state during render when `busy` changes, per
+  // https://react.dev/learn/you-might-not-need-an-effect#adjusting-some-state-when-a-prop-changes
+  const [prevBusy, setPrevBusy] = useState(busy);
+  if (busy !== prevBusy) {
+    setPrevBusy(busy);
     if (!busy) setPending(null);
-  }, [busy]);
+  }
 
   const run = (action: Exclude<PendingAction, null>, fn: () => void) => () => {
     setPending(action);

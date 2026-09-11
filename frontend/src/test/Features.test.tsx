@@ -151,5 +151,6 @@ describe('Features Component', () => {
 
 // Augment the global interface
 declare global {
+  // eslint-disable-next-line no-var
   var mockIntersectionObserverInstance: IMockIntersectionObserver | null;
 } 

@@ -6,14 +6,13 @@ extension itself lives in a separate repo — this repo is web-app only
 (frontend + backend), not the extension codebase.
 
 Monorepo layout: `frontend/` (React 18 + TS + Vite + Tailwind), `backend/`
-(Express + TS, Firebase/Firestore, Stripe billing, Notion API), `e2e/`
-(end-to-end tests).
+(Express + TS, Firebase/Firestore, Stripe billing, Notion API).
 
 ## Commands
 
 - `npm run dev` — start frontend dev server (Vite)
 - `npm run build` — production build (frontend)
-- `npm run test:frontend` / `npm run test:backend` / `npm run test:e2e`
+- `npm run test:frontend` / `npm run test:backend`
 - `npm run lint` — eslint
 
 ## Rules

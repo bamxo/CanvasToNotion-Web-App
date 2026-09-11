@@ -75,9 +75,6 @@ const Features: React.FC = () => {
   ], []);
 
   useEffect(() => {
-    // Initialize visibility to false
-    setIsVisible(false);
-    
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach(entry => {

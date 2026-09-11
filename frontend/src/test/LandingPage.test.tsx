@@ -41,6 +41,10 @@ vi.mock('../components/SplashScreen', () => ({
   ),
 }));
 
+vi.mock('../hooks/useKofiWidget', () => ({
+  useKofiWidget: () => {},
+}));
+
 // Mock router components as needed
 vi.mock('react-router-dom', () => ({
   BrowserRouter: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
@@ -62,7 +66,6 @@ describe('LandingPage', () => {
       };
     });
     
-    // @ts-ignore - mock global
     window.IntersectionObserver = mockIntersectionObserver;
     
     // Mock scroll events

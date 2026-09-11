@@ -43,9 +43,12 @@
 
 ## Testing
 
-- Vitest everywhere (frontend, backend, e2e). Match the existing test's
+- Vitest everywhere (frontend, backend). Match the existing test's
   structure/mocking style in the same directory before introducing a new
   pattern.
+- Tests should assert business logic and behavior, not chase coverage
+  percentage. No end-to-end/browser test suite is maintained — feature
+  verification goes through `verify-cohort` instead (see CLAUDE.md).
 - Mock external services (Stripe, Notion API, Firebase) at the boundary;
   don't mock internal modules.
 

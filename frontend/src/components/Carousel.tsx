@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef, TouchEvent, KeyboardEvent } from 'react';
+import React, { useState, useEffect, useCallback, useRef, TouchEvent } from 'react';
 import styles from './Carousel.module.css';
 import { FaChevronLeft, FaChevronRight, FaLinkedin, FaGithub } from 'react-icons/fa';
 import benImage from '../assets/IMG_6342.jpg?url';
@@ -200,13 +200,6 @@ const Carousel: React.FC = () => {
       }
     };
   }, []);
-
-  // Update visible cards when currentIndex changes and we're not animating
-  useEffect(() => {
-    if (!isAnimating) {
-      setVisibleCards(getPositionedCards(currentIndex));
-    }
-  }, [currentIndex, isAnimating]);
 
   // Handle auto-scrolling
   useEffect(() => {
@@ -433,7 +426,7 @@ const Carousel: React.FC = () => {
 
   // Handle keyboard navigation
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
+    const handleKeyDown = (e: globalThis.KeyboardEvent) => {
       if (isAnimating) return;
       
       switch (e.key) {
@@ -455,11 +448,11 @@ const Carousel: React.FC = () => {
     };
 
     // Add event listener
-    window.addEventListener('keydown', handleKeyDown as any);
+    window.addEventListener('keydown', handleKeyDown);
     
     // Cleanup
     return () => {
-      window.removeEventListener('keydown', handleKeyDown as any);
+      window.removeEventListener('keydown', handleKeyDown);
     };
   }, [isAnimating, nextSlide, prevSlide]);
 

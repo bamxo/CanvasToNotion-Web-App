@@ -56,7 +56,6 @@ describe('AboutUs', () => {
       };
     });
     
-    // @ts-ignore
     window.IntersectionObserver = mockIntersectionObserver;
     
     // Mock window.open
@@ -102,7 +101,7 @@ describe('AboutUs', () => {
     expect(screen.getByText('Footer Component')).toBeInTheDocument();
     
     // Check for button 
-    expect(screen.getByText('Coming Soon')).toBeInTheDocument();
+    expect(screen.getByText('Add to Chrome')).toBeInTheDocument();
   });
 
   it('updates navbar when scrolling', () => {
@@ -177,12 +176,12 @@ describe('AboutUs', () => {
     renderAboutUs();
     
     // Find and click the CTA button
-    const ctaButton = screen.getByRole('button', { name: /coming soon/i });
+    const ctaButton = screen.getByRole('button', { name: /add to chrome/i });
     fireEvent.click(ctaButton);
     
     // Verify window.open was called with the correct URL
     expect(window.open).toHaveBeenCalledWith(
-      'https://chromewebstore.google.com/',
+      'https://chromewebstore.google.com/detail/ngnhijamcbadkalghdpbnecgjlocnmke?utm_source=item-share-cb',
       '_blank',
       'noopener,noreferrer'
     );

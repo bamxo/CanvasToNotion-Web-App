@@ -11,7 +11,7 @@
  * `cancelAtPeriodEnd` is set the subscription is ending, so the date is framed
  * as "Access ends" and the footnote explains access continues until then.
  */
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import styles from './ProPlanCard.module.css';
 
 type PendingAction = 'switch' | 'billing' | 'cancel' | 'reactivate' | null;
@@ -60,9 +60,14 @@ const ProPlanCard: React.FC<ProPlanCardProps> = ({
   // Which button the user pressed, so only that one spins. Cleared when the
   // parent's `busy` flag drops (e.g. a failed request that never navigated away).
   const [pending, setPending] = useState<PendingAction>(null);
-  useEffect(() => {
+  // Reset the spinner once the action finishes, without waiting a tick for an
+  // effect: adjust state during render when `busy` changes, per
+  // https://react.dev/learn/you-might-not-need-an-effect#adjusting-some-state-when-a-prop-changes
+  const [prevBusy, setPrevBusy] = useState(busy);
+  if (busy !== prevBusy) {
+    setPrevBusy(busy);
     if (!busy) setPending(null);
-  }, [busy]);
+  }
 
   const run = (action: Exclude<PendingAction, null>, fn: () => void) => () => {
     setPending(action);

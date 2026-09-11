@@ -144,15 +144,8 @@
 }
 
 .heroContent {
-  opacity: 0;
-  transform: translateY(30px);
-  transition: all 0.6s ease-out;
+  animation: fadeInUp 0.6s ease-out forwards;
   padding: 2rem 0;
-}
-
-.heroContent.visible {
-  opacity: 1;
-  transform: translateY(0);
 }
 
 .tagline {
@@ -322,18 +315,12 @@
 
 .heroVisual {
   position: relative;
+  animation: fadeInUp 0.6s ease-out 0.2s forwards;
   opacity: 0;
-  transform: translateY(30px);
-  transition: all 0.6s ease-out 0.2s;
   display: flex;
   align-items: flex-start;
   padding-top: 2rem;
   z-index: 10;
-}
-
-.heroVisual.visible {
-  opacity: 1;
-  transform: translateY(0);
 }
 
 .visualContainer {

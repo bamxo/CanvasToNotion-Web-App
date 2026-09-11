@@ -1,15 +1,9 @@
-import React, { memo, useEffect, useState } from 'react';
+import React, { memo } from 'react';
 import styles from './Hero.module.css';
 import { FaArrowRight, FaChrome, FaGraduationCap } from 'react-icons/fa';
 import { SiNotion, SiCanvas } from 'react-icons/si';
 
 const Hero: React.FC = () => {
-  const [isVisible, setIsVisible] = useState(false);
-
-  useEffect(() => {
-    setIsVisible(true);
-  }, []);
-
   const handleInstallClick = () => {
     window.open('https://chromewebstore.google.com/detail/ngnhijamcbadkalghdpbnecgjlocnmke?utm_source=item-share-cb', '_blank', 'noopener,noreferrer');
   };
@@ -17,7 +11,7 @@ const Hero: React.FC = () => {
   return (
     <section className={styles.hero}>
       <div className={styles.heroGrid}>
-        <div className={`${styles.heroContent} ${isVisible ? styles.visible : ''}`}>
+        <div className={styles.heroContent}>
           <div className={styles.tagline}>
 
             {/* For Release */}
@@ -68,7 +62,7 @@ const Hero: React.FC = () => {
           </div>
         </div>
 
-        <div className={`${styles.heroVisual} ${isVisible ? styles.visible : ''}`}>
+        <div className={styles.heroVisual}>
           <div className={styles.visualContainer}>
             <div className={styles.mainVisual}>
               <div className={styles.particleContainer}>

@@ -110,11 +110,14 @@ app.get('/api/health', (_req: Request, res: Response) => {
 // JSON error handler - last resort so clients always get JSON, never Express's
 // default HTML error page.
 // ---------------------------------------------------------------------------
-app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
+app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
   console.error('Unhandled error:', err);
   if (res.headersSent) return;
-  res.status(err?.status || 500).json({
-    error: err?.message || 'Internal server error',
+  const status = typeof (err as { status?: unknown })?.status === 'number'
+    ? (err as { status: number }).status
+    : 500;
+  res.status(status).json({
+    error: err instanceof Error ? err.message : 'Internal server error',
   });
 });
 

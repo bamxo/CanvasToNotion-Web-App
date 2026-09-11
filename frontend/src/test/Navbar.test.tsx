@@ -91,7 +91,7 @@ describe('Navbar Component', () => {
     // Check if install button is rendered
     const button = container.querySelector('nav button');
     expect(button).toBeInTheDocument();
-    expect(button?.textContent).toMatch(/coming soon/i);
+    expect(button?.textContent).toMatch(/install extension/i);
   });
 
   it('applies scrolled style when scrolling down', () => {
@@ -155,7 +155,7 @@ describe('Navbar Component', () => {
     // Check if window.open was called with correct URL
     expect(openMock).toHaveBeenCalledTimes(1);
     expect(openMock).toHaveBeenCalledWith(
-      'https://chromewebstore.google.com/',
+      'https://chromewebstore.google.com/detail/ngnhijamcbadkalghdpbnecgjlocnmke?utm_source=item-share-cb',
       '_blank',
       'noopener,noreferrer'
     );

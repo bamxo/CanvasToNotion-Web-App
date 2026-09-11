@@ -562,7 +562,7 @@ describe('Carousel Component', () => {
     
     if (track) {
       // Mock Date.now to test velocity calculation
-      let currentTime = 1000;
+      const currentTime = 1000;
       vi.mocked(Date.now).mockImplementation(() => currentTime);
       
       // Start touch

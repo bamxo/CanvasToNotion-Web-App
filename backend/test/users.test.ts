@@ -1,16 +1,12 @@
 import request from 'supertest';
-import axios from 'axios';
 import express from 'express';
-import dotenv from 'dotenv';
-import { describe, beforeEach, it, expect, vi, test } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 
 import userRoutes from '../src/routes/users';
 
-
-const myRoute = "../public";
 // Mock middleware and controller
 vi.mock('../src/middleware/auth', () => ({
-  verifyToken: (req: any, res: any, next: any) => {
+  verifyToken: (req: any, _res: any, next: any) => {
     req.user = { uid: 'mock-user' }; // Mocked decoded token (Admin SDK shape)
     return next();
   }
@@ -23,7 +19,7 @@ vi.mock('../src/controllers/userControllers', () => ({
   updateProfile: (req: any, res: any) => {
     return res.json({ message: 'Profile updated', data: req.body });
   },
-  getUserInfo: (req: any, res: any) => {
+  getUserInfo: (_req: any, res: any) => {
     return res.json({ 
       email: 'mock@example.com', 
       displayName: 'Mock User', 

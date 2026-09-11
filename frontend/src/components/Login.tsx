@@ -20,11 +20,26 @@ import { mapFirebaseError } from '../utils/errorMessages';
 import { AUTH_ENDPOINTS, COOKIE_STATE_ENDPOINTS } from '../utils/api';
 import { secureStoreToken } from '../utils/encryption';
 
+interface GoogleSignInResponse {
+  credential: string;
+  select_by: string;
+}
+
+interface GoogleIdentityInitConfig {
+  client_id: string | undefined;
+  callback: (response: GoogleSignInResponse) => void;
+  auto_select?: boolean;
+  cancel_on_tap_outside?: boolean;
+  prompt_parent_id?: string;
+}
+
 // Add Chrome types
 declare global {
+  // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace chrome {
+    // eslint-disable-next-line @typescript-eslint/no-namespace
     namespace runtime {
-      function sendMessage(extensionId: string, message: any): Promise<any>;
+      function sendMessage(extensionId: string, message: unknown): Promise<unknown>;
     }
   }
   interface Window {
@@ -32,17 +47,12 @@ declare global {
     google?: {
       accounts: {
         id: {
-          initialize: (config: any) => void;
+          initialize: (config: GoogleIdentityInitConfig) => void;
           prompt: () => void;
         };
       };
     };
   }
-}
-
-interface GoogleSignInResponse {
-  credential: string;
-  select_by: string;
 }
 
 const Login: React.FC = () => {
@@ -144,7 +154,7 @@ const Login: React.FC = () => {
       } else {
         throw new Error('Missing idToken in response: ' + JSON.stringify(backendResponse.data));
       }
-    } catch (error: any) {
+    } catch (error) {
       console.error('Google sign in error:', error);
       // Log more details about the error
       if (axios.isAxiosError(error)) {
@@ -158,7 +168,8 @@ const Login: React.FC = () => {
         });
       }
       const userFriendlyMessage = mapFirebaseError(error, 'Google sign in failed. Please try again.');
-      setError(userFriendlyMessage + (error.message ? `: ${error.message}` : ''));
+      const message = error instanceof Error ? error.message : undefined;
+      setError(userFriendlyMessage + (message ? `: ${message}` : ''));
     } finally {
       setIsLoading(false);
     }

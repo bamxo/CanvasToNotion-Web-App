@@ -54,6 +54,10 @@ const Lookup: React.FC = () => {
       }
     };
 
+    // Not a derivable/subscribable value: this is a one-time call into the
+    // Google Identity Services SDK on mount, matching the standard pattern
+    // for integrating a non-React third-party widget.
+    // eslint-disable-next-line react-you-might-not-need-an-effect/no-external-store-subscription, react-you-might-not-need-an-effect/no-initialize-state
     initializeGoogleSignIn();
 
     return () => {
