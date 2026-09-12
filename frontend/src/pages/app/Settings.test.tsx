@@ -1,6 +1,7 @@
 import { render, screen, fireEvent, waitFor, cleanup, within } from '@testing-library/react';
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { BrowserRouter } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import Settings from './Settings';
 import * as useNotionAuthModule from '../../hooks/useNotionAuth';
 import axios from 'axios';
@@ -106,12 +107,30 @@ vi.spyOn(window, 'open').mockImplementation(mockOpen);
 vi.spyOn(window, 'confirm').mockImplementation(() => true);
 
 // Setup function to render the component
+const createTestQueryClient = () => new QueryClient({ defaultOptions: { queries: { retry: false } } });
+
 const renderSettings = () => {
   return render(
-    <BrowserRouter>
-      <Settings />
-    </BrowserRouter>
+    <QueryClientProvider client={createTestQueryClient()}>
+      <BrowserRouter>
+        <Settings />
+      </BrowserRouter>
+    </QueryClientProvider>
   );
+};
+
+// For tests that rerender with a new mock and expect the same underlying
+// query client (so entitlements/user-info state persists across the rerender
+// like it would for a real re-render, not a fresh mount).
+const renderApp = () => {
+  const client = createTestQueryClient();
+  const wrap = () => (
+    <QueryClientProvider client={client}>
+      <BrowserRouter><Settings /></BrowserRouter>
+    </QueryClientProvider>
+  );
+  const utils = render(wrap());
+  return { ...utils, rerenderApp: () => utils.rerender(wrap()) };
 };
 
 describe('Settings Component', () => {
@@ -196,13 +215,15 @@ describe('Settings Component', () => {
     await waitFor(() => {
       expect(screen.getByText('Overview')).toBeInTheDocument();
     });
-    
+
     // Check for section titles
     expect(screen.getByText('Overview')).toBeInTheDocument();
     expect(screen.getByText('Manage Connections')).toBeInTheDocument();
-    
+
     // Check for user information - the component will show the actual user info from the API call
-    expect(screen.getByText('Test User')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText('Test User')).toBeInTheDocument();
+    });
     // The email should be from the mocked API response
     await waitFor(() => {
       expect(screen.getByText('test@example.com')).toBeInTheDocument();
@@ -530,7 +551,7 @@ describe('Settings - Plan section', () => {
 
   it('free user sees the free plan card with usage and upgrade options', async () => {
     setEntitlements({ tier: 'free', classSyncUsed: 3, classSyncLimit: 5 });
-    render(<BrowserRouter><Settings /></BrowserRouter>);
+    renderApp();
     expect(await screen.findByText('Standard Tier')).toBeInTheDocument();
     expect(screen.getByText('3 / 5 classes synced (60%)')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /upgrade/i })).toBeInTheDocument();
@@ -552,18 +573,18 @@ describe('Settings - Plan section', () => {
       });
 
     setConn(false);
-    const { rerender } = render(<BrowserRouter><Settings /></BrowserRouter>);
+    const { rerenderApp } = renderApp();
     await screen.findByText('Standard Tier');
     refetch.mockClear(); // ignore the hook's own mount fetch / initial effect skip
 
     // Notion gets connected on this page
     setConn(true);
-    rerender(<BrowserRouter><Settings /></BrowserRouter>);
+    rerenderApp();
     await waitFor(() => expect(refetch).toHaveBeenCalledTimes(1));
 
     // ...and disconnected again
     setConn(false);
-    rerender(<BrowserRouter><Settings /></BrowserRouter>);
+    rerenderApp();
     await waitFor(() => expect(refetch).toHaveBeenCalledTimes(2));
   });
 
@@ -571,7 +592,7 @@ describe('Settings - Plan section', () => {
     setEntitlements({ tier: 'pro', showAds: false, hasProFeatures: true, plan: { subscriptionStatus: 'active' } });
     (axios as any).post = vi.fn().mockResolvedValueOnce({ data: { url: 'https://stripe.test/p/1' } });
     Object.defineProperty(window, 'location', { writable: true, value: { href: '', search: '' } });
-    render(<BrowserRouter><Settings /></BrowserRouter>);
+    renderApp();
     fireEvent.click(await screen.findByRole('button', { name: /manage billing/i }));
     await waitFor(() => expect(window.location.href).toBe('https://stripe.test/p/1'));
   });
@@ -580,7 +601,7 @@ describe('Settings - Plan section', () => {
     setEntitlements({ tier: 'pro', showAds: false, hasProFeatures: true, plan: { subscriptionStatus: 'active' } });
     (axios as any).post = vi.fn().mockRejectedValueOnce(new Error('network down'));
     Object.defineProperty(window, 'location', { writable: true, value: { href: 'http://localhost/settings', search: '' } });
-    render(<BrowserRouter><Settings /></BrowserRouter>);
+    renderApp();
     fireEvent.click(await screen.findByRole('button', { name: /manage billing/i }));
     const alert = await screen.findByRole('alert');
     expect(alert).toHaveTextContent(/network down|something went wrong/i);
@@ -594,7 +615,7 @@ describe('Settings - Plan section', () => {
       plan: { lifetimeRefundEligibleUntil: Math.floor(Date.now() / 1000) + 3600 },
     });
     (axios as any).post = vi.fn().mockResolvedValueOnce({ data: { refunded: true } });
-    render(<BrowserRouter><Settings /></BrowserRouter>);
+    renderApp();
     // opens a confirmation dialog first...
     fireEvent.click(await screen.findByRole('button', { name: /request a refund/i }));
     const dialog = await screen.findByRole('dialog');
@@ -610,7 +631,7 @@ describe('Settings - Plan section', () => {
       plan: { lifetimeRefundEligibleUntil: Math.floor(Date.now() / 1000) + 3600 },
     });
     (axios as any).post = vi.fn();
-    render(<BrowserRouter><Settings /></BrowserRouter>);
+    renderApp();
     fireEvent.click(await screen.findByRole('button', { name: /request a refund/i }));
     const dialog = await screen.findByRole('dialog');
     fireEvent.click(within(dialog).getByRole('button', { name: /keep lifetime/i }));
@@ -625,7 +646,7 @@ describe('Settings - Plan section', () => {
       hasProFeatures: true,
       memberSince: '2024-01-15T00:00:00.000Z',
     });
-    render(<BrowserRouter><Settings /></BrowserRouter>);
+    renderApp();
     expect(await screen.findByText(/full access to everything, free, forever/i)).toBeInTheDocument();
     expect(screen.getByText('Legacy Account')).toBeInTheDocument();
     expect(screen.getByText(/legacy member since: jan 15, 2024/i)).toBeInTheDocument();
@@ -655,7 +676,7 @@ describe('Settings - skeleton loaders', () => {
 
   it('shows the plan card skeleton (not the free/standard card) while entitlements load', async () => {
     setEntitlements({ tier: 'free', isLoading: true });
-    render(<BrowserRouter><Settings /></BrowserRouter>);
+    renderApp();
 
     expect(await screen.findByTestId('plan-card-skeleton')).toBeInTheDocument();
     expect(screen.queryByText('Standard Tier')).not.toBeInTheDocument();
@@ -663,11 +684,11 @@ describe('Settings - skeleton loaders', () => {
 
   it('replaces the plan skeleton with the real card once entitlements finish loading', async () => {
     setEntitlements({ tier: 'free', isLoading: true });
-    const { rerender } = render(<BrowserRouter><Settings /></BrowserRouter>);
+    const { rerenderApp } = renderApp();
     await screen.findByTestId('plan-card-skeleton');
 
     setEntitlements({ tier: 'free', isLoading: false, classSyncUsed: 0, classSyncLimit: 5 });
-    rerender(<BrowserRouter><Settings /></BrowserRouter>);
+    rerenderApp();
 
     expect(await screen.findByText('Standard Tier')).toBeInTheDocument();
     expect(screen.queryByTestId('plan-card-skeleton')).not.toBeInTheDocument();
@@ -683,7 +704,7 @@ describe('Settings - skeleton loaders', () => {
       isLoading: true,
       setNotionConnection: vi.fn(),
     });
-    render(<BrowserRouter><Settings /></BrowserRouter>);
+    renderApp();
 
     expect(await screen.findByTestId('connections-skeleton')).toBeInTheDocument();
     expect(screen.queryByText('Not connected to Notion')).not.toBeInTheDocument();
@@ -693,7 +714,7 @@ describe('Settings - skeleton loaders', () => {
   it('shows the profile skeleton (not a placeholder name) while the user info request is in flight', async () => {
     setEntitlements({ tier: 'free', isLoading: false });
     (axios as any).get = vi.fn().mockReturnValue(new Promise(() => {})); // never resolves
-    render(<BrowserRouter><Settings /></BrowserRouter>);
+    renderApp();
 
     expect(await screen.findByTestId('profile-skeleton')).toBeInTheDocument();
     expect(screen.queryByText('User')).not.toBeInTheDocument();

@@ -13,6 +13,7 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import axios from 'axios';
 import styles from './Settings.module.css';
 import logo from '../../assets/c2n-favicon.svg';
@@ -46,9 +47,7 @@ const Settings: React.FC = () => {
     isLoading: notionLoading,
     setNotionConnection
   } = useNotionAuth();
-  const [userInfo, setUserInfo] = useState<UserInfo | null>(null);
   const [error, setError] = useState<string>('');
-  const [isLoading, setIsLoading] = useState(true);
   const [isButtonLoading, setIsButtonLoading] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
@@ -171,70 +170,58 @@ const Settings: React.FC = () => {
     !!plan?.lifetimeRefundEligibleUntil &&
     plan.lifetimeRefundEligibleUntil * 1000 > Date.now();
 
-  useEffect(() => {
-    const fetchUserInfo = async () => {
-      const token = secureGetToken('authToken');
-      const isAuthenticatedCookie = Cookies.get('isAuthenticated');
-      
-      // In development mode, only check for token. In production, check for both
-      // token and cookie — unless the backend is on a different site than this
-      // page (dev:vercel), where the isAuthenticated cookie isn't readable here.
-      const requireCookie = import.meta.env.PROD && !IS_CROSS_ORIGIN_BACKEND;
-      const isAuthenticated = requireCookie
-        ? (token && isAuthenticatedCookie)
-        : token;
-      
-      if (!isAuthenticated) {
-        console.log('Authentication check failed, redirecting to login');
-        console.log('Token exists:', !!token);
-        console.log('Cookie exists:', !!isAuthenticatedCookie);
-        console.log('Is production:', import.meta.env.PROD);
-        secureRemoveToken('authToken');
-        navigate('/login');
-        return;
-      }
+  const authToken = secureGetToken('authToken');
+  const isAuthenticatedCookie = Cookies.get('isAuthenticated');
 
+  // In development mode, only check for token. In production, check for both
+  // token and cookie — unless the backend is on a different site than this
+  // page (dev:vercel), where the isAuthenticated cookie isn't readable here.
+  const requireCookie = import.meta.env.PROD && !IS_CROSS_ORIGIN_BACKEND;
+  const isAuthenticated = !!(requireCookie ? (authToken && isAuthenticatedCookie) : authToken);
+
+  const userInfoQuery = useQuery({
+    queryKey: ['userInfo'],
+    enabled: isAuthenticated,
+    retry: false,
+    queryFn: async () => {
+      const response = await axios.get(USER_ENDPOINTS.INFO, {
+        headers: {
+          Authorization: `Bearer ${authToken}`
+        }
+      });
+
+      // Send the Firebase ID token the backend can verify (not a custom token)
       try {
-        setIsLoading(true);
-        const response = await axios.get(USER_ENDPOINTS.INFO, {
-          headers: {
-            Authorization: `Bearer ${token}`
-          }
+        localStorage.setItem('extensionId', EXTENSION_ID);
+        await chrome.runtime.sendMessage(EXTENSION_ID, {
+          type: 'AUTH_TOKEN',
+          token: authToken
         });
-        setUserInfo(response.data);
-        
-        // Send the Firebase ID token the backend can verify (not a custom token)
-        try {
-          const extensionId = EXTENSION_ID;
-          localStorage.setItem('extensionId', extensionId);
-          await chrome.runtime.sendMessage(
-            extensionId,
-            {
-              type: 'AUTH_TOKEN',
-              token
-            }
-          );
-          console.log('Successfully sent ID token to extension');
-        } catch (extError) {
-          console.error('Failed to send token to extension:', extError);
-          // Non-fatal error, user can still use the web app
-        }
-      } catch (error) {
-        console.error('Error fetching user info:', error);
-        // Check if error is due to unauthorized access (expired token)
-        if (axios.isAxiosError(error) && (error.response?.status === 401 || error.response?.status === 403)) {
-          console.log('Auth token expired or invalid, logging out user');
-          secureRemoveToken('authToken');
-          navigate('/login');
-          return;
-        }
-      } finally {
-        setIsLoading(false);
+      } catch (extError) {
+        console.error('Failed to send token to extension:', extError);
+        // Non-fatal error, user can still use the web app
       }
-    };
 
-    fetchUserInfo();
-  }, [navigate]);
+      return response.data as UserInfo;
+    }
+  });
+
+  const userInfo = userInfoQuery.data ?? null;
+  const isLoading = userInfoQuery.isPending;
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      secureRemoveToken('authToken');
+      navigate('/login');
+      return;
+    }
+
+    const err = userInfoQuery.error;
+    if (axios.isAxiosError(err) && (err.response?.status === 401 || err.response?.status === 403)) {
+      secureRemoveToken('authToken');
+      navigate('/login');
+    }
+  }, [isAuthenticated, userInfoQuery.error, navigate]);
 
   useEffect(() => {
     // Listen for messages from the extension

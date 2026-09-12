@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import axios from 'axios';
 import { USER_ENDPOINTS } from '../utils/api';
 import { secureGetToken } from '../utils/encryption';
@@ -48,46 +48,33 @@ const FREE: EntitlementsData = {
   notionConnected: false,
 };
 
+const fetchEntitlements = async (): Promise<EntitlementsData> => {
+  const token = secureGetToken('authToken');
+  const res = await axios.get(USER_ENDPOINTS.ENTITLEMENTS, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  return {
+    tier: res.data.tier ?? 'free',
+    showAds: res.data.showAds ?? true,
+    hasProFeatures: res.data.hasProFeatures ?? false,
+    plan: res.data.plan,
+    memberSince: res.data.memberSince,
+    classSyncUsed: res.data.classSyncUsed ?? 0,
+    classSyncLimit: res.data.classSyncLimit ?? null,
+    notionConnected: res.data.notionConnected ?? false,
+  };
+};
+
 export function useEntitlements(): EntitlementsState {
-  const [data, setData] = useState<EntitlementsData>(FREE);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [nonce, setNonce] = useState(0);
+  const { data, isLoading, error, refetch } = useQuery({
+    queryKey: ['entitlements'],
+    queryFn: fetchEntitlements,
+  });
 
-  const refetch = useCallback(() => setNonce((n) => n + 1), []);
-
-  useEffect(() => {
-    let cancelled = false;
-    setIsLoading(true);
-    setError(null);
-    const token = secureGetToken('authToken');
-    axios
-      .get(USER_ENDPOINTS.ENTITLEMENTS, { headers: { Authorization: `Bearer ${token}` } })
-      .then((res) => {
-        if (cancelled) return;
-        setData({
-          tier: res.data.tier ?? 'free',
-          showAds: res.data.showAds ?? true,
-          hasProFeatures: res.data.hasProFeatures ?? false,
-          plan: res.data.plan,
-          memberSince: res.data.memberSince,
-          classSyncUsed: res.data.classSyncUsed ?? 0,
-          classSyncLimit: res.data.classSyncLimit ?? null,
-          notionConnected: res.data.notionConnected ?? false,
-        });
-      })
-      .catch((err) => {
-        if (cancelled) return;
-        setError(err?.message ?? 'Failed to load plan');
-        setData(FREE);
-      })
-      .finally(() => {
-        if (!cancelled) setIsLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [nonce]);
-
-  return { ...data, isLoading, error, refetch };
+  return {
+    ...(data ?? FREE),
+    isLoading,
+    error: error instanceof Error ? error.message : error ? String(error) : null,
+    refetch: () => { refetch(); },
+  };
 }
