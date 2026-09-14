@@ -1,0 +1,233 @@
+.pricing {
+  contain: content;
+  content-visibility: auto;
+  contain-intrinsic-size: 900px;
+  padding: 6rem 4rem 4rem 4rem;
+  background: linear-gradient(180deg, #141414 0%, #1a1a1a 50%, #141414 100%);
+  width: 100vw;
+  margin-left: calc(-50vw + 50%);
+  margin-right: calc(-50vw + 50%);
+  box-sizing: border-box;
+  position: relative;
+  overflow: visible;
+  margin-bottom: -2px;
+}
+
+/* Ambient background glow: a large, softly-blurred radial gradient sitting
+   behind the section content, centered well inside the section (not near
+   its top edge) so its fade never gets close to a section boundary.
+   `filter: blur()` adds extra softness on top, and it's layered at a lower
+   z-index than the copy/cards so it stays a backdrop, not a shape. */
+.pricing::before {
+  content: '';
+  position: absolute;
+  top: -120px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 700px;
+  height: 700px;
+  max-width: 140vw;
+  background: radial-gradient(circle, rgba(239, 82, 35, 0.2) 0%, rgba(239, 82, 35, 0) 45%);
+  filter: blur(60px);
+  pointer-events: none;
+  z-index: 1;
+}
+
+.sectionTitle {
+  text-align: center;
+  font-size: 3.5rem;
+  margin-bottom: 1rem;
+  color: #FFFFFF;
+  background: linear-gradient(135deg, #FFFFFF 0%, #EF5223 100%);
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  position: relative;
+  z-index: 2;
+}
+
+.sectionSubtitle {
+  text-align: center;
+  font-size: 1.2rem;
+  color: rgba(255, 255, 255, 0.7);
+  margin-bottom: 4rem;
+  position: relative;
+  z-index: 2;
+}
+
+.pricingGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1.5rem;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 1rem;
+  box-sizing: border-box;
+  position: relative;
+  z-index: 2;
+  justify-content: center;
+  align-items: start;
+}
+
+.pricingCard {
+  background: rgba(255, 255, 255, 0.03);
+  padding: 2rem 1.75rem;
+  border-radius: 16px;
+  text-align: left;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  min-width: 200px;
+  position: relative;
+  font-family: 'Poppins', sans-serif;
+}
+
+.pricingCardHighlight {
+  background: rgba(234, 92, 36, 0.06);
+  border: 1px solid rgba(234, 92, 36, 0.5);
+}
+
+.highlightTag {
+  position: absolute;
+  top: -14px;
+  right: 24px;
+  padding: 5px 14px;
+  border-radius: 999px;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #FFFFFF;
+  background: #EA5C24;
+  box-shadow: 0 6px 16px rgba(234, 92, 36, 0.4);
+}
+
+.animatedVisible {
+  opacity: 1 !important;
+  transform: translateY(0) !important;
+}
+
+.cardHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.pricingCard h3 {
+  color: #FFFFFF;
+  margin: 0;
+  font-size: 1.4rem;
+  font-weight: 700;
+}
+
+.titleTag {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 10px;
+  border: 1px solid rgba(234, 92, 36, 0.5);
+  border-radius: 999px;
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: #FF7A50;
+}
+
+.tierDescription {
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 0.9rem;
+  margin: 0.5rem 0 1.5rem;
+  min-height: 1.3rem;
+}
+
+.price {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  margin: 0;
+}
+
+.priceAmount {
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: #FFFFFF;
+}
+
+.pricePeriod {
+  font-size: 0.9rem;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.pricingCardHighlight .pricePeriod {
+  color: #FF7A50;
+  font-weight: 700;
+  font-size: 0.75rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.divider {
+  height: 1px;
+  background: rgba(255, 255, 255, 0.08);
+  margin: 1.5rem 0 1.25rem;
+}
+
+.featureList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.featureList li {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 0.9rem;
+}
+
+.featureList li strong {
+  color: #FFFFFF;
+  font-weight: 600;
+}
+
+.checkIcon {
+  flex-shrink: 0;
+  color: #EA5C24;
+  font-size: 0.8rem;
+}
+
+@media (max-width: 1500px) {
+  .pricingGrid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 2rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .pricing {
+    content-visibility: visible;
+    contain: none;
+    padding: 4rem 2rem;
+  }
+
+  .pricingGrid {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+
+  .sectionTitle {
+    font-size: 2.5rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .pricingCard h3 {
+    font-size: 1.3rem;
+  }
+
+  .priceAmount {
+    font-size: 2.1rem;
+  }
+}

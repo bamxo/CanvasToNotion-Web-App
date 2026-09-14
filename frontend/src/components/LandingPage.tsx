@@ -3,7 +3,7 @@ import styles from './LandingPage.module.css';
 import Navbar from './Navbar';
 import Footer from './Footer';
 import Hero from './Hero';
-import Features from './Features';
+import Pricing from './Pricing';
 import FinalCTA from './FinalCTA';
 import BrowserMockup from './BrowserMockup';
 import FAQ from './FAQ';
@@ -90,7 +90,7 @@ const LandingPage: React.FC = () => {
         <Navbar isScrolled={isScrolled} />
         <Hero />
         <BrowserMockup />
-        <Features />
+        <Pricing />
         <FAQ />
         <FinalCTA />
         <Footer />
