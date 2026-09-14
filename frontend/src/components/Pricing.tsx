@@ -1,6 +1,9 @@
-import React, { useMemo, memo, useRef, useEffect, useState } from 'react';
+import React, { useMemo, memo, useRef, useEffect, useState, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import styles from './Pricing.module.css';
 import { FaCheck } from 'react-icons/fa';
+
+const CHROME_WEB_STORE_URL = 'https://chromewebstore.google.com/detail/ngnhijamcbadkalghdpbnecgjlocnmke?utm_source=item-share-cb';
 
 interface PricingTier {
   name: string;
@@ -8,6 +11,8 @@ interface PricingTier {
   period: string;
   description: string;
   features: string[];
+  ctaLabel: string;
+  ctaAction: 'install' | 'settings';
   highlight?: string;
   tag?: string;
 }
@@ -16,6 +21,7 @@ interface PricingCardProps {
   tier: PricingTier;
   delay: number;
   isVisible: boolean;
+  onSelect: (action: PricingTier['ctaAction']) => void;
 }
 
 // Feature strings can wrap a segment in **double asterisks** to render it bold,
@@ -27,7 +33,7 @@ const renderFeatureText = (text: string): React.ReactNode => {
   );
 };
 
-const PricingCard = memo(({ tier, delay, isVisible }: PricingCardProps) => {
+const PricingCard = memo(({ tier, delay, isVisible, onSelect }: PricingCardProps) => {
   const cardStyle = {
     opacity: 0,
     transform: 'translateY(-30px)',
@@ -63,6 +69,13 @@ const PricingCard = memo(({ tier, delay, isVisible }: PricingCardProps) => {
           </li>
         ))}
       </ul>
+      <button
+        type="button"
+        className={`${styles.ctaButton} ${tier.highlight ? styles.ctaButtonHighlight : ''}`}
+        onClick={() => onSelect(tier.ctaAction)}
+      >
+        {tier.ctaLabel}
+      </button>
     </div>
   );
 });
@@ -72,6 +85,7 @@ PricingCard.displayName = 'PricingCard';
 const Pricing: React.FC = () => {
   const [isVisible, setIsVisible] = useState(false);
   const pricingRef = useRef<HTMLElement>(null);
+  const navigate = useNavigate();
 
   const titleStyle = {
     opacity: 0,
@@ -83,6 +97,14 @@ const Pricing: React.FC = () => {
     })
   };
 
+  const handleSelectTier = useCallback((action: PricingTier['ctaAction']) => {
+    if (action === 'install') {
+      window.open(CHROME_WEB_STORE_URL, '_blank', 'noopener,noreferrer');
+    } else {
+      navigate('/settings');
+    }
+  }, [navigate]);
+
   const pricingTiers = useMemo<PricingTier[]>(() => [
     {
       name: 'Free',
@@ -93,7 +115,9 @@ const Pricing: React.FC = () => {
         'Up to **5 synced classes**',
         'Real-time Canvas to Notion sync',
         'Standard support'
-      ]
+      ],
+      ctaLabel: 'Start Free',
+      ctaAction: 'install'
     },
     {
       name: 'Pro',
@@ -104,7 +128,9 @@ const Pricing: React.FC = () => {
         '**Unlimited** class sync',
         '**Priority** student support',
         'Cancel anytime'
-      ]
+      ],
+      ctaLabel: 'Go Pro',
+      ctaAction: 'settings'
     },
     {
       name: 'Lifetime',
@@ -116,6 +142,8 @@ const Pricing: React.FC = () => {
         'One payment, no recurring renewals',
         'All future updates included'
       ],
+      ctaLabel: 'Claim Lifetime Access',
+      ctaAction: 'settings',
       highlight: 'MOST POPULAR',
       tag: 'Best Value'
     }
@@ -161,6 +189,7 @@ const Pricing: React.FC = () => {
             tier={tier}
             delay={index * 150}
             isVisible={isVisible}
+            onSelect={handleSelectTier}
           />
         ))}
       </div>
