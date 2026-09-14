@@ -52,7 +52,7 @@ describe('Terms Component', () => {
     expect(screen.getByRole('heading', { level: 1, name: /terms of service/i })).toBeInTheDocument();
     
     // Verify key sections are rendered
-    expect(screen.getByText(/last updated: april 23, 2025/i)).toBeInTheDocument();
+    expect(screen.getByText(/last updated: september 10, 2026/i)).toBeInTheDocument();
     
     // Get introduction paragraph using specific container class
     const introSection = container.querySelector('._introduction_8a043b');
@@ -61,16 +61,18 @@ describe('Terms Component', () => {
     // Test all major section headers are present
     const sections = [
       '1. Service Overview and License Terms',
-      '2. User Accounts and Authentication',
+      '2. Eligibility and User Accounts',
       '3. Acceptable Use',
       '4. Intellectual Property',
       '5. Data and Privacy',
       '6. Term and Termination',
       '7. Disclaimers',
       '8. Limitation of Liability',
-      '9. Governing Law',
-      '10. Modifications to Terms',
-      '11. Contact Us'
+      '9. Subscriptions, Lifetime Access, and Billing',
+      '10. Governing Law',
+      '11. Modifications to Terms',
+      '12. General',
+      '13. Contact Us'
     ];
 
     // Find all h2 elements and check if they contain our section titles
@@ -169,11 +171,11 @@ describe('Terms Component', () => {
     const sections = container.querySelectorAll('section');
     
     // Check section 2 for authentication text
-    const section2 = Array.from(sections).find(section => 
-      section.querySelector('h2')?.textContent?.includes('2. User Accounts and Authentication'));
+    const section2 = Array.from(sections).find(section =>
+      section.querySelector('h2')?.textContent?.includes('2. Eligibility and User Accounts'));
     expect(section2).toBeDefined();
     if (section2) {
-      expect(section2.textContent).toMatch(/you must authenticate via firebase/i);
+      expect(section2.textContent).toMatch(/you must create an account and sign in/i);
     }
     
     // Check section 5 for data privacy text

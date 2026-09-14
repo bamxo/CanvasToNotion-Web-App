@@ -7,6 +7,8 @@ import { adminDb } from '../db';
 import { database } from 'firebase-admin';
 import { verifyToken } from '../middleware/auth';
 import { AuthenticatedRequest } from '../types';
+import { recordSyncedCourses } from './classSyncStore';
+import { partitionRequestedCourses } from './classSyncGuard';
 
 const router = express.Router();
 
@@ -199,6 +201,18 @@ router.post('/sync', async (req: AuthenticatedRequest, res: Response) => {
       });
     }
 
+    // Free-tier class-sync cap (backend safety net; the extension UI also blocks
+    // this). Already-synced courses always pass; only new courses past the cap
+    // are dropped and reported back. This is a read with no side effect; the
+    // allowed set is recorded only after the course pages are actually created
+    // (mirrors /sync-v2), and only when `shouldRecord` is true (free tier only).
+    const { allowed: allowedCourses, rejected: rejectedCourses, shouldRecord } =
+      await partitionRequestedCourses(
+        uid,
+        courses as { id: string | number; name: string }[],
+        userData.workspaceId,
+      );
+
     // Mark sync as pending (parity with notion.ts:handleSync)
     await syncStatusRef.set({
       status: 'pending',
@@ -307,7 +321,7 @@ router.post('/sync', async (req: AuthenticatedRequest, res: Response) => {
     }
 
     const coursePageIds = new Map<string, string>();
-    for (const course of courses) {
+    for (const course of allowedCourses) {
       if (existingCourseNames.has(course.name)) {
         console.log(`Course "${course.name}" already exists. Finding existing page ID.`);
 
@@ -336,6 +350,17 @@ router.post('/sync', async (req: AuthenticatedRequest, res: Response) => {
         }
       });
       coursePageIds.set(course.name, coursePage.id);
+    }
+
+    // Record the allowed courses against the free-tier cap only now that their
+    // Notion pages exist (mirrors /sync-v2), and only for free-tier users —
+    // pro/lifetime/legacy never persist a class-sync ledger.
+    if (shouldRecord && allowedCourses.length > 0) {
+      await recordSyncedCourses({
+        uid,
+        workspaceId: userData.workspaceId,
+        courseIds: allowedCourses.map((c) => c.id),
+      });
     }
 
     // Get existing assignment URLs to avoid duplicates
@@ -425,7 +450,7 @@ router.post('/sync', async (req: AuthenticatedRequest, res: Response) => {
       }
     }
 
-    const coursesCreated = coursePageIds.size - existingCourseNames.size;
+    const coursesCreated = Math.max(0, coursePageIds.size - existingCourseNames.size);
 
     // Mark sync as complete (parity with notion-background.ts result shape)
     await syncStatusRef.set({
@@ -447,7 +472,13 @@ router.post('/sync', async (req: AuthenticatedRequest, res: Response) => {
         totalAssignments: assignments.length,
         newAssignmentsCreated: newAssignmentsCount,
         skippedAssignments: skippedAssignmentsCount,
-        assignments: assignmentResults
+        assignments: assignmentResults,
+        classSyncLimitReached: rejectedCourses.length > 0 || undefined,
+        errors: rejectedCourses.length > 0
+          ? rejectedCourses.map(
+              (c) => `Free plan limit reached: "${c.name}" was not synced. Upgrade to sync unlimited classes.`
+            )
+          : undefined,
       }
     });
 
@@ -948,9 +979,21 @@ router.post('/sync-v2', async (req: AuthenticatedRequest, res: Response) => {
       }
     }
 
+    // Free-tier class-sync cap. This is a backend safety net - the extension
+    // UI is expected to stop a free user from selecting more than the limit
+    // in the first place - so a course already tracked as synced is always
+    // let through (re-syncing its assignments must keep working), and only
+    // *new* courses past the cap are rejected.
+    const { allowed: allowedCourses, rejected: rejectedCourses, shouldRecord } =
+      await partitionRequestedCourses(
+        req.user!.uid,
+        courses as { id: string | number; name: string }[],
+        userData.workspaceId,
+      );
+
     // Create courses that don't exist yet (mainly on initial chunk)
     let coursesCreated = 0;
-    for (const course of courses) {
+    for (const course of allowedCourses) {
       if (!coursePageIds.has(course.name)) {
         console.log(`Creating course: ${course.name}`);
         const coursePage = await notion.pages.create({
@@ -962,6 +1005,15 @@ router.post('/sync-v2', async (req: AuthenticatedRequest, res: Response) => {
         coursePageIds.set(course.name, coursePage.id);
         coursesCreated++;
       }
+    }
+
+    // Only free-tier users persist a class-sync ledger (see classSyncGuard).
+    if (shouldRecord && allowedCourses.length > 0) {
+      await recordSyncedCourses({
+        uid: req.user!.uid,
+        workspaceId: userData.workspaceId,
+        courseIds: allowedCourses.map((course) => course.id),
+      });
     }
 
     // Get existing assignment URLs to avoid duplicates
@@ -979,7 +1031,9 @@ router.post('/sync-v2', async (req: AuthenticatedRequest, res: Response) => {
     // Process assignments in this chunk
     let assignmentsCreated = 0;
     let assignmentsSkipped = 0;
-    const errors: string[] = [];
+    const errors: string[] = rejectedCourses.map(
+      course => `Free plan limit reached: "${course.name}" was not synced. Upgrade to sync unlimited classes.`
+    );
 
     for (const assignment of assignments) {
       const canvasUrl = assignment.html_url?.trim();
@@ -1037,6 +1091,7 @@ router.post('/sync-v2', async (req: AuthenticatedRequest, res: Response) => {
         assignmentsCreated,
         assignmentsSkipped,
         coursesCreated,
+        classSyncLimitReached: rejectedCourses.length > 0 ? true : undefined,
         errors: errors.length > 0 ? errors : undefined
       }
     });

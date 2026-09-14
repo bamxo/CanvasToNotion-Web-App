@@ -11,13 +11,21 @@
  * integration with Notion's OAuth flow for account connection.
  */
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import styles from './Settings.module.css';
 import logo from '../assets/c2n-favicon.svg';
 import { useNotionAuth } from '../hooks/useNotionAuth';
-import { AUTH_ENDPOINTS, USER_ENDPOINTS, NOTION_ENDPOINTS, COOKIE_STATE_ENDPOINTS, IS_CROSS_ORIGIN_BACKEND } from '../utils/api';
+import { useEntitlements } from '../hooks/useEntitlements';
+import LegacyPlanCard from './LegacyPlanCard';
+import FreePlanCard from './FreePlanCard';
+import ProPlanCard from './ProPlanCard';
+import LifetimePlanCard from './LifetimePlanCard';
+import PlanCardSkeleton from './PlanCardSkeleton';
+import Skeleton from './Skeleton';
+import ConfirmDialog from './ConfirmDialog';
+import { AUTH_ENDPOINTS, USER_ENDPOINTS, NOTION_ENDPOINTS, COOKIE_STATE_ENDPOINTS, BILLING_ENDPOINTS, IS_CROSS_ORIGIN_BACKEND } from '../utils/api';
 import { EXTENSION_ID, NOTION_REDIRECT_URI } from '../utils/constants';
 import { secureGetToken, secureRemoveToken } from '../utils/encryption';
 import Cookies from 'js-cookie';
@@ -35,6 +43,7 @@ const Settings: React.FC = () => {
   const {
     notionConnection,
     isConnecting,
+    isLoading: notionLoading,
     setNotionConnection
   } = useNotionAuth();
   const [userInfo, setUserInfo] = useState<UserInfo | null>(null);
@@ -42,6 +51,125 @@ const Settings: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isButtonLoading, setIsButtonLoading] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  const { tier, plan, memberSince, classSyncUsed, classSyncLimit, notionConnected, isLoading: entitlementsLoading, refetch } = useEntitlements();
+  const [planNotice, setPlanNotice] = useState<string | null>(null);
+  const [planError, setPlanError] = useState<string | null>(null);
+  const [planBusy, setPlanBusy] = useState(false);
+  const [refundDone, setRefundDone] = useState(false);
+  const [confirmRefundOpen, setConfirmRefundOpen] = useState(false);
+
+  useEffect(() => {
+    // Spec §6.4: refetch entitlements whenever the tab regains focus so a plan
+    // change made in the Stripe portal shows up without a manual reload.
+    const onFocus = () => refetch();
+    window.addEventListener('focus', onFocus);
+
+    const params = new URLSearchParams(window.location.search);
+    const checkout = params.get('checkout');
+    const billing = params.get('billing');
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    if (checkout === 'success' || checkout === 'cancelled') {
+      if (checkout === 'success') {
+        // No banner on success — the plan card itself updates once entitlements
+        // refetch reflects the webhook.
+        timer = setTimeout(refetch, 2000);
+      } else {
+        setPlanNotice('Checkout cancelled.');
+      }
+      window.history.replaceState({}, '', window.location.pathname);
+    } else if (billing === 'updated') {
+      // Back from the Stripe billing portal - a cancel/reactivate/payment-method
+      // change lands via webhook a beat later, so give it a moment then refetch.
+      timer = setTimeout(refetch, 2000);
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+
+    return () => {
+      window.removeEventListener('focus', onFocus);
+      if (timer) clearTimeout(timer);
+    };
+  }, [refetch]);
+
+  // Keep the Plan section (class-sync usage bar) in sync with Notion
+  // connect/disconnect done on this same page. useEntitlements fetches once on
+  // mount and can win the race against the /notion/token exchange, so re-fetch
+  // whenever the Notion connection status flips. Skip the initial mount — the
+  // hook already fetches then.
+  const didConnMount = useRef(false);
+  useEffect(() => {
+    if (!didConnMount.current) {
+      didConnMount.current = true;
+      return;
+    }
+    refetch();
+  }, [notionConnection.isConnected, refetch]);
+
+  const openPortal = async () => {
+    setPlanBusy(true);
+    setPlanError(null);
+    try {
+      const token = secureGetToken('authToken');
+      const res = await axios.post(BILLING_ENDPOINTS.PORTAL, {}, { headers: { Authorization: `Bearer ${token}` } });
+      window.location.href = res.data.url;
+    } catch (err) {
+      setPlanError(err instanceof Error ? err.message : 'Something went wrong. Please try again.');
+    } finally {
+      setPlanBusy(false);
+    }
+  };
+
+  const reactivateSubscription = async () => {
+    setPlanBusy(true);
+    setPlanError(null);
+    try {
+      const token = secureGetToken('authToken');
+      await axios.post(BILLING_ENDPOINTS.REACTIVATE, {}, { headers: { Authorization: `Bearer ${token}` } });
+      refetch();
+    } catch (err) {
+      setPlanError(err instanceof Error ? err.message : 'Something went wrong. Please try again.');
+    } finally {
+      setPlanBusy(false);
+    }
+  };
+
+  const switchToLifetime = async () => {
+    setPlanBusy(true);
+    setPlanError(null);
+    try {
+      const token = secureGetToken('authToken');
+      const res = await axios.post(
+        BILLING_ENDPOINTS.CHECKOUT,
+        { plan: 'lifetime' },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      window.location.href = res.data.url;
+    } catch (err) {
+      setPlanError(err instanceof Error ? err.message : 'Something went wrong. Please try again.');
+      setPlanBusy(false);
+    }
+  };
+
+  const requestRefund = async () => {
+    setPlanBusy(true);
+    setPlanError(null);
+    try {
+      const token = secureGetToken('authToken');
+      await axios.post(BILLING_ENDPOINTS.REFUND, {}, { headers: { Authorization: `Bearer ${token}` } });
+      setRefundDone(true);
+      refetch();
+    } catch (err) {
+      setPlanError(err instanceof Error ? err.message : 'Something went wrong. Please try again.');
+    } finally {
+      setPlanBusy(false);
+      setConfirmRefundOpen(false);
+    }
+  };
+
+  const withinRefundWindow =
+    tier === 'lifetime' &&
+    !!plan?.lifetimeRefundEligibleUntil &&
+    plan.lifetimeRefundEligibleUntil * 1000 > Date.now();
 
   useEffect(() => {
     const fetchUserInfo = async () => {
@@ -248,11 +376,11 @@ const Settings: React.FC = () => {
         
         <div className={styles.profileSection}>
           {isLoading ? (
-            <div className={styles.profileGroup}>
-              <div className={styles.profilePic}></div>
+            <div className={styles.profileGroup} data-testid="profile-skeleton">
+              <Skeleton width={48} height={48} circle />
               <div className={styles.profileInfo}>
-                <p className={styles.userName}>User</p>
-                <p className={styles.userEmail}>user@email.com</p>
+                <Skeleton width={160} height={20} />
+                <Skeleton width={200} height={14} style={{ marginTop: 6 }} />
               </div>
             </div>
           ) : (
@@ -294,54 +422,127 @@ const Settings: React.FC = () => {
           )}
         </div>
 
-        <div className={styles['spacer-lg']} />
+        <div className={styles['spacer-md']} />
+
+        <section className={styles.planSection}>
+          <h2 className={styles.sectionTitle}>Plan</h2>
+          <div className={styles.divider} />
+          {planNotice && <p className={styles.planNotice}>{planNotice}</p>}
+          {planError && <p className={styles.planError} role="alert">{planError}</p>}
+
+          {entitlementsLoading ? (
+            <PlanCardSkeleton />
+          ) : (
+            <>
+              {tier === 'free' && (
+                <FreePlanCard classSyncUsed={classSyncUsed} classSyncLimit={classSyncLimit} notionConnected={notionConnected} />
+              )}
+
+              {tier === 'pro' && (
+                <ProPlanCard
+                  currentPeriodEnd={plan?.currentPeriodEnd}
+                  cancelAtPeriodEnd={plan?.cancelAtPeriodEnd}
+                  subscriptionStatus={plan?.subscriptionStatus}
+                  syncedCount={classSyncUsed}
+                  onSwitchToLifetime={switchToLifetime}
+                  onManageBilling={openPortal}
+                  onCancelSubscription={openPortal}
+                  onReactivate={reactivateSubscription}
+                  busy={planBusy}
+                />
+              )}
+
+              {tier === 'lifetime' && (
+                <LifetimePlanCard
+                  purchasedAt={plan?.lifetimePurchasedAt}
+                  refundEligibleUntil={plan?.lifetimeRefundEligibleUntil}
+                  withinRefundWindow={withinRefundWindow}
+                  refundDone={refundDone}
+                  onBillingHistory={openPortal}
+                  onRefund={() => setConfirmRefundOpen(true)}
+                  busy={planBusy}
+                />
+              )}
+
+              {tier === 'legacy' && <LegacyPlanCard memberSince={memberSince} />}
+            </>
+          )}
+        </section>
+
+        <ConfirmDialog
+          open={confirmRefundOpen}
+          title="Request a refund?"
+          message="This refunds your $10 Lifetime payment and immediately downgrades your account to the Free plan. This can't be undone."
+          confirmLabel="Request refund"
+          cancelLabel="Keep Lifetime"
+          danger
+          busy={planBusy}
+          onConfirm={requestRefund}
+          onCancel={() => setConfirmRefundOpen(false)}
+        />
+
+        <div className={styles['spacer-md']} />
 
         <div className={styles.connectionsSection}>
           <h2 className={styles.sectionTitle}>Manage Connections</h2>
           <div className={styles.divider} />
-          
-          <div className={styles.connectionStatus}>
-            <div className={`${styles.statusIndicator} ${!notionConnection.isConnected && styles.disconnected}`} />
-            <span className={styles.connectionEmail}>
-              {notionConnection.isConnected 
-                ? `Connected to Notion`
-                : 'Not connected to Notion'
-              }
-            </span>
-          </div>
-          
-          {error && (
-            <div className={styles.errorContainer}>
-              <p className={styles.errorText}>{error}</p>
+
+          {notionLoading ? (
+            <div data-testid="connections-skeleton">
+              <Skeleton
+                width={220}
+                height={40}
+                radius={12}
+                style={{ marginTop: 18, marginBottom: 10 }}
+              />
+              <Skeleton width={160} height={40} radius={8} style={{ marginTop: 6 }} />
             </div>
-          )}
-          
-          <div className={styles.connectionButtons}>
-            <button 
-              className={styles.changeConnectionButton}
-              onClick={handleNotionConnection}
-              disabled={isButtonLoading || isConnecting}
-            >
-              {(isButtonLoading || isConnecting) ? (
-                <div className={styles.spinner} />
-              ) : (
-                notionConnection.isConnected ? 'Change Connection' : 'Add Connection'
+          ) : (
+            <>
+              <div className={styles.connectionStatus}>
+                <div className={`${styles.statusIndicator} ${!notionConnection.isConnected && styles.disconnected}`} />
+                <span className={styles.connectionEmail}>
+                  {notionConnection.isConnected
+                    ? `Connected to Notion`
+                    : 'Not connected to Notion'
+                  }
+                </span>
+              </div>
+
+              {error && (
+                <div className={styles.errorContainer}>
+                  <p className={styles.errorText}>{error}</p>
+                </div>
               )}
-            </button>
-            {notionConnection.isConnected && (
-              <button 
-                className={styles.removeConnectionButton}
-                onClick={handleRemoveConnection}
-                disabled={isButtonLoading}
-              >
-                {isButtonLoading ? (
-                  <div className={styles.spinner} />
-                ) : (
-                  'Remove Connection'
+
+              <div className={styles.connectionButtons}>
+                <button
+                  className={styles.changeConnectionButton}
+                  onClick={handleNotionConnection}
+                  disabled={isButtonLoading || isConnecting}
+                >
+                  {(isButtonLoading || isConnecting) ? (
+                    <div className={styles.spinner} />
+                  ) : (
+                    notionConnection.isConnected ? 'Change Connection' : 'Add Connection'
+                  )}
+                </button>
+                {notionConnection.isConnected && (
+                  <button
+                    className={styles.removeConnectionButton}
+                    onClick={handleRemoveConnection}
+                    disabled={isButtonLoading}
+                  >
+                    {isButtonLoading ? (
+                      <div className={styles.spinner} />
+                    ) : (
+                      'Remove Connection'
+                    )}
+                  </button>
                 )}
-              </button>
-            )}
-          </div>
+              </div>
+            </>
+          )}
         </div>
       </main>
     </div>

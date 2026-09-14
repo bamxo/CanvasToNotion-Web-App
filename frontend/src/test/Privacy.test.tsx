@@ -54,7 +54,7 @@ describe('Privacy Component', () => {
     expect(screen.getByRole('heading', { level: 1, name: /privacy policy/i })).toBeInTheDocument();
     
     // Verify key elements are rendered - fix the date to match actual content
-    expect(screen.getByText(/last updated: january 15, 2025/i)).toBeInTheDocument();
+    expect(screen.getByText(/last updated: september 10, 2026/i)).toBeInTheDocument();
     
     // Get introduction paragraph
     const introSection = container.querySelector('.' + Object.values(container.querySelector('div[class^="_introduction_"]')?.classList || [])[0]);
@@ -83,14 +83,15 @@ describe('Privacy Component', () => {
       '8. International Data Transfers',
       '9. Your Rights and Control',
       '10. Technical Implementation',
-      '11. Children\'s Privacy',
-      '12. Changes to This Policy',
-      '13. Contact Us'
+      '11. Payments and Subscriptions',
+      '12. Children\'s Privacy',
+      '13. Changes to This Policy',
+      '14. Contact Us'
     ];
 
     // Find all h2 elements and check if they contain our section titles
-    const headings = screen.getAllByRole('heading', { level: 2 }).filter(h => 
-      h.textContent !== 'Canvas to Notion Sync Extension'
+    const headings = screen.getAllByRole('heading', { level: 2 }).filter(h =>
+      h.textContent !== 'Canvas to Notion: Web App & Chrome Extension'
     );
     
     sections.forEach(section => {
@@ -212,11 +213,11 @@ describe('Privacy Component', () => {
     }
     
     // Check section 11 for children's privacy text (updated section number)
-    const section11 = Array.from(sections).find(section => 
-      section.querySelector('h2')?.textContent?.includes('11. Children\'s Privacy'));
-    expect(section11).toBeDefined();
-    if (section11) {
-      expect(section11.textContent).toMatch(/not intended for children under 13/i);
+    const section12 = Array.from(sections).find(section =>
+      section.querySelector('h2')?.textContent?.includes('12. Children\'s Privacy'));
+    expect(section12).toBeDefined();
+    if (section12) {
+      expect(section12.textContent).toMatch(/not intended for children under 13/i);
     }
     
     // Check for the contact email link

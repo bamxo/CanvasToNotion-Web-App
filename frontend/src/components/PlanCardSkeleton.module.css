@@ -1,0 +1,51 @@
+/* Mirrors the silhouette of the real plan cards (FreePlanCard et al.) so the
+   Plan section keeps its footprint while entitlements load. */
+.wrapper {
+  font-family: 'Poppins', sans-serif;
+  margin-top: 16px;
+}
+
+.topRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 20px;
+}
+
+.main {
+  flex: 1 1 240px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.plansRow {
+  flex: 1.6 1 440px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.planBox {
+  flex: 1 1 190px;
+  min-height: 120px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.usageCard {
+  margin-top: 20px;
+  padding: 16px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}

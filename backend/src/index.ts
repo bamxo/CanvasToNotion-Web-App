@@ -20,6 +20,7 @@ import notionRouter from './notion_api/notionRouter';
 import cookieStateRoutes from './routes/cookieState';
 import contactRoutes from './routes/contact';
 import usercountRoutes from './routes/usercount';
+import billingRoutes from './routes/billing';
 
 const app: Express = express();
 const PORT: number = parseInt(process.env.PORT || '3000', 10);
@@ -61,6 +62,11 @@ app.options('*', cors(corsOptions));
 // Middleware
 // ---------------------------------------------------------------------------
 app.use(cookieParser());
+// Stripe needs the unparsed request body to verify webhook signatures. Parse it
+// as a Buffer for the webhook path only, before the global JSON parser (which
+// sets req._body and would otherwise consume it first).
+app.use('/billing/webhook', express.raw({ type: 'application/json' }));
+app.use('/api/billing/webhook', express.raw({ type: 'application/json' }));
 // Global JSON body parser. It is a no-op for non-JSON content types, so the
 // contact router's multipart uploads (handled by multer on that router) are
 // unaffected.
@@ -85,6 +91,7 @@ function mountRoutes(prefix: string): void {
   app.use(`${prefix}/cookie-state`, cookieStateRoutes);
   app.use(`${prefix}/contact`, contactRoutes);
   app.use(`${prefix}/usercount`, usercountRoutes);
+  app.use(`${prefix}/billing`, billingRoutes);
 }
 
 // Primary mount points.
