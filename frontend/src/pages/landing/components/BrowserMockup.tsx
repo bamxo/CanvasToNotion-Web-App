@@ -1,6 +1,52 @@
 import React, { memo, useEffect, useRef } from 'react';
 import styles from './BrowserMockup.module.css';
-import { FaCheck, FaChevronRight, FaCalendarAlt, FaBook, FaInbox, FaQuestion, FaCog, FaSignOutAlt, FaFile, FaRegClock, FaExclamationTriangle, FaRegFileAlt } from 'react-icons/fa';
+import {
+  FaCheck,
+  FaChevronRight,
+  FaChevronLeft,
+  FaCalendarAlt,
+  FaCog,
+  FaSignOutAlt,
+  FaUserCircle,
+  FaRegClock,
+  FaExclamationTriangle,
+  FaClipboard,
+  FaBook,
+  FaInbox,
+  FaQuestion,
+} from 'react-icons/fa';
+
+interface SyncAssignment {
+  id: string;
+  title: string;
+  course: string;
+  overdueText: string;
+  points: string;
+}
+
+const SYNC_ASSIGNMENTS: SyncAssignment[] = [
+  {
+    id: 'hw1',
+    title: 'Assignment Homework 1',
+    course: 'Introduction to Management of Technology II',
+    overdueText: 'Due in 3 days',
+    points: '10 pts',
+  },
+  {
+    id: 'quiz2',
+    title: 'Quiz 2: Market Structures',
+    course: 'Principles of Microeconomics',
+    overdueText: '12 days overdue',
+    points: '25 pts',
+  },
+  {
+    id: 'lab3',
+    title: 'Lab Report 3',
+    course: 'Intro to Biology',
+    overdueText: '3 days overdue',
+    points: '50 pts',
+  },
+];
 
 const FeatureItem = memo(({ children }: { children: React.ReactNode }) => (
   <div className={styles.featureItem}>
@@ -51,7 +97,7 @@ const BrowserMockup: React.FC = () => {
           ref={textRef} 
           className={`${styles.mockupText} ${styles.hidden} ${styles.fromLeft}`}
         >
-          <h2>Experience Seamless Integration</h2>
+          <h2>Features</h2>
           <div className={styles.featuresList}>
             <FeatureItem>One-click sync between Canvas and Notion</FeatureItem>
             <FeatureItem>Automatic assignment tracking and organization</FeatureItem>
@@ -97,7 +143,7 @@ const BrowserMockup: React.FC = () => {
                   </div>
                   <div className={styles.courseGrid}>
                     <div className={styles.courseCard}>
-                      <div className={styles.courseCardHeader} style={{backgroundColor: '#60a5fa'}}>
+                      <div className={styles.courseCardHeader} style={{ backgroundColor: '#60a5fa' }}>
                         <div className={styles.courseCardMenu}>⋮</div>
                       </div>
                       <div className={styles.courseCardBody}>
@@ -111,7 +157,7 @@ const BrowserMockup: React.FC = () => {
                       </div>
                     </div>
                     <div className={styles.courseCard}>
-                      <div className={styles.courseCardHeader} style={{backgroundColor: '#f97316'}}>
+                      <div className={styles.courseCardHeader} style={{ backgroundColor: '#f97316' }}>
                         <div className={styles.courseCardMenu}>⋮</div>
                       </div>
                       <div className={styles.courseCardBody}>
@@ -125,7 +171,7 @@ const BrowserMockup: React.FC = () => {
                       </div>
                     </div>
                     <div className={styles.courseCard}>
-                      <div className={styles.courseCardHeader} style={{backgroundColor: '#8b5cf6'}}>
+                      <div className={styles.courseCardHeader} style={{ backgroundColor: '#8b5cf6' }}>
                         <div className={styles.courseCardMenu}>⋮</div>
                       </div>
                       <div className={styles.courseCardBody}>
@@ -171,81 +217,83 @@ const BrowserMockup: React.FC = () => {
                 </div>
               </div>
 
-              {/* Extension Dashboard Overlay */}
-              <div className={styles.extensionOverlay}>
-                <div className={styles.extensionDashboard}>
-                  <div className={styles.extensionHeader}>
-                    <div className={styles.extensionUserInfo}>
-                      <div className={styles.extensionAvatar}></div>
-                      <div className={styles.extensionUserDetails}>
-                        <h3>User</h3>
-                        <p>Signed In</p>
+              <div className={styles.popupOverlay}>
+                <div className={styles.popup}>
+                  <div className={styles.popupHeader}>
+                    <div className={styles.userInfo}>
+                      <div className={styles.avatar}>
+                        <FaUserCircle />
+                      </div>
+                      <div className={styles.userDetails}>
+                        <h3 className={styles.userName}>User</h3>
+                        <div className={styles.tierBadge}>
+                          <span className={styles.tierDot}></span>
+                          <span>Lifetime Member</span>
+                        </div>
                       </div>
                     </div>
-                    <div className={styles.extensionActions}>
-                      <button className={styles.extensionButton}><FaCog /></button>
-                      <button className={styles.extensionButton}><FaSignOutAlt /></button>
+                    <div className={styles.headerActions}>
+                      <button className={styles.headerButton} aria-label="Settings">
+                        <FaCog />
+                      </button>
+                      <button className={styles.headerButton} aria-label="Log out">
+                        <FaSignOutAlt />
+                      </button>
                     </div>
                   </div>
-                  
-                  <div className={styles.extensionContent}>
-                    <div className={styles.notionSection}>
-                      <div className={styles.notionHeader}>
-                        <div className={styles.notionIcon}>
-                          <FaRegFileAlt className={styles.notionFileIcon} />
-                        </div>
-                        <h3>Notion Page</h3>
+
+                  <div className={styles.pageNav}>
+                    <FaChevronLeft className={styles.navBack} />
+                    <span className={styles.navDots}>
+                      <span className={styles.navDot}></span>
+                      <span className={styles.navDot}></span>
+                    </span>
+                    <span className={styles.pageTitle}>Another Page</span>
+                  </div>
+
+                  <div className={styles.classSelector}>
+                    <FaCalendarAlt className={styles.classIcon} />
+                    <span className={styles.classLabel}>Classes: 1 selected</span>
+                    <FaChevronRight className={styles.classChevron} />
+                  </div>
+
+                  <div className={styles.syncCard}>
+                    <div className={styles.syncCardHeader}>
+                      <div className={styles.syncWarning}>
+                        <FaExclamationTriangle className={styles.warningIcon} />
+                        <h4>Items to Sync</h4>
                       </div>
-                      
-                      <div className={styles.assignmentSection}>
-                        <div className={styles.assignmentHeader}>
-                          <div className={styles.assignmentEmojiTitle}>
-                            <span>🐶</span>
-                            <h4>Assignments Page</h4>
-                          </div>
-                          <button className={styles.changePageButton}>Change Page</button>
-                        </div>
+                      <div className={styles.syncCount}>
+                        <span className={styles.countBadge}>16</span>
+                        <button className={styles.clearButton}>Clear</button>
                       </div>
                     </div>
-                    
-                    <div className={styles.syncSection}>
-                      <div className={styles.syncHeader}>
-                        <div className={styles.syncWarning}>
-                          <FaExclamationTriangle className={styles.warningIcon} />
-                          <h4>Items to Sync</h4>
-                        </div>
-                        <div className={styles.syncCount}>
-                          <span className={styles.countBadge}>5</span>
-                          <button className={styles.clearButton}>Clear</button>
-                        </div>
-                      </div>
-                      
-                      <div className={styles.syncItems}>
-                        <div className={styles.syncItem}>
-                          <div className={styles.syncItemIcon}>
-                            <FaFile className={styles.fileIcon} />
+
+                    <div className={styles.syncList}>
+                      {SYNC_ASSIGNMENTS.map((assignment) => (
+                        <div className={styles.syncItem} key={assignment.id}>
+                          <div className={styles.syncItemIndicator}>
+                            <FaClipboard />
                           </div>
                           <div className={styles.syncItemDetails}>
-                            <h5>Final Project</h5>
-                            <p>ZOO 101</p>
+                            <h5>{assignment.title}</h5>
+                            <p>{assignment.course}</p>
                             <div className={styles.syncItemInfo}>
-                              <div className={styles.syncItemDue}>
+                              <span className={styles.syncItemOverdue}>
                                 <FaRegClock />
-                                <span>Due in 25 days</span>
-                              </div>
-                              <div className={styles.syncItemPoints}>
-                                <span>100 pts</span>
-                              </div>
+                                {assignment.overdueText}
+                              </span>
+                              <span className={styles.syncItemPoints}>{assignment.points}</span>
                             </div>
                           </div>
                         </div>
-                      </div>
+                      ))}
                     </div>
-                    
-                    <button className={styles.syncAllButton}>
-                      Sync All Assignments
-                    </button>
                   </div>
+
+                  <button className={styles.syncAllButton}>
+                    Sync All Assignments
+                  </button>
                 </div>
               </div>
             </div>

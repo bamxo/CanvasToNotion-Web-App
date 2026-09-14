@@ -647,7 +647,7 @@ describe('Settings - Plan section', () => {
       memberSince: '2024-01-15T00:00:00.000Z',
     });
     renderApp();
-    expect(await screen.findByText(/full access to everything, free, forever/i)).toBeInTheDocument();
+    expect(await screen.findByText(/full access to everything\./i)).toBeInTheDocument();
     expect(screen.getByText('Legacy Account')).toBeInTheDocument();
     expect(screen.getByText(/legacy member since: jan 15, 2024/i)).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /manage subscription|request a refund/i })).not.toBeInTheDocument();

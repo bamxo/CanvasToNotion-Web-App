@@ -105,10 +105,10 @@ const AboutUs: React.FC = () => {
           
           <div className={styles.textColumns}>
             <p className={`${styles.storyText} ${storyVisible ? styles.textVisible : ''}`}>
-              We're five students from UC Santa Cruz who built Canvas to Notion as part of a class project. Like most students, we were tired of manually copying assignments into Notion. Our goal isn't to reinvent how students organize — just to make it easier to keep track of things without the busywork. We care a lot about making tools that are simple, fast, and don't get in your way. If it helps even a few other people stay on top of their work, that's a win.
+              We're five students from UC Santa Cruz who built Canvas to Notion as part of a class project. Like most students, we were tired of manually copying assignments into Notion. Our goal isn't to reinvent how students organize. We just want to make it easier to keep track of things without the busywork. We care a lot about making tools that are simple, fast, and don't get in your way. If it helps even a few other people stay on top of their work, that's a win.
             </p>
             <p className={`${styles.storyText} ${storyVisible ? styles.textVisible : ''}`}>
-              Along the way, we've learned a lot — not just about building Chrome extensions and working with APIs, but about designing something people actually want to use. We've kept things intentionally lightweight: no clutter, no unnecessary features, just the essentials done well. We're continuing to refine it based on feedback and our own experience as students. We're not a startup or a company (yet) — just a team trying to solve a real problem. But we're serious about making this great. And we're just getting started.
+              Along the way, we've learned a lot about designing something people actually want to use. We've kept things intentionally lightweight: no clutter, no unnecessary features, just the essentials done well. We're continuing to refine it based on feedback and our own experience as students, trying to solve a real problem we actually have. We're serious about making this great, and we're just getting started.
             </p>
           </div>
         </div>
