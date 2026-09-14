@@ -24,10 +24,9 @@ Install all required dependencies for the project:
 npm install
 ```
 
-This will install dependencies for the main project. The project consists of three main parts:
+This will install dependencies for the main project. The project consists of two main parts:
 - Frontend (React application)
 - Backend (API server)
-- E2E tests
 
 ### Development
 
@@ -53,7 +52,6 @@ The project includes different types of tests:
 
 - Frontend tests: `npm run test:frontend`
 - Backend tests: `npm run test:backend`
-- E2E tests: `npm run test:e2e`
 
 ## Project Structure
 
@@ -61,7 +59,6 @@ The project includes different types of tests:
 CanvasToNotion-Web-App/
 ├── frontend/     # React frontend application
 ├── backend/      # Backend API server
-├── e2e/         # End-to-end tests
 └── ...
 ```
 

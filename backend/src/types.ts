@@ -29,7 +29,7 @@ export interface UserData {
   photoURL?: string;
   createdAt: string;
   tier?: UserTier;
-  [key: string]: any; // For additional custom fields
+  [key: string]: unknown; // For additional custom fields
 }
 
 export interface FirebaseUser {
@@ -38,7 +38,7 @@ export interface FirebaseUser {
   displayName?: string;
   photoUrl?: string;
   emailVerified: boolean;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 // Shape of req.user after the verifyToken middleware runs (Admin SDK decoded token).

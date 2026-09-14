@@ -55,7 +55,7 @@ export const getUserInfo = async (req: AuthenticatedRequest, res: Response): Pro
       photoURL: userRecord.photoURL,
       emailVerified: userRecord.emailVerified
     });
-  } catch (error) {
+  } catch {
     res.status(500).json({ error: 'Failed to fetch user info' });
   }
 };

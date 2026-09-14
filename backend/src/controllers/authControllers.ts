@@ -104,7 +104,7 @@ export const signup = async (req: Request, res: Response): Promise<void> => {
         localId: userRecord.uid,
         displayName: userData.displayName
       });
-    } catch (dbError) {
+    } catch {
       // Auth succeeded but the DB write failed - still a 201, with a warning.
       setAuthCookie(res, authResponse.data.idToken);
 
@@ -234,7 +234,7 @@ export const forgotPassword = async (req: Request, res: Response): Promise<void>
     }
 
     res.status(200).json({ message: 'Password reset email sent' });
-  } catch (error) {
+  } catch {
     res.status(500).json({ error: 'Failed to send password reset email' });
   }
 };
@@ -330,10 +330,21 @@ export const getUser = async (req: Request, res: Response): Promise<void> => {
 // googleAuth
 // ---------------------------------------------------------------------------
 
+// Shape of the decoded Google ID token payload, whether it comes from
+// google-auth-library's verifyIdToken or the tokeninfo REST fallback.
+interface GooglePayload {
+  email?: string;
+  sub?: string;
+  name?: string;
+  picture?: string;
+  email_verified?: boolean | string;
+  aud?: string;
+}
+
 // Describes the shape of the Google payload feeding providerToLink, which
 // returns an opaque auth/internal-error when it dislikes its input. Logs the
 // sub (a public, stable Google account id) but never the ID token itself.
-const describeGooglePayload = (payload: any, source: string): string =>
+const describeGooglePayload = (payload: GooglePayload | undefined, source: string): string =>
   [
     `source=${source}`,
     `sub=${payload?.sub ?? 'MISSING'}`,
@@ -360,7 +371,7 @@ export const googleAuth = async (req: Request, res: Response): Promise<void> => 
     }
 
     // 1. Verify the Google ID token (with a REST tokeninfo fallback).
-    let payload: any;
+    let payload: GooglePayload | undefined;
     try {
       const ticket = await googleClient.verifyIdToken({
         idToken,
@@ -478,7 +489,7 @@ export const googleAuth = async (req: Request, res: Response): Promise<void> => 
           email: payload.email,
           displayName: payload.name,
           photoURL: payload.picture,
-          emailVerified: payload.email_verified
+          emailVerified: payload.email_verified as boolean | undefined
         });
 
         step = 'link-google-provider-after-create';
@@ -514,7 +525,7 @@ export const googleAuth = async (req: Request, res: Response): Promise<void> => 
             lastLogin: new Date().toISOString(),
             tier: DEFAULT_NEW_USER_TIER
           });
-        } catch (dbError) {
+        } catch {
           // Continue even if the profile write fails.
         }
       }
@@ -539,6 +550,8 @@ export const googleAuth = async (req: Request, res: Response): Promise<void> => 
 
     res.status(200).json({
       idToken: response.data.idToken,
+      refreshToken: response.data.refreshToken,
+      expiresIn: response.data.expiresIn,
       customToken,
       ...(requestExtensionToken ? { extensionToken: customToken } : {}),
       email: payload.email,
@@ -582,14 +595,14 @@ export const deleteAccount = async (req: Request, res: Response): Promise<void> 
 
     try {
       await admin.database().ref(`/users/${uid}`).remove();
-    } catch (dbError) {
+    } catch {
       // Continue with auth deletion even if the DB removal fails.
     }
 
     await admin.auth().deleteUser(uid);
 
     res.status(200).json({ message: 'Account deleted successfully' });
-  } catch (error) {
+  } catch {
     res.status(500).json({ error: 'Failed to delete account' });
   }
 };
@@ -618,14 +631,52 @@ export const refreshExtensionToken = async (
   }
 };
 
+export const refreshIdToken = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { refreshToken } = req.body;
+
+    if (!refreshToken) {
+      res.status(400).json({ error: 'Refresh token is required' });
+      return;
+    }
+
+    const response = await axios.post(
+      `https://securetoken.googleapis.com/v1/token?key=${firebaseConfig.apiKey}`,
+      new URLSearchParams({
+        grant_type: 'refresh_token',
+        refresh_token: refreshToken
+      }).toString(),
+      { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }
+    );
+
+    setAuthCookie(res, response.data.id_token);
+
+    res.status(200).json({
+      idToken: response.data.id_token,
+      refreshToken: response.data.refresh_token,
+      expiresIn: response.data.expires_in
+    });
+  } catch (error) {
+    let statusCode = 401;
+    let errorMessage = 'Failed to refresh token';
+
+    if (axios.isAxiosError(error) && error.response) {
+      statusCode = error.response.status;
+      errorMessage = error.response.data?.error?.message || errorMessage;
+    }
+
+    res.status(statusCode).json({ error: errorMessage });
+  }
+};
+
 // ---------------------------------------------------------------------------
 // logout - clear the authToken cookie
 // ---------------------------------------------------------------------------
-export const logout = async (req: Request, res: Response): Promise<void> => {
+export const logout = async (_req: Request, res: Response): Promise<void> => {
   try {
     clearAuthCookie(res);
     res.status(200).json({ success: true, message: 'Logged out successfully' });
-  } catch (error) {
+  } catch {
     res.status(500).json({ error: 'Failed to logout' });
   }
 };

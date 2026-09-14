@@ -24,6 +24,13 @@ interface UploadedFile {
   mimetype: string;
 }
 
+interface ContactFormData {
+  name?: string;
+  email?: string;
+  message?: string;
+  inquiry?: string;
+}
+
 // Rate limiting store. Module scope so it survives warm invocations (matches
 // the Netlify function).
 const rateLimitStore = new Map<string, { count: number; resetTime: number }>();
@@ -50,7 +57,7 @@ const checkRateLimit = (ip: string): { allowed: boolean; resetTime?: number } =>
 };
 
 // Input validation and sanitization
-const validateAndSanitizeInput = (data: any) => {
+const validateAndSanitizeInput = (data: ContactFormData) => {
   const errors: string[] = [];
 
   if (!data.name || typeof data.name !== 'string' || data.name.trim().length < 2) {
@@ -138,7 +145,7 @@ const validateFiles = (files: UploadedFile[]): { valid: boolean; errors: string[
 };
 
 // Email sending function with attachments (in-memory buffers)
-const sendContactEmail = async (data: any, files: UploadedFile[] = []): Promise<void> => {
+const sendContactEmail = async (data: ContactFormData, files: UploadedFile[] = []): Promise<void> => {
   const transporter = nodemailer.createTransport({
     service: 'gmail',
     auth: {
@@ -254,7 +261,7 @@ export const handleContact = async (req: Request, res: Response): Promise<void> 
 
     // Files: multer memoryStorage. `.any()` puts every file in req.files as an
     // array regardless of field name.
-    const rawFiles: any[] = Array.isArray(req.files) ? req.files : [];
+    const rawFiles: Express.Multer.File[] = Array.isArray(req.files) ? req.files : [];
     const files: UploadedFile[] = rawFiles.map((f) => ({
       filename: f.originalname,
       content: f.buffer,
