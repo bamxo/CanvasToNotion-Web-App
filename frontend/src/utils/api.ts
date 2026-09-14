@@ -42,6 +42,7 @@ export const AUTH_ENDPOINTS = {
   FORGOT_PASSWORD: `${API_BASE}/auth/forgot-password`,
   RESET_PASSWORD: `${API_BASE}/auth/reset-password`,
   GOOGLE: `${API_BASE}/auth/google`,
+  REFRESH: `${API_BASE}/auth/refresh`,
   USER: OVERRIDE_API_BASE
     ? `${OVERRIDE_API_BASE}/auth/user`
     : isProduction

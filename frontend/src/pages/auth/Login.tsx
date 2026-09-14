@@ -6,7 +6,7 @@
  * existing users to log in and navigation options for password recovery
  * and new user registration.
  */
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import styles from './Login.module.css';
@@ -31,6 +31,14 @@ interface GoogleIdentityInitConfig {
   auto_select?: boolean;
   cancel_on_tap_outside?: boolean;
   prompt_parent_id?: string;
+  ux_mode?: 'popup' | 'redirect';
+}
+
+interface GoogleRenderButtonConfig {
+  type?: 'standard' | 'icon';
+  theme?: 'outline' | 'filled_blue' | 'filled_black';
+  size?: 'large' | 'medium' | 'small';
+  width?: number;
 }
 
 // Add Chrome types
@@ -49,6 +57,7 @@ declare global {
         id: {
           initialize: (config: GoogleIdentityInitConfig) => void;
           prompt: () => void;
+          renderButton: (parent: HTMLElement, config: GoogleRenderButtonConfig) => void;
         };
       };
     };
@@ -67,6 +76,8 @@ const Login: React.FC = () => {
   // State for error handling and loading
   const [error, setError] = React.useState<string>('');
   const [isLoading, setIsLoading] = React.useState(false);
+  const googleButtonWrapperRef = useRef<HTMLDivElement>(null);
+  const googleButtonRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (window.google?.accounts?.id) {
@@ -74,8 +85,18 @@ const Login: React.FC = () => {
         client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID,
         callback: handleGoogleSignIn,
         auto_select: false,
-        cancel_on_tap_outside: true
+        cancel_on_tap_outside: true,
+        ux_mode: 'popup'
       });
+
+      if (googleButtonRef.current) {
+        window.google.accounts.id.renderButton(googleButtonRef.current, {
+          type: 'standard',
+          theme: 'outline',
+          size: 'large',
+          width: googleButtonWrapperRef.current?.offsetWidth ?? 300
+        });
+      }
     }
   }, []);
 
@@ -117,6 +138,9 @@ const Login: React.FC = () => {
       if (backendResponse.data && backendResponse.data.idToken) {
         // Store the ID token for authentication
         secureStoreToken('authToken', backendResponse.data.idToken);
+        if (backendResponse.data.refreshToken) {
+          secureStoreToken('refreshToken', backendResponse.data.refreshToken);
+        }
         
         // Set the isAuthenticated cookie only in production
         if (import.meta.env.PROD) {
@@ -202,6 +226,9 @@ const Login: React.FC = () => {
       if (response.data && response.data.idToken) {
         // Store the auth token securely
         secureStoreToken('authToken', response.data.idToken);
+        if (response.data.refreshToken) {
+          secureStoreToken('refreshToken', response.data.refreshToken);
+        }
         
         // Set the isAuthenticated cookie only in production
         if (import.meta.env.PROD) {
@@ -319,14 +346,18 @@ const Login: React.FC = () => {
           </div>
 
           {/* Google Sign-In Button */}
-          <button 
-            className={styles['auth-button']}
-            onClick={() => window.google?.accounts?.id?.prompt()}
-            disabled={isLoading}
-          >
-            <img src={googleIcon} alt="Google" className={styles['button-icon']} />
-            Sign In with Google
-          </button>
+          <div ref={googleButtonWrapperRef} className={styles['google-button-wrapper']}>
+            <div ref={googleButtonRef} className={styles['google-button-overlay']} />
+            <button
+              className={styles['auth-button']}
+              disabled={isLoading}
+              tabIndex={-1}
+              aria-hidden="true"
+            >
+              <img src={googleIcon} alt="Google" className={styles['button-icon']} />
+              Sign In with Google
+            </button>
+          </div>
 
           {/* Sign Up Section */}
           <div className={styles['signup-section']}>

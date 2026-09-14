@@ -6,7 +6,7 @@ Login lets an existing user sign in with email/password (POST to the backend, wh
 
 - `login-invalid` shows a user-friendly error for bad credentials without navigating away.
 - `login-success` (requires a seeded test account — see `signup-settings-lifecycle.md`) stores the token and redirects to `/settings`.
-- `login-google-entry` renders the Google sign-in button and wires it to the Google Identity prompt.
+- `login-google-entry` renders the styled Google sign-in button with Google's real GIS button overlaid on top (transparent), so clicking it opens Google's hosted OAuth popup window (`accounts.google.com`, `ux_mode: 'popup'`) rather than the docked One Tap chooser.
 - `login-forgot-password` links to `/forgot-password`.
 
 ## How to get to it (user POV)
@@ -29,6 +29,6 @@ Preconditions:
 
 ## Gotchas
 
-- The Google sign-in button calls `window.google.accounts.id.prompt()`, which opens Google's real hosted UI (iframe/popup) and requires a real Google account — don't attempt to drive this end-to-end with browser automation; verifying the button renders and is wired (via `read_page`, not a click) is sufficient proof for this entry point.
+- The visible "Sign In with Google" button is a decoy — the real click target is Google's own `renderButton()` output, absolutely positioned on top with `opacity: 0` (`.google-button-overlay` in `Login.module.css`). Clicking it opens `accounts.google.com`'s real hosted OAuth consent screen as a genuine small popup *window* (not a docked bubble) and requires a real Google account — don't attempt to drive this end-to-end with browser automation; verifying the overlay renders inside `.google-button-wrapper` (via `read_page`, not a click) is sufficient proof for this entry point.
 - The password field toggles type between `password` and `text` via an eye icon (`alt="toggle password visibility"`) — if you need to confirm the value was typed correctly, click the toggle before reading rather than relying on the masked value.
 - A successful login also calls `chrome.runtime.sendMessage` to talk to the (separate-repo) browser extension. In a plain Chrome tab with no real extension installed this call throws, but the code treats it as non-fatal — a console error here is expected and is not itself a failure.
