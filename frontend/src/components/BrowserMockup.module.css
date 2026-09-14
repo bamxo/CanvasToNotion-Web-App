@@ -67,7 +67,7 @@
 .browserMockup {
   background: rgba(30, 30, 35, 0.95);
   border-radius: 16px;
-  box-shadow: 
+  box-shadow:
     0 20px 40px rgba(0, 0, 0, 0.4),
     0 0 100px rgba(239, 82, 35, 0.1);
   width: 100%;
@@ -113,6 +113,8 @@
 .browserContent {
   height: calc(100% - 48px);
   background: rgba(30, 30, 30, 0.9);
+  position: relative;
+  overflow: visible;
 }
 
 /* Animation classes */
@@ -137,447 +139,7 @@
   transform: translateX(0);
 }
 
-@media (max-width: 1200px) {
-  .mockupContent {
-    gap: 2rem;
-  }
-  
-  .mockupText h2 {
-    font-size: 2.4rem;
-  }
-
-  .extensionOverlay {
-    width: 260px;
-  }
-  
-  .browserMockup {
-    height: 420px;
-  }
-}
-
-@media (max-width: 992px) {
-  .mockupContent {
-    grid-template-columns: 1fr;
-    text-align: center;
-  }
-  
-  .mockupText {
-    padding-right: 0;
-  }
-  
-  .featureItem {
-    justify-content: center;
-  }
-  
-  .browserMockup {
-    margin: 0 auto;
-    transform: perspective(1500px) rotateY(-15deg) rotateX(5deg) scale(0.9);
-    height: 450px;
-  }
-
-  .extensionOverlay {
-    width: 240px;
-    top: 10px;
-    right: 10px;
-  }
-
-  .extensionDashboard {
-    transform: scale(0.85);
-  }
-  
-  /* Fix alignment in user details */
-  .extensionUserInfo {
-    align-items: flex-start;
-  }
-  
-  .extensionUserDetails {
-    align-items: flex-start;
-  }
-  
-  .extensionUserDetails h3, 
-  .extensionUserDetails p {
-    text-align: left;
-  }
-  
-  /* Fix alignment in sync item details */
-  .syncItemDetails {
-    text-align: left;
-  }
-  
-  .syncItemDetails h5,
-  .syncItemDetails p {
-    text-align: left;
-  }
-  
-  /* Scale down Canvas dashboard content */
-  .canvasMain {
-    padding: 12px;
-  }
-  
-  .courseCardHeader {
-    height: 70px;
-  }
-}
-
-@media (max-width: 768px) {
-  .mockupSection {
-    padding: 4rem 2rem;
-  }
-  
-  .mockupText h2 {
-    font-size: 2rem;
-  }
-  
-  .featureItem p {
-    font-size: 1.1rem;
-  }
-  
-  .browserMockup {
-    height: 380px;
-    width: 95%;
-    transform: perspective(1500px) rotateY(-10deg) rotateX(3deg) scale(0.85);
-  }
-
-  .extensionOverlay {
-    width: 220px;
-    position: absolute;
-    top: 5px;
-    right: 5px;
-  }
-
-  .extensionDashboard {
-    transform: scale(0.8);
-  }
-
-  .notionIcon, .warningIcon, .fileIcon, .quizIcon {
-    font-size: 0.9rem;
-  }
-
-  .notionSection h3, .syncWarning h4 {
-    font-size: 0.75rem;
-  }
-
-  .assignmentEmojiTitle h4, .syncItemDetails h5 {
-    font-size: 0.7rem;
-  }
-
-  .changePageButton {
-    padding: 3px 8px;
-    font-size: 0.65rem;
-  }
-
-  .extensionContent {
-    padding: 10px;
-    gap: 10px;
-  }
-
-  .notionSection, .syncSection {
-    padding: 8px;
-  }
-
-  .courseGrid {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 10px;
-    margin-bottom: 15px;
-  }
-  
-  .courseCardBody {
-    padding: 10px;
-  }
-  
-  .courseCardBody h3 {
-    font-size: 0.9rem;
-  }
-  
-  .todoSection {
-    margin-top: auto;
-  }
-
-  /* Maintain left alignment for sync items */
-  .syncItemDetails,
-  .syncItemDetails h5,
-  .syncItemDetails p,
-  .syncItemInfo {
-    text-align: left;
-  }
-}
-
-@media (max-width: 576px) {
-  .mockupText h2 {
-    font-size: 1.8rem;
-  }
-  
-  .featureItem p {
-    font-size: 1rem;
-  }
-  
-  .browserMockup {
-    height: 360px;
-    width: 100%;
-    transform: perspective(1200px) rotateY(-8deg) rotateX(2deg) scale(0.8);
-  }
-
-  .extensionOverlay {
-    width: 200px;
-    top: 5px;
-    right: 5px;
-  }
-
-  .extensionDashboard {
-    transform: scale(0.75);
-  }
-
-  .extensionHeader {
-    padding: 8px;
-  }
-
-  .extensionAvatar {
-    width: 30px;
-    height: 30px;
-  }
-
-  .extensionButton {
-    width: 24px;
-    height: 24px;
-    font-size: 0.7rem;
-  }
-
-  .syncAllButton {
-    padding: 6px;
-    font-size: 0.7rem;
-  }
-
-  .courseGrid {
-    grid-template-columns: 1fr;
-    gap: 8px;
-    margin-bottom: 12px;
-  }
-
-  .canvasSidebar {
-    width: 45px;
-  }
-
-  .sidebarItem {
-    width: 30px;
-    height: 30px;
-    font-size: 0.9rem;
-    margin-bottom: 8px;
-  }
-  
-  .canvasHeader {
-    margin-bottom: 10px;
-  }
-  
-  .canvasHeader h2 {
-    font-size: 1.1rem;
-  }
-  
-  /* Make Canvas fit better in the mockup */
-  .canvasDashboard {
-    display: flex;
-    height: 100%;
-    font-size: 0.9rem;
-  }
-  
-  .canvasMain {
-    padding: 8px;
-    display: flex;
-    flex-direction: column;
-  }
-  
-  .todoHeader {
-    padding: 8px 10px;
-  }
-  
-  .todoItems {
-    padding: 4px 0;
-  }
-  
-  .todoItem {
-    padding: 8px 10px;
-  }
-
-  /* Enforce left alignment */
-  .syncItemDetails,
-  .syncItemDetails h5,
-  .syncItemDetails p,
-  .syncItemInfo,
-  .syncItemDue,
-  .syncItemPoints {
-    text-align: left;
-  }
-}
-
-@media (max-width: 480px) {
-  .mockupSection {
-    padding: 3rem 1rem;
-  }
-  
-  .mockupText h2 {
-    font-size: 1.6rem;
-  }
-  
-  .featureItem p {
-    font-size: 0.9rem;
-  }
-  
-  .browserMockup {
-    height: 420px;
-    transform: perspective(1000px) rotateY(-5deg) rotateX(2deg) scale(0.7);
-  }
-
-  .extensionOverlay {
-    width: 180px;
-    top: 5px;
-    right: 5px;
-    max-height: 70%;
-  }
-
-  .extensionDashboard {
-    transform: scale(0.65);
-    transform-origin: top right;
-  }
-
-  .canvasHeader h2 {
-    font-size: 1rem;
-  }
-
-  .canvasMain {
-    padding: 6px;
-    height: calc(100% - 36px);
-    display: flex;
-    flex-direction: column;
-  }
-
-  .courseCardBody h3 {
-    font-size: 0.85rem;
-  }
-  
-  .courseCardBody p {
-    font-size: 0.75rem;
-  }
-  
-  .courseCardHeader {
-    height: 60px;
-  }
-
-  .todoHeader h3 {
-    font-size: 0.85rem;
-  }
-
-  .todoText p {
-    font-size: 0.75rem;
-  }
-  
-  .todoText span {
-    font-size: 0.65rem;
-  }
-  
-  .todoCircle {
-    width: 14px;
-    height: 14px;
-    margin-top: 2px;
-  }
-  
-  /* Further compact the extension */
-  .extensionContent {
-    padding: 8px;
-    gap: 8px;
-  }
-  
-  .notionSection, .syncSection {
-    padding: 6px;
-  }
-  
-  .syncHeader {
-    padding: 8px;
-  }
-  
-  .syncItem {
-    padding: 8px;
-  }
-  
-  /* Reinforce left alignment */
-  .syncItemDetails,
-  .syncItemDetails h5,
-  .syncItemDetails p {
-    text-align: left !important;
-  }
-
-  /* Add more space between canvas items */
-  .courseGrid {
-    margin-bottom: 15px;
-  }
-  
-  .todoSection {
-    flex-grow: 1;
-    display: flex;
-    flex-direction: column;
-  }
-  
-  .todoItems {
-    flex-grow: 1;
-  }
-}
-
-@media (max-width: 400px) {
-  .browserMockup {
-    height: 400px;
-    transform: perspective(900px) rotateY(-3deg) rotateX(1deg) scale(0.65);
-  }
-  
-  .extensionOverlay {
-    width: 160px;
-    transform: scale(0.9);
-  }
-  
-  .extensionDashboard {
-    transform: scale(0.6);
-  }
-  
-  .extensionContent {
-    padding: 6px;
-    gap: 6px;
-  }
-  
-  .mockupContent {
-    gap: 1.5rem;
-  }
-  
-  .mockupSection {
-    padding: 2.5rem 0.75rem;
-  }
-  
-  .canvasSidebar {
-    width: 40px;
-  }
-  
-  .sidebarItem {
-    width: 28px;
-    height: 28px;
-    font-size: 0.8rem;
-    margin-bottom: 6px;
-  }
-  
-  /* Ensure to-do section has plenty of space */
-  .canvasMain {
-    display: flex;
-    flex-direction: column;
-    overflow-y: auto;
-  }
-  
-  .courseGrid {
-    flex-shrink: 0;
-  }
-  
-  .todoSection {
-    margin-top: 10px;
-    flex-grow: 1;
-    min-height: 180px;
-  }
-}
-
-/* Canvas Dashboard Mockup Styles */
+/* Canvas Dashboard Mockup Styles - fake webpage behind the extension popup */
 .canvasDashboard {
   display: flex;
   height: 100%;
@@ -793,7 +355,7 @@
   .courseGrid {
     grid-template-columns: 1fr 1fr;
   }
-  
+
   .todoItem {
     padding: 8px 12px;
   }
@@ -803,229 +365,214 @@
   .courseGrid {
     grid-template-columns: 1fr;
   }
-  
+
   .canvasSidebar {
     width: 50px;
   }
-  
+
   .sidebarItem {
     width: 35px;
     height: 35px;
     font-size: 1rem;
   }
-  
+
   .canvasHeader h2 {
     font-size: 1.2rem;
   }
 }
 
-/* Extension Dashboard Styles */
-.extensionOverlay {
+/* Extension popup mockup - styled to match the real Chrome extension popup UI
+   (see Settings.module.css / *PlanCard.module.css for the real design tokens:
+   flat rgba(255,255,255,0.05-0.1) surfaces, 8-12px radius, Poppins, #EA5C24 accent). */
+.popupOverlay {
   position: absolute;
-  top: 10px;
-  right: 10px;
-  width: 280px;
-  max-height: 80%;
+  top: -28px;
+  right: 16px;
   z-index: 10;
-}
-
-.extensionDashboard {
-  background-color: #1e1e1e;
-  border-radius: 10px;
-  overflow: hidden;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
-  color: #fff;
-  font-family: 'Inter', sans-serif;
-  transform: scale(0.9);
+  transform: scale(0.92);
   transform-origin: top right;
 }
 
-.extensionHeader {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 12px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-  background-color: #1a1a1a;
-}
-
-.extensionUserInfo {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.extensionAvatar {
-  width: 34px;
-  height: 34px;
-  background-color: #333;
-  border-radius: 8px;
-  position: relative;
-  overflow: hidden;
-}
-
-.extensionAvatar::before {
-  content: '';
-  position: absolute;
-  top: 6px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 16px;
-  height: 16px;
-  background-color: #555;
-  border-radius: 50%;
-}
-
-.extensionAvatar::after {
-  content: '';
-  position: absolute;
-  top: 26px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 24px;
-  height: 24px;
-  background-color: #555;
-  border-radius: 50%;
-}
-
-.extensionUserDetails {
-  display: flex;
-  flex-direction: column;
-}
-
-.extensionUserDetails h3 {
-  margin: 0;
-  font-size: 0.9rem;
-  font-weight: 500;
-}
-
-.extensionUserDetails p {
-  margin: 0;
-  font-size: 0.7rem;
-  color: rgba(255, 255, 255, 0.6);
-}
-
-.extensionActions {
-  display: flex;
-  gap: 6px;
-}
-
-.extensionButton {
-  width: 28px;
-  height: 28px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background-color: transparent;
-  border: none;
-  color: rgba(255, 255, 255, 0.7);
-  border-radius: 50%;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  font-size: 0.8rem;
-}
-
-.extensionButton:hover {
-  background-color: rgba(255, 255, 255, 0.1);
-  color: white;
-}
-
-.extensionContent {
-  padding: 12px;
+.popup {
+  width: 300px;
+  max-width: 100%;
+  background: #1a1a1a;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 14px;
   display: flex;
   flex-direction: column;
   gap: 12px;
+  font-family: 'Poppins', sans-serif;
+  color: #ffffff;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
 }
 
-.notionSection {
+.popupHeader {
   display: flex;
-  flex-direction: column;
-  gap: 10px;
-  padding: 10px;
-  background-color: #242424;
-  border-radius: 8px;
+  justify-content: space-between;
+  align-items: flex-start;
 }
 
-.notionHeader {
+.userInfo {
   display: flex;
   align-items: center;
   gap: 10px;
+  min-width: 0;
 }
 
-.notionIcon {
+.avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.08);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.2rem;
-  color: #EF5223;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 1.4rem;
+  flex-shrink: 0;
 }
 
-.notionFileIcon {
-  color: #EF5223;
-  font-size: 1.1rem;
+.userDetails {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  text-align: left;
 }
 
-.notionSection h3 {
+.userName {
   margin: 0;
-  font-size: 0.9rem;
-  font-weight: 500;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #ffffff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.assignmentSection {
-  padding-top: 8px;
-  border-top: 1px solid rgba(255, 255, 255, 0.05);
-  margin-top: 4px;
-}
-
-.assignmentHeader {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.assignmentEmojiTitle {
+.tierBadge {
   display: flex;
   align-items: center;
+  gap: 5px;
+  font-size: 0.68rem;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.tierDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #EA5C24;
+  flex-shrink: 0;
+}
+
+.headerActions {
+  display: flex;
   gap: 6px;
+  flex-shrink: 0;
 }
 
-.assignmentEmojiTitle span {
-  font-size: 1.2rem;
-}
-
-.assignmentEmojiTitle h4 {
-  margin: 0;
-  font-size: 0.8rem;
-  font-weight: 500;
-}
-
-.changePageButton {
-  background-color: transparent;
-  border: 1px solid #EF5223;
-  color: #EF5223;
-  border-radius: 6px;
-  padding: 4px 10px;
-  font-size: 0.7rem;
+.headerButton {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
   transition: all 0.2s ease;
+  font-size: 0.75rem;
+  padding: 0;
 }
 
-.changePageButton:hover {
-  background-color: rgba(239, 82, 35, 0.1);
+.headerButton:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
 }
 
-.syncSection {
-  background-color: #242424;
-  border-radius: 8px;
+.pageNav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.navBack {
+  font-size: 0.65rem;
+  color: rgba(255, 255, 255, 0.5);
+  flex-shrink: 0;
+}
+
+.navDots {
+  display: flex;
+  gap: 3px;
+  flex-shrink: 0;
+}
+
+.navDot {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.pageTitle {
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.85);
+  white-space: nowrap;
   overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.syncHeader {
+.classSelector {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.classIcon {
+  color: #EA5C24;
+  font-size: 0.8rem;
+  flex-shrink: 0;
+}
+
+.classLabel {
+  flex: 1;
+  text-align: left;
+}
+
+.classChevron {
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 0.7rem;
+  flex-shrink: 0;
+}
+
+.syncCard {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.syncCardHeader {
   display: flex;
   justify-content: space-between;
   align-items: center;
   padding: 10px 12px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .syncWarning {
@@ -1035,129 +582,280 @@
 }
 
 .warningIcon {
-  font-size: 0.9rem;
-  color: #EF5223;
+  color: #EA5C24;
+  font-size: 0.8rem;
 }
 
 .syncWarning h4 {
   margin: 0;
-  font-size: 0.8rem;
+  font-size: 0.78rem;
   font-weight: 500;
+  color: #ffffff;
 }
 
 .syncCount {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
 }
 
 .countBadge {
-  background-color: #EF5223;
-  color: white;
-  border-radius: 50%;
-  width: 20px;
+  background: rgba(0, 0, 0, 0.5);
+  color: #ffffff;
+  border-radius: 999px;
+  min-width: 20px;
   height: 20px;
+  padding: 0 6px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.7rem;
+  font-size: 0.68rem;
   font-weight: 600;
 }
 
 .clearButton {
-  background-color: transparent;
+  background: none;
   border: none;
-  color: rgba(255, 255, 255, 0.7);
-  font-size: 0.7rem;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 0.68rem;
   cursor: pointer;
   transition: color 0.2s ease;
-}
-
-.clearButton:hover {
-  color: white;
-}
-
-.syncItems {
   padding: 0;
 }
 
+.clearButton:hover {
+  color: #ffffff;
+}
+
+.syncList {
+  max-height: 150px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.syncList::-webkit-scrollbar {
+  width: 5px;
+}
+
+.syncList::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.syncList::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 4px;
+}
+
 .syncItem {
-  padding: 10px 12px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
   display: flex;
   gap: 10px;
-  position: relative;
+  padding: 9px 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  text-align: left;
 }
 
-.syncItem:hover {
-  background-color: rgba(255, 255, 255, 0.05);
-  cursor: pointer;
+.syncItem:last-child {
+  border-bottom: none;
 }
 
-.syncItemIcon {
+.syncItemIndicator {
+  width: 20px;
+  height: 20px;
+  border-radius: 5px;
+  background: rgba(234, 92, 36, 0.12);
+  border-left: 2px solid #EA5C24;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1rem;
-  color: #EF5223;
-}
-
-.fileIcon, .quizIcon {
-  color: #EF5223;
+  color: #EA5C24;
+  font-size: 0.7rem;
+  flex-shrink: 0;
+  margin-top: 1px;
 }
 
 .syncItemDetails {
   flex: 1;
+  min-width: 0;
+  text-align: left;
 }
 
 .syncItemDetails h5 {
-  margin: 0 0 3px 0;
-  font-size: 0.8rem;
-  font-weight: 500;
+  margin: 0 0 2px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #ffffff;
+  text-align: left;
 }
 
 .syncItemDetails p {
-  margin: 0 0 6px 0;
-  font-size: 0.7rem;
-  color: rgba(255, 255, 255, 0.6);
+  margin: 0 0 4px;
+  font-size: 0.68rem;
+  color: rgba(255, 255, 255, 0.5);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: left;
 }
 
 .syncItemInfo {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 0.65rem;
-  color: rgba(255, 255, 255, 0.7);
+  gap: 6px;
+  text-align: left;
 }
 
-.syncItemDue {
+.syncItemOverdue {
   display: flex;
   align-items: center;
   gap: 4px;
+  font-size: 0.65rem;
+  color: #FF6B4A;
+  white-space: nowrap;
 }
 
-.syncItemIndicator {
-  position: absolute;
-  top: 0;
-  right: 0;
-  width: 3px;
-  height: 100%;
-  background-color: #EF5223;
+.syncItemPoints {
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  padding: 2px 7px;
+  font-size: 0.62rem;
+  color: rgba(255, 255, 255, 0.7);
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .syncAllButton {
-  background-color: #EF5223;
-  color: white;
+  background: #EA5C24;
+  color: #ffffff;
   border: none;
-  border-radius: 6px;
-  padding: 8px;
+  border-radius: 8px;
+  padding: 10px;
   font-size: 0.8rem;
   font-weight: 500;
   cursor: pointer;
   transition: background-color 0.2s ease;
-  margin-top: 4px;
 }
 
 .syncAllButton:hover {
-  background-color: #d4461f;
-} 
+  background: #D14813;
+}
+
+@media (max-width: 1200px) {
+  .mockupContent {
+    gap: 2rem;
+  }
+
+  .mockupText h2 {
+    font-size: 2.4rem;
+  }
+
+  .browserMockup {
+    height: 420px;
+  }
+}
+
+@media (max-width: 992px) {
+  .mockupContent {
+    grid-template-columns: 1fr;
+    text-align: center;
+  }
+
+  .mockupText {
+    padding-right: 0;
+  }
+
+  .featureItem {
+    justify-content: center;
+  }
+
+  .browserMockup {
+    margin: 0 auto;
+    transform: perspective(1500px) rotateY(-15deg) rotateX(5deg) scale(0.9);
+    height: 450px;
+  }
+}
+
+@media (max-width: 768px) {
+  .mockupSection {
+    padding: 4rem 2rem;
+  }
+
+  .mockupText h2 {
+    font-size: 2rem;
+  }
+
+  .featureItem p {
+    font-size: 1.1rem;
+  }
+
+  .browserMockup {
+    height: 380px;
+    width: 95%;
+    transform: perspective(1500px) rotateY(-10deg) rotateX(3deg) scale(0.85);
+  }
+}
+
+@media (max-width: 576px) {
+  .mockupText h2 {
+    font-size: 1.8rem;
+  }
+
+  .featureItem p {
+    font-size: 1rem;
+  }
+
+  .browserMockup {
+    height: 360px;
+    width: 100%;
+    transform: perspective(1200px) rotateY(-8deg) rotateX(2deg) scale(0.8);
+  }
+
+  .popup {
+    width: 260px;
+    padding: 12px;
+    gap: 10px;
+  }
+}
+
+@media (max-width: 480px) {
+  .mockupSection {
+    padding: 3rem 1rem;
+  }
+
+  .mockupText h2 {
+    font-size: 1.6rem;
+  }
+
+  .featureItem p {
+    font-size: 0.9rem;
+  }
+
+  .browserMockup {
+    height: 420px;
+    transform: perspective(1000px) rotateY(-5deg) rotateX(2deg) scale(0.7);
+  }
+
+  .popup {
+    width: 240px;
+  }
+}
+
+@media (max-width: 400px) {
+  .browserMockup {
+    height: 400px;
+    transform: perspective(900px) rotateY(-3deg) rotateX(1deg) scale(0.65);
+  }
+
+  .mockupContent {
+    gap: 1.5rem;
+  }
+
+  .mockupSection {
+    padding: 2.5rem 0.75rem;
+  }
+
+  .popup {
+    width: 220px;
+  }
+}

@@ -55,7 +55,7 @@ describe('FAQ Component', () => {
       expect(expandedItemsAfterClick.length).toBe(1);
       
       // Verify the answer is visible by checking for the paragraph element within the answer div
-      const answerElement = within(firstFaqItem).getByText(/Yes! Canvas to Notion is completely free to use/i);
+      const answerElement = within(firstFaqItem).getByText(/Canvas to Notion has a free plan/i);
       expect(answerElement).toBeVisible();
     }
   });

@@ -17,8 +17,8 @@ vi.mock('../components/BrowserMockup', () => ({
   default: () => <div data-testid="browser-mockup">BrowserMockup Component</div>,
 }));
 
-vi.mock('../components/Features', () => ({
-  default: () => <div data-testid="features">Features Component</div>,
+vi.mock('../components/Pricing', () => ({
+  default: () => <div data-testid="pricing">Pricing Component</div>,
 }));
 
 vi.mock('../components/FAQ', () => ({
@@ -104,7 +104,7 @@ describe('LandingPage', () => {
     expect(screen.getByTestId('navbar')).toBeInTheDocument();
     expect(screen.getByTestId('hero')).toBeInTheDocument();
     expect(screen.getByTestId('browser-mockup')).toBeInTheDocument();
-    expect(screen.getByTestId('features')).toBeInTheDocument();
+    expect(screen.getByTestId('pricing')).toBeInTheDocument();
     expect(screen.getByTestId('faq')).toBeInTheDocument();
     expect(screen.getByTestId('final-cta')).toBeInTheDocument();
     expect(screen.getByTestId('footer')).toBeInTheDocument();
