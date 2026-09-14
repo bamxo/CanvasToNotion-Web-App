@@ -59,3 +59,6 @@ database-debug.log*
 
 # Netlify
 .netlify/
+
+# Claude Code skills
+.claude/skills/ui-ux-pro-max/

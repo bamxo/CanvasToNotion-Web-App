@@ -8,10 +8,10 @@ describe('LegacyPlanCard', () => {
   it('renders the legacy badges, heading and description', () => {
     render(<LegacyPlanCard memberSince="2024-01-15T00:00:00.000Z" />);
     expect(screen.getByText('Legacy (Active)')).toBeInTheDocument();
-    expect(screen.getByText('Free for Life')).toBeInTheDocument();
+    expect(screen.getByText('Free')).toBeInTheDocument();
     expect(screen.getByText('Legacy Account')).toBeInTheDocument();
     expect(
-      screen.getByText(/full access to everything, free, forever/i)
+      screen.getByText(/full access to everything\./i)
     ).toBeInTheDocument();
   });
 

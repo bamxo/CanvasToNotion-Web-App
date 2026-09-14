@@ -39,7 +39,7 @@ const FAQ: React.FC = () => {
   const faqs = [
     {
       question: "Is Canvas to Notion free to use?",
-      answer: "Yes! Canvas to Notion is completely free to use. All features are available to everyone—no hidden fees, no premium tiers. We run on donations to keep it that way, so every bit of support means the world."
+      answer: "Canvas to Notion has a free plan that includes up to 5 synced classes with real-time Canvas to Notion sync, no credit card required. If you need unlimited syncing, you can upgrade to Pro for $1/mo or grab Lifetime access for a one-time $10 payment. See the Pricing section above for full details."
     },
     {
       question: "How do I connect Notion and Canvas?",
