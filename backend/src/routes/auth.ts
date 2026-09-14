@@ -11,6 +11,7 @@ router.post('/login', authController.login);
 router.post('/forgot-password', authController.forgotPassword);
 router.post('/reset-password', authController.resetPassword);
 router.post('/google', authController.googleAuth);
+router.post('/refresh', authController.refreshIdToken);
 router.post('/delete-account', authController.deleteAccount);
 router.post('/refresh-extension-token', verifyToken, authController.refreshExtensionToken);
 router.post('/logout', authController.logout);

@@ -212,6 +212,7 @@ const Settings: React.FC = () => {
   useEffect(() => {
     if (!isAuthenticated) {
       secureRemoveToken('authToken');
+      secureRemoveToken('refreshToken');
       navigate('/login');
       return;
     }
@@ -219,6 +220,7 @@ const Settings: React.FC = () => {
     const err = userInfoQuery.error;
     if (axios.isAxiosError(err) && (err.response?.status === 401 || err.response?.status === 403)) {
       secureRemoveToken('authToken');
+      secureRemoveToken('refreshToken');
       navigate('/login');
     }
   }, [isAuthenticated, userInfoQuery.error, navigate]);
@@ -251,6 +253,7 @@ const Settings: React.FC = () => {
       
       // Clear local storage and navigate
       secureRemoveToken('authToken');
+      secureRemoveToken('refreshToken');
       localStorage.removeItem('extensionId'); // Also remove the extension ID
       navigate('/login');
     } catch (error) {
@@ -287,6 +290,7 @@ const Settings: React.FC = () => {
 
       // Clear local storage
       secureRemoveToken('authToken');
+      secureRemoveToken('refreshToken');
       localStorage.removeItem('extensionId'); // Also remove the extension ID
 
       // Redirect to login page

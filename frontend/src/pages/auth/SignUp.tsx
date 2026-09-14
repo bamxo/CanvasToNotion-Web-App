@@ -97,7 +97,10 @@ const SignUp: React.FC = () => {
           // Store the auth token
           if (loginResponse.data) {
             secureStoreToken('authToken', loginResponse.data.idToken);
-            
+            if (loginResponse.data.refreshToken) {
+              secureStoreToken('refreshToken', loginResponse.data.refreshToken);
+            }
+
             // Set the isAuthenticated cookie only in production
             if (import.meta.env.PROD) {
               await axios.post(

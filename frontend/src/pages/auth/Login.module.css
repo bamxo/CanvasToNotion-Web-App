@@ -167,6 +167,19 @@
   background-color: #CCCCCC;
 }
 
+.google-button-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+.google-button-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  overflow: hidden;
+  opacity: 0;
+}
+
 .button-icon {
   width: 20px;
   height: 20px;

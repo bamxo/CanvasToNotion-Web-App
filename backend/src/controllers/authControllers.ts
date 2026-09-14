@@ -550,6 +550,8 @@ export const googleAuth = async (req: Request, res: Response): Promise<void> => 
 
     res.status(200).json({
       idToken: response.data.idToken,
+      refreshToken: response.data.refreshToken,
+      expiresIn: response.data.expiresIn,
       customToken,
       ...(requestExtensionToken ? { extensionToken: customToken } : {}),
       email: payload.email,
@@ -626,6 +628,44 @@ export const refreshExtensionToken = async (
   } catch (error) {
     console.error('Failed to refresh extension token:', error);
     res.status(500).json({ error: 'Failed to refresh extension token' });
+  }
+};
+
+export const refreshIdToken = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { refreshToken } = req.body;
+
+    if (!refreshToken) {
+      res.status(400).json({ error: 'Refresh token is required' });
+      return;
+    }
+
+    const response = await axios.post(
+      `https://securetoken.googleapis.com/v1/token?key=${firebaseConfig.apiKey}`,
+      new URLSearchParams({
+        grant_type: 'refresh_token',
+        refresh_token: refreshToken
+      }).toString(),
+      { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }
+    );
+
+    setAuthCookie(res, response.data.id_token);
+
+    res.status(200).json({
+      idToken: response.data.id_token,
+      refreshToken: response.data.refresh_token,
+      expiresIn: response.data.expires_in
+    });
+  } catch (error) {
+    let statusCode = 401;
+    let errorMessage = 'Failed to refresh token';
+
+    if (axios.isAxiosError(error) && error.response) {
+      statusCode = error.response.status;
+      errorMessage = error.response.data?.error?.message || errorMessage;
+    }
+
+    res.status(statusCode).json({ error: errorMessage });
   }
 };
 
