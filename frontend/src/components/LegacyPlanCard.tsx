@@ -41,12 +41,12 @@ const LegacyPlanCard: React.FC<LegacyPlanCardProps> = ({ memberSince }) => {
             </span>
             <span className={`${styles.badge} ${styles.badgeFree}`}>
               <span className={styles.dot} />
-              Free for Life
+              Free
             </span>
           </div>
           <h3 className={styles.heading}>Legacy Account</h3>
           <p className={styles.description}>
-            Full access to everything, free, forever.
+            Full access to everything.
           </p>
         </div>
 
@@ -73,7 +73,7 @@ const LegacyPlanCard: React.FC<LegacyPlanCardProps> = ({ memberSince }) => {
         </div>
 
         <p className={styles.footnote}>
-          Honoring early supporter status. Zero recurring fees and unlimited synchronizations for life.
+          Honoring early supporter status. Zero recurring fees and unlimited synchronizations.
         </p>
       </div>
     </div>
