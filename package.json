@@ -13,9 +13,8 @@
     "preview": "vite preview",
     "test:frontend": "cd frontend && npm test",
     "test:backend": "cd backend && npm test",
-    "test:e2e": "cd e2e && npm test",
     "prepare": "npm run install:all",
-    "install:all": "concurrently \"cd frontend && npm install\" \"cd backend && npm install\" \"cd e2e && npm install\""
+    "install:all": "concurrently \"cd frontend && npm install\" \"cd backend && npm install\""
   },
   "dependencies": {
     "@notionhq/client": "^2.3.0",
@@ -52,8 +51,10 @@
     "@vitest/ui": "^3.1.1",
     "autoprefixer": "^10.4.21",
     "eslint": "^9.21.0",
+    "eslint-plugin-react-compiler": "^19.1.0-rc.2",
     "eslint-plugin-react-hooks": "^5.1.0",
     "eslint-plugin-react-refresh": "^0.4.19",
+    "eslint-plugin-react-you-might-not-need-an-effect": "^1.0.2",
     "globals": "^15.15.0",
     "happy-dom": "^17.4.4",
     "nodemon": "^3.1.10",

@@ -1,8 +1,8 @@
 // src/notion_api/notionRouter.ts
-import express, { Request, Response } from 'express';
+import express, { Response } from 'express';
 import type { DatabaseObjectResponse, PageObjectResponse } from "@notionhq/client/build/src/api-endpoints";
 import axios from 'axios';
-import { Client } from '@notionhq/client';
+import { Client, isNotionClientError } from '@notionhq/client';
 import { adminDb } from '../db';
 import { database } from 'firebase-admin';
 import { verifyToken } from '../middleware/auth';
@@ -12,12 +12,41 @@ import { partitionRequestedCourses } from './classSyncGuard';
 
 const router = express.Router();
 
+function errorMessage(err: unknown): string {
+  return err instanceof Error ? err.message : String(err);
+}
+
+interface NotionPageRef {
+  id: string;
+  type: string;
+  title: string;
+  icon: string | null;
+}
+
 interface UserData {
   accessToken?: string;
   workspaceId?: string;
-  pageIDs?: any[];
+  pageIDs?: NotionPageRef[];
   lastUpdated?: string;
   email?: string;
+}
+
+interface CanvasCourse {
+  id: string | number;
+  name: string;
+}
+
+interface CanvasAssignment {
+  id?: string | number;
+  courseId: string | number;
+  name: string;
+  html_url?: string;
+}
+
+interface SyncStatus {
+  status?: string;
+  error?: string;
+  results?: { newAssignmentsCreated?: number; skippedAssignments?: number };
 }
 
 // Helper function to get user data by email
@@ -69,7 +98,7 @@ const getUserEntryByEmail = async (
 };
 
 // Format a human-readable sync status message (ported from notion.ts)
-const formatSyncStatusMessage = (syncStatus: any): string => {
+const formatSyncStatusMessage = (syncStatus: SyncStatus | null | undefined): string => {
   if (!syncStatus) return 'No sync information available';
 
   switch (syncStatus.status) {
@@ -166,11 +195,11 @@ router.post('/token', async (req: AuthenticatedRequest, res: Response) => {
       updated,
       message: 'Notion token stored successfully'
     });
-  } catch (error: any) {
+  } catch (error) {
     console.error('Error exchanging Notion token:', error);
     res.status(500).json({
       success: false,
-      error: error.response?.data || error.message
+      error: axios.isAxiosError(error) ? (error.response?.data ?? error.message) : errorMessage(error)
     });
   }
 });
@@ -227,7 +256,7 @@ router.post('/sync', async (req: AuthenticatedRequest, res: Response) => {
     // Verify access to the specified parent page
     try {
       await notion.pages.retrieve({ page_id: pageId });
-    } catch (error) {
+    } catch {
       return res.status(403).json({
         success: false,
         error: `No access to parent page (${pageId}). Share it with your integration via Notion's page connections.`
@@ -364,7 +393,7 @@ router.post('/sync', async (req: AuthenticatedRequest, res: Response) => {
     }
 
     // Get existing assignment URLs to avoid duplicates
-    let notionAssignmentUrls = new Set<string>();
+    const notionAssignmentUrls = new Set<string>();
     
     if (assignmentsDbId) {
       const notionAssignments = await notion.databases.query({ database_id: assignmentsDbId });
@@ -441,7 +470,7 @@ router.post('/sync', async (req: AuthenticatedRequest, res: Response) => {
         });
         newAssignmentsCount++;
 
-      } catch (error) {
+      } catch {
         assignmentResults.push({
           assignment: assignment.name,
           success: false,
@@ -482,12 +511,12 @@ router.post('/sync', async (req: AuthenticatedRequest, res: Response) => {
       }
     });
 
-  } catch (error: any) {
+  } catch (error) {
     console.error('Sync error:', error);
     try {
       await syncStatusRef.set({
         status: 'error',
-        error: error.message,
+        error: errorMessage(error),
         errorAt: new Date().toISOString()
       });
     } catch (statusErr) {
@@ -495,9 +524,9 @@ router.post('/sync', async (req: AuthenticatedRequest, res: Response) => {
     }
     res.status(500).json({
       success: false,
-      error: error.code === 'object_not_found'
+      error: isNotionClientError(error) && error.code === 'object_not_found'
         ? 'Verify page sharing with your Notion integration'
-        : error.message
+        : errorMessage(error)
     });
   }
 });
@@ -526,11 +555,11 @@ router.get('/sync-status', async (req: AuthenticatedRequest, res: Response) => {
         message: formatSyncStatusMessage(syncStatus)
       }
     });
-  } catch (error: any) {
+  } catch (error) {
     console.error('Error fetching sync status:', error);
     res.status(500).json({
       success: false,
-      error: error instanceof Error ? error.message : 'Unknown error'
+      error: errorMessage(error)
     });
   }
 });
@@ -548,7 +577,7 @@ router.get('/pages', async (req: AuthenticatedRequest, res: Response) => {
     }
 
     const userKey = Object.keys(snapshot.val())[0];
-    const userData = Object.values(snapshot.val())[0] as any;
+    const userData = Object.values(snapshot.val())[0] as UserData;
     const accessToken = userData.accessToken;
 
     if (!accessToken) {
@@ -703,7 +732,11 @@ router.post('/compare', async (req: AuthenticatedRequest, res: Response) => {
     console.log('--- /compare endpoint called ---');
     console.log('Received payload:', JSON.stringify(req.body, null, 2));
 
-    const { pageId, courses, assignments } = req.body;
+    const { pageId, courses, assignments } = req.body as {
+      pageId: string;
+      courses: CanvasCourse[];
+      assignments: CanvasAssignment[];
+    };
     const email = req.user!.email; // Get email from authenticated user
 
     // Step 1: Validate input
@@ -737,12 +770,12 @@ router.post('/compare', async (req: AuthenticatedRequest, res: Response) => {
     if (!existingAssignmentsDb) {
       console.log('Assignments database not found - returning all Canvas assignments');
       
-      const comparison: Record<string, { onlyInCanvas: any[] }> = {};
+      const comparison: Record<string, { onlyInCanvas: CanvasAssignment[] }> = {};
       
       for (const course of courses) {
-        const canvasAssignments = assignments.filter((a: any) => a.courseId === course.id);
-        comparison[course.name] = { 
-          onlyInCanvas: assignments.filter((a: any) => a.courseId === course.id)
+        const canvasAssignments = assignments.filter((a) => a.courseId === course.id);
+        comparison[course.name] = {
+          onlyInCanvas: canvasAssignments
         };
       }
       
@@ -779,20 +812,20 @@ router.post('/compare', async (req: AuthenticatedRequest, res: Response) => {
     console.log('Debug - First few Notion URLs:', Array.from(notionUrls).slice(0, 3));
 
     // Step 5: Find Canvas assignments that need to be synced to Notion
-    const comparison: Record<string, { onlyInCanvas: any[] }> = {};
+    const comparison: Record<string, { onlyInCanvas: CanvasAssignment[] }> = {};
 
     for (const course of courses) {
       console.log(`Step 5: Processing course "${course.name}" (ID: ${course.id})`);
       
       // All Canvas assignments for this course
-      const canvasAssignments = assignments.filter((a: any) => a.courseId === course.id);
+      const canvasAssignments = assignments.filter((a) => a.courseId === course.id);
       console.log(`Canvas assignments for "${course.name}":`, canvasAssignments.length);
 
       // Find Canvas assignments not present in Notion (by URL)
       const onlyInCanvas = canvasAssignments.filter(
-        (a: any) => {
+        (a) => {
           const canvasUrl = a.html_url?.trim();
-          const isInNotion = notionUrls.has(canvasUrl);
+          const isInNotion = notionUrls.has(canvasUrl ?? '');
           
           // Debug: Log first few comparisons
           if (canvasAssignments.indexOf(a) < 3) {
@@ -819,9 +852,9 @@ router.post('/compare', async (req: AuthenticatedRequest, res: Response) => {
       success: true,
       comparison
     });
-  } catch (error: any) {
+  } catch (error) {
     console.error('Compare endpoint error:', error);
-    res.status(500).json({ success: false, error: error.message });
+    res.status(500).json({ success: false, error: errorMessage(error) });
   }
 });
 
@@ -1075,7 +1108,7 @@ router.post('/sync-v2', async (req: AuthenticatedRequest, res: Response) => {
         assignmentsCreated++;
         // Add to set to avoid duplicates within the same chunk
         notionAssignmentUrls.add(canvasUrl);
-      } catch (error: any) {
+      } catch (error) {
         console.error(`Error creating assignment ${assignment.name}:`, error);
         errors.push(`Failed to create: ${assignment.name}`);
       }
@@ -1095,11 +1128,11 @@ router.post('/sync-v2', async (req: AuthenticatedRequest, res: Response) => {
         errors: errors.length > 0 ? errors : undefined
       }
     });
-  } catch (error: any) {
+  } catch (error) {
     console.error('Sync-v2 endpoint error:', error);
     return res.status(500).json({
       success: false,
-      error: error.message || 'Unknown error during sync'
+      error: errorMessage(error)
     });
   }
 });

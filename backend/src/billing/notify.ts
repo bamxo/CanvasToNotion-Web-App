@@ -34,7 +34,7 @@ export async function getRecipientEmail(uid: string): Promise<string | null> {
     const record = await admin.auth().getUser(uid);
     return record.email ?? null;
   } catch (err) {
-    console.warn(`[billing] getRecipientEmail: could not resolve email for ${uid}:`, (err as any)?.message);
+    console.warn(`[billing] getRecipientEmail: could not resolve email for ${uid}:`, (err as Error)?.message);
     return null;
   }
 }

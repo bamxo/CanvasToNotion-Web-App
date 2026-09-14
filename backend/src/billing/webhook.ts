@@ -19,6 +19,21 @@ import {
   sendLifetimeRefundEmail,
 } from '../utils/billingEmails';
 
+// Common shape read across every event type this handler resolves a uid from.
+// Deliberately narrower than a full Stripe object union so the helpers below
+// don't need to know which event they're being called from.
+interface StripeEventObjectLike {
+  customer?: string | { id: string } | null;
+  metadata?: Record<string, string> | null;
+  client_reference_id?: string | null;
+}
+
+// `current_period_end` lives on the Subscription object in older Stripe API
+// versions but was moved onto the subscription *items* in 2025-03-31.basil.
+// The type no longer declares it, but webhook payloads serialized at an older
+// account API version can still carry it.
+type StripeSubscriptionLegacy = Stripe.Subscription & { current_period_end?: number };
+
 const billingSettingsUrl = (): string => `${appBaseUrl()}/settings`;
 
 /**
@@ -35,12 +50,12 @@ async function notifyUser(uid: string, send: (to: string) => Promise<void>): Pro
     }
     await send(to);
   } catch (err) {
-    console.error(`[billing] billing notification failed for ${uid}:`, (err as any)?.message);
+    console.error(`[billing] billing notification failed for ${uid}:`, (err as Error)?.message);
   }
 }
 
-function customerIdOf(object: any): string | undefined {
-  const c = object?.customer;
+function customerIdOf(object: StripeEventObjectLike): string | undefined {
+  const c = object.customer;
   return typeof c === 'string' ? c : c?.id;
 }
 
@@ -50,10 +65,10 @@ function customerIdOf(object: any): string | undefined {
 // `sub.current_period_end` can be undefined even when a fresh SDK retrieve (which
 // uses our pinned STRIPE_API_VERSION) still returns it. Check both, and return
 // null only when neither is present.
-function periodEndOf(sub: any): number | null {
-  const fromSub = sub?.current_period_end;
+function periodEndOf(sub: StripeSubscriptionLegacy): number | null {
+  const fromSub = sub.current_period_end;
   if (typeof fromSub === 'number') return fromSub;
-  const fromItem = sub?.items?.data?.[0]?.current_period_end;
+  const fromItem = sub.items?.data?.[0]?.current_period_end;
   if (typeof fromItem === 'number') return fromItem;
   return null;
 }
@@ -62,32 +77,32 @@ function periodEndOf(sub: any): number | null {
 // `cancel_at_period_end` boolean, or `cancel_at` set to a timestamp (which is
 // what the Stripe customer portal's "cancel at end of period" now does). Treat
 // either as "ending".
-function isSubscriptionEnding(sub: any): boolean {
-  return Boolean(sub?.cancel_at_period_end) || typeof sub?.cancel_at === 'number';
+function isSubscriptionEnding(sub: Stripe.Subscription): boolean {
+  return Boolean(sub.cancel_at_period_end) || typeof sub.cancel_at === 'number';
 }
 
 // When ending via `cancel_at`, that timestamp is the real end date; otherwise the
 // period end is when access lapses.
-function accessEndsAt(sub: any): number | null {
-  if (typeof sub?.cancel_at === 'number') return sub.cancel_at;
+function accessEndsAt(sub: StripeSubscriptionLegacy): number | null {
+  if (typeof sub.cancel_at === 'number') return sub.cancel_at;
   return periodEndOf(sub);
 }
 
-async function resolveUid(object: any): Promise<string | null> {
+async function resolveUid(object: StripeEventObjectLike): Promise<string | null> {
   // TRUST NOTE: metadata.firebaseUID and client_reference_id are trusted ONLY
   // because every Checkout Session in this integration is created server-side
   // (billingController.checkout) from an authenticated req.user.uid, and events
   // are Stripe-signature-verified. If Stripe Payment Links are ever enabled,
   // client_reference_id becomes attacker-settable via a URL param and MUST be
   // dropped from this resolution chain.
-  const fromMeta = object?.metadata?.firebaseUID || object?.client_reference_id;
+  const fromMeta = object.metadata?.firebaseUID || object.client_reference_id;
   if (fromMeta) return String(fromMeta);
   const customerId = customerIdOf(object);
   if (customerId) return uidForCustomer(customerId);
   return null;
 }
 
-async function onCheckoutCompleted(session: any, uid: string): Promise<void> {
+async function onCheckoutCompleted(session: Stripe.Checkout.Session, uid: string): Promise<void> {
   if (session.mode === 'subscription') {
     const sub = await getStripe().subscriptions.retrieve(String(session.subscription));
     await setTier(uid, 'pro');
@@ -97,10 +112,10 @@ async function onCheckoutCompleted(session: any, uid: string): Promise<void> {
       currentPeriodEnd: accessEndsAt(sub),
       cancelAtPeriodEnd: isSubscriptionEnding(sub),
     });
-    const price = (sub as any)?.items?.data?.[0]?.price;
+    const price = sub.items?.data?.[0]?.price;
     await notifyUser(uid, (to) =>
       sendProUpgradeEmail(to, {
-        amount: formatUsd(price?.unit_amount),
+        amount: formatUsd(price?.unit_amount ?? undefined),
         interval: price?.recurring?.interval ?? null,
         nextBillingDate: formatDate(accessEndsAt(sub)),
         manageUrl: billingSettingsUrl(),
@@ -134,7 +149,7 @@ async function onCheckoutCompleted(session: any, uid: string): Promise<void> {
     await notifyUser(uid, (to) =>
       sendLifetimePurchaseEmail(to, {
         amount: formatUsd(
-          typeof session.amount_total === 'number' ? session.amount_total : session.amount_subtotal
+          typeof session.amount_total === 'number' ? session.amount_total : session.amount_subtotal ?? undefined
         ),
         refundEligibleUntil: formatDate(lifetimeRefundEligibleUntil),
         manageUrl: billingSettingsUrl(),
@@ -152,7 +167,7 @@ async function onCheckoutCompleted(session: any, uid: string): Promise<void> {
         await getStripe().subscriptions.update(subId, { cancel_at_period_end: true });
         await patchBilling(uid, { cancelAtPeriodEnd: true });
       } catch (err) {
-        console.warn(`[billing] failed to schedule cancellation of ${subId} after lifetime purchase for ${uid}:`, (err as any)?.message);
+        console.warn(`[billing] failed to schedule cancellation of ${subId} after lifetime purchase for ${uid}:`, (err as Error)?.message);
       }
     }
   }
@@ -180,7 +195,7 @@ export async function revertLifetimeAccess(uid: string): Promise<void> {
         return;
       }
     } catch (err) {
-      console.warn(`[billing] revertLifetimeAccess: could not check subscription ${subId} for ${uid}:`, (err as any)?.message);
+      console.warn(`[billing] revertLifetimeAccess: could not check subscription ${subId} for ${uid}:`, (err as Error)?.message);
     }
   }
   await setTier(uid, 'free');
@@ -194,7 +209,7 @@ export async function revertLifetimeAccess(uid: string): Promise<void> {
 }
 
 async function onSubscriptionUpdated(
-  sub: any,
+  sub: Stripe.Subscription,
   uid: string,
   currentTier?: string,
   prevCancelAtPeriodEnd?: boolean | null
@@ -231,7 +246,7 @@ async function onSubscriptionUpdated(
   }
 }
 
-async function onSubscriptionDeleted(sub: any, uid: string, currentTier?: string): Promise<void> {
+async function onSubscriptionDeleted(_sub: Stripe.Subscription, uid: string, currentTier?: string): Promise<void> {
   await patchBilling(uid, { subscriptionStatus: 'canceled', stripeSubscriptionId: null });
   // Lifetime access outlives the (now cancelled) Pro subscription.
   if (currentTier === 'lifetime') return;
@@ -239,7 +254,7 @@ async function onSubscriptionDeleted(sub: any, uid: string, currentTier?: string
 }
 
 async function onInvoicePaymentFailed(
-  invoice: any,
+  _invoice: Stripe.Invoice,
   uid: string,
   prevBilling?: { subscriptionStatus?: string | null; currentPeriodEnd?: number | null }
 ): Promise<void> {
@@ -255,7 +270,7 @@ async function onInvoicePaymentFailed(
   );
 }
 
-async function onChargeRefunded(charge: any, uid: string): Promise<void> {
+async function onChargeRefunded(charge: Stripe.Charge, uid: string): Promise<void> {
   // Partial refunds (e.g. a goodwill credit) must NOT revoke access. Only a full
   // refund downgrades the user.
   if (typeof charge.amount === 'number' && typeof charge.amount_refunded === 'number'
@@ -292,7 +307,7 @@ async function onChargeRefunded(charge: any, uid: string): Promise<void> {
 export async function handleStripeEvent(event: Stripe.Event): Promise<void> {
   if (await isEventProcessed(event.id)) return;
 
-  const object = (event.data as any).object;
+  const object = event.data.object as StripeEventObjectLike;
   const uid = await resolveUid(object);
   if (!uid) {
     console.warn(`[billing] webhook ${event.type} ${event.id}: could not resolve uid`);
@@ -309,19 +324,19 @@ export async function handleStripeEvent(event: Stripe.Event): Promise<void> {
   if (user.tier !== 'legacy') {
     switch (event.type) {
       case 'checkout.session.completed':
-        await onCheckoutCompleted(object, uid);
+        await onCheckoutCompleted(event.data.object, uid);
         break;
       case 'customer.subscription.updated':
-        await onSubscriptionUpdated(object, uid, user.tier, user.billing?.cancelAtPeriodEnd);
+        await onSubscriptionUpdated(event.data.object, uid, user.tier, user.billing?.cancelAtPeriodEnd);
         break;
       case 'customer.subscription.deleted':
-        await onSubscriptionDeleted(object, uid, user.tier);
+        await onSubscriptionDeleted(event.data.object, uid, user.tier);
         break;
       case 'invoice.payment_failed':
-        await onInvoicePaymentFailed(object, uid, user.billing);
+        await onInvoicePaymentFailed(event.data.object, uid, user.billing);
         break;
       case 'charge.refunded':
-        await onChargeRefunded(object, uid);
+        await onChargeRefunded(event.data.object, uid);
         break;
       default:
         break; // unknown types are acked and marked processed

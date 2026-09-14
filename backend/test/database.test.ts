@@ -1,10 +1,10 @@
 import express from 'express';
 import request from 'supertest';
-import { describe, beforeEach, it, expect, vi, test} from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 
 // Mock the middleware and controller
 vi.mock('../src/middleware/auth', () => ({
-  verifyToken: (req: any, res: any, next: any) => {
+  verifyToken: (req: any, _res: any, next: any) => {
     req.user = { id: 'mock-user' };
     return next();
   }
