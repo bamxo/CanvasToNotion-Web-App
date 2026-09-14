@@ -1,7 +1,26 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, within } from '@testing-library/react';
+import { render, screen, within, fireEvent, cleanup } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
+import { BrowserRouter } from 'react-router-dom';
 import Pricing from '../components/Pricing';
+
+// Mock useNavigate so we can assert on it without needing real routing
+const mockNavigate = vi.fn();
+vi.mock('react-router-dom', async () => {
+  const actual = await vi.importActual('react-router-dom');
+  return {
+    ...actual,
+    useNavigate: () => mockNavigate,
+  };
+});
+
+const renderPricing = () => render(
+  <BrowserRouter>
+    <Pricing />
+  </BrowserRouter>
+);
+
+const originalOpen = window.open;
 
 // Create an interface for our mock
 interface IMockIntersectionObserver {
@@ -50,6 +69,8 @@ describe('Pricing Component', () => {
     // Mock IntersectionObserver
     global.IntersectionObserver = MockIntersectionObserver as unknown as typeof IntersectionObserver;
     global.mockIntersectionObserverInstance = null;
+    mockNavigate.mockClear();
+    window.open = vi.fn();
 
     // Mock setTimeout
     vi.useFakeTimers();
@@ -57,19 +78,21 @@ describe('Pricing Component', () => {
 
   afterEach(() => {
     // Cleanup
+    cleanup();
     vi.clearAllMocks();
     vi.restoreAllMocks();
     vi.useRealTimers();
     global.mockIntersectionObserverInstance = null;
+    window.open = originalOpen;
   });
 
   it('renders the component with the correct title', () => {
-    render(<Pricing />);
+    renderPricing();
     expect(screen.getByText('Pricing')).toBeInTheDocument();
   });
 
   it('renders all pricing tiers with correct content', () => {
-    const { container } = render(<Pricing />);
+    const { container } = renderPricing();
 
     // Get the pricing grid container
     const pricingGrid = container.querySelector('[class*="pricingGrid"]');
@@ -95,7 +118,7 @@ describe('Pricing Component', () => {
   });
 
   it('sets up an intersection observer that adds animation classes', () => {
-    render(<Pricing />);
+    renderPricing();
 
     // Check that the intersection observer was set up
     expect(global.mockIntersectionObserverInstance).not.toBeNull();
@@ -116,7 +139,7 @@ describe('Pricing Component', () => {
   });
 
   it('properly cleans up the observer on unmount', () => {
-    const { unmount } = render(<Pricing />);
+    const { unmount } = renderPricing();
 
     expect(global.mockIntersectionObserverInstance).not.toBeNull();
 
@@ -129,6 +152,37 @@ describe('Pricing Component', () => {
       // The useEffect cleanup should call disconnect
       expect(global.mockIntersectionObserverInstance.disconnect).toHaveBeenCalled();
     }
+  });
+
+  it('opens the Chrome Web Store when the Free tier CTA is clicked', () => {
+    renderPricing();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Start Free' }));
+
+    expect(window.open).toHaveBeenCalledWith(
+      'https://chromewebstore.google.com/detail/ngnhijamcbadkalghdpbnecgjlocnmke?utm_source=item-share-cb',
+      '_blank',
+      'noopener,noreferrer'
+    );
+    expect(mockNavigate).not.toHaveBeenCalled();
+  });
+
+  it('navigates to /settings when the Pro tier CTA is clicked', () => {
+    renderPricing();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Go Pro' }));
+
+    expect(mockNavigate).toHaveBeenCalledWith('/settings');
+    expect(window.open).not.toHaveBeenCalled();
+  });
+
+  it('navigates to /settings when the Lifetime tier CTA is clicked', () => {
+    renderPricing();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Claim Lifetime Access' }));
+
+    expect(mockNavigate).toHaveBeenCalledWith('/settings');
+    expect(window.open).not.toHaveBeenCalled();
   });
 });
 
