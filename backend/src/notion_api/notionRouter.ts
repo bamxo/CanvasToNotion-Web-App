@@ -9,6 +9,7 @@ import { verifyToken } from '../middleware/auth';
 import { AuthenticatedRequest } from '../types';
 import { recordSyncedCourses } from './classSyncStore';
 import { partitionRequestedCourses } from './classSyncGuard';
+import { resolveAssignmentPropertyKeys, resolveCoursePropertyKeys } from './assignmentSchema';
 
 const router = express.Router();
 
@@ -789,19 +790,23 @@ router.post('/compare', async (req: AuthenticatedRequest, res: Response) => {
     const assignmentsDbId = existingAssignmentsDb.id;
     console.log('Step 3: Found Assignments database:', assignmentsDbId);
 
+    // Resolve the *current* URL property name by type, not by hardcoded name,
+    // so comparison stays correct after a user renames that column.
+    const assignmentsDbSchema = await notion.databases.retrieve({ database_id: assignmentsDbId });
+    const assignmentProps = resolveAssignmentPropertyKeys(
+      assignmentsDbSchema.properties as Record<string, { type: string }>
+    );
+
     // Step 4: Get all assignment URLs from Notion
     const notionAssignments = await notion.databases.query({ database_id: assignmentsDbId });
     console.log('Step 4: Found', notionAssignments.results.length, 'assignments in Notion');
 
     const notionUrls = new Set<string>();
-    
+
     for (const assignment of notionAssignments.results) {
-      if ('properties' in assignment && 'URL' in assignment.properties) {
-        let url = '';
-        if ('url' in assignment.properties.URL && assignment.properties.URL.url) {
-          url = assignment.properties.URL.url.trim();
-        }
-        
+      const urlProp = 'properties' in assignment ? assignment.properties[assignmentProps.url] : undefined;
+      if (urlProp && 'url' in urlProp && urlProp.url) {
+        const url = urlProp.url.trim();
         if (url) {
           notionUrls.add(url);
         }
@@ -947,7 +952,7 @@ router.post('/sync-v2', async (req: AuthenticatedRequest, res: Response) => {
         title: [{ type: "text", text: { content: "Assignments" } }],
         properties: {
           Name: { title: {} },
-          DueDate: { date: {} },
+          'Due Date': { date: {} },
           Points: { number: {} },
           URL: { url: {} },
           Status: {
@@ -976,18 +981,26 @@ router.post('/sync-v2', async (req: AuthenticatedRequest, res: Response) => {
       });
     }
 
+    // Resolve the *current* property names for both databases by their
+    // underlying Notion property type, not by hardcoded name — this keeps
+    // sync working even after a user renames a column (e.g. "Due Date" -> "Deadline").
+    const coursesDbSchema = await notion.databases.retrieve({ database_id: coursesDbId! });
+    const courseProps = resolveCoursePropertyKeys(
+      coursesDbSchema.properties as Record<string, { type: string }>
+    );
+    const assignmentsDbSchema = await notion.databases.retrieve({ database_id: assignmentsDbId! });
+    const assignmentProps = resolveAssignmentPropertyKeys(
+      assignmentsDbSchema.properties as Record<string, { type: string }>
+    );
+
     // Get existing course names to avoid duplicates
     const existingCourseNames = new Set<string>();
     const existingCoursePages = await notion.databases.query({ database_id: coursesDbId! });
 
     for (const page of existingCoursePages.results) {
-      if (
-        'properties' in page &&
-        'Name' in page.properties &&
-        'title' in page.properties.Name &&
-        Array.isArray(page.properties.Name.title)
-      ) {
-        const titleText = page.properties.Name.title.map(t => t.plain_text).join('').trim();
+      const nameProp = 'properties' in page ? page.properties[courseProps.name] : undefined;
+      if (nameProp && 'title' in nameProp && Array.isArray(nameProp.title)) {
+        const titleText = nameProp.title.map(t => t.plain_text).join('').trim();
         if (titleText) {
           existingCourseNames.add(titleText);
         }
@@ -999,13 +1012,9 @@ router.post('/sync-v2', async (req: AuthenticatedRequest, res: Response) => {
 
     // First, populate from existing courses
     for (const page of existingCoursePages.results) {
-      if (
-        'properties' in page &&
-        'Name' in page.properties &&
-        'title' in page.properties.Name &&
-        Array.isArray(page.properties.Name.title)
-      ) {
-        const titleText = page.properties.Name.title.map(t => t.plain_text).join('').trim();
+      const nameProp = 'properties' in page ? page.properties[courseProps.name] : undefined;
+      if (nameProp && 'title' in nameProp && Array.isArray(nameProp.title)) {
+        const titleText = nameProp.title.map(t => t.plain_text).join('').trim();
         if (titleText) {
           coursePageIds.set(titleText, page.id);
         }
@@ -1032,7 +1041,7 @@ router.post('/sync-v2', async (req: AuthenticatedRequest, res: Response) => {
         const coursePage = await notion.pages.create({
           parent: { database_id: coursesDbId! },
           properties: {
-            Name: { title: [{ text: { content: course.name } }] }
+            [courseProps.name]: { title: [{ text: { content: course.name } }] }
           }
         });
         coursePageIds.set(course.name, coursePage.id);
@@ -1054,10 +1063,9 @@ router.post('/sync-v2', async (req: AuthenticatedRequest, res: Response) => {
     const notionAssignments = await notion.databases.query({ database_id: assignmentsDbId! });
 
     for (const assignment of notionAssignments.results) {
-      if ('properties' in assignment && 'URL' in assignment.properties) {
-        if ('url' in assignment.properties.URL && assignment.properties.URL.url) {
-          notionAssignmentUrls.add(assignment.properties.URL.url.trim());
-        }
+      const urlProp = 'properties' in assignment ? assignment.properties[assignmentProps.url] : undefined;
+      if (urlProp && 'url' in urlProp && urlProp.url) {
+        notionAssignmentUrls.add(urlProp.url.trim());
       }
     }
 
@@ -1096,12 +1104,12 @@ router.post('/sync-v2', async (req: AuthenticatedRequest, res: Response) => {
         await notion.pages.create({
           parent: { database_id: assignmentsDbId! },
           properties: {
-            Name: { title: [{ text: { content: assignment.name } }] },
-            DueDate: dueDate,
-            Points: { number: assignment.points_possible || 0 },
-            URL: { url: assignment.html_url },
-            Status: { select: { name: "Not Started" } },
-            Course: { relation: [{ id: coursePageId }] }
+            [assignmentProps.name]: { title: [{ text: { content: assignment.name } }] },
+            [assignmentProps.dueDate]: dueDate,
+            [assignmentProps.points]: { number: assignment.points_possible || 0 },
+            [assignmentProps.url]: { url: assignment.html_url },
+            [assignmentProps.status]: { select: { name: "Not Started" } },
+            [assignmentProps.course]: { relation: [{ id: coursePageId }] }
           }
         });
 
