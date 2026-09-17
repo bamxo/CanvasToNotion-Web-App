@@ -509,15 +509,19 @@ describe('Login Component', () => {
     expect(mockNavigate).toHaveBeenCalledWith('/forgot-password');
   });
 
-  it('opens Google OAuth popup when Google login button is clicked', () => {
-    // Mock Google accounts.id.prompt
-    const mockPrompt = vi.fn();
+  it('initializes Google Identity Services and renders the native Google button on mount', () => {
+    // The fallback "auth-button" is decorative (aria-hidden, no click handler) —
+    // the real sign-in affordance is Google's own button, rendered by the SDK
+    // into the overlay div via renderButton.
+    const mockInitialize = vi.fn();
+    const mockRenderButton = vi.fn();
     Object.defineProperty(window, 'google', {
       value: {
         accounts: {
           id: {
-            prompt: mockPrompt,
-            initialize: vi.fn()
+            prompt: vi.fn(),
+            initialize: mockInitialize,
+            renderButton: mockRenderButton
           }
         }
       },
@@ -525,15 +529,17 @@ describe('Login Component', () => {
     });
 
     const { container } = setup();
-    
-    // Find and click Google login button
-    const googleButton = container.querySelector('button[class*="auth-button"]') as HTMLElement;
-    expect(googleButton).toBeInTheDocument();
-    
-    fireEvent.click(googleButton);
-    
-    // Check if google.accounts.id.prompt was called
-    expect(mockPrompt).toHaveBeenCalled();
+
+    expect(mockInitialize).toHaveBeenCalledWith(expect.objectContaining({
+      callback: expect.any(Function)
+    }));
+
+    const overlay = container.querySelector('div[class*="google-button-overlay"]');
+    expect(mockRenderButton).toHaveBeenCalledWith(overlay, expect.objectContaining({
+      type: 'standard',
+      theme: 'outline',
+      size: 'large'
+    }));
   });
 
   it('handles Google authentication through callback', async () => {
@@ -551,13 +557,14 @@ describe('Login Component', () => {
         accounts: {
           id: {
             prompt: mockPrompt,
-            initialize: mockInitialize
+            initialize: mockInitialize,
+            renderButton: vi.fn()
           }
         }
       },
       writable: true
     });
-    
+
     // Ensure proper Chrome runtime mock
     const originalChrome = window.chrome;
     const mockSendMessageFn = vi.fn().mockResolvedValue({ success: true });

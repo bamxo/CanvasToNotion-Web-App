@@ -1,9 +1,9 @@
 # Cohort (formerly Canvas to Notion)
 
 Web app for Cohort: landing page, auth, billing (subscriptions + lifetime),
-and account settings for users of the Cohort browser extension. The
-extension itself lives in a separate repo — this repo is web-app only
-(frontend + backend), not the extension codebase.
+and account settings for users of the Cohort browser extension. This repo
+is the web-app codebase (frontend + backend); the extension has its own
+repo (see Rules below).
 
 Monorepo layout: `frontend/` (React 18 + TS + Vite + Tailwind), `backend/`
 (Express + TS, Firebase/Firestore, Stripe billing, Notion API).
@@ -17,7 +17,9 @@ Monorepo layout: `frontend/` (React 18 + TS + Vite + Tailwind), `backend/`
 
 ## Rules
 
-- This repo is web-app only. Never edit the extension repo.
+- Extension repo: `/Users/landonnguyen/Developer/c2n/CanvasToNotion-Extension`.
+  Editing it is fine; after any edit there, run `npm run build:extension:dev`
+  in that directory.
 - `tier` is always `free | pro | lifetime | legacy` — no separate flags.
 - Canvas identity = `school_domain__canvas_user_id`, never raw ID alone.
 - Free-tier synced classes can never be un-synced or swapped.
@@ -34,6 +36,8 @@ Monorepo layout: `frontend/` (React 18 + TS + Vite + Tailwind), `backend/`
   page under `.claude/skills/verify-cohort/features/` (see that skill's
   README for the format), then run `verify-cohort` on it before
   considering the task done.
+- After finishing a feature: build + test every part touched (`frontend/`,
+  `backend/`, extension repo) and fix any failures before calling it done.
 
 ## More
 
