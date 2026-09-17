@@ -10,6 +10,7 @@ import { AuthenticatedRequest } from '../types';
 import { recordSyncedCourses } from './classSyncStore';
 import { partitionRequestedCourses } from './classSyncGuard';
 import { resolveAssignmentPropertyKeys, resolveCoursePropertyKeys } from './assignmentSchema';
+import { resolveParentId } from './pageHierarchy';
 
 const router = express.Router();
 
@@ -22,6 +23,7 @@ interface NotionPageRef {
   type: string;
   title: string;
   icon: string | null;
+  parentId: string | null;
 }
 
 interface UserData {
@@ -647,11 +649,14 @@ router.get('/pages', async (req: AuthenticatedRequest, res: Response) => {
           }
         }
 
+        const parentId = 'parent' in item ? resolveParentId(item.parent) : null;
+
         return {
           id: item.id,
           type: item.object,
           title,
           icon,
+          parentId,
         };
       });
 
